@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>鸿蒙内存采样工具 · UI 原型 v3</title>
+<style>
+:root{
+  --primary:#1677ff; --primary-hover:#4096ff; --primary-bg:#e6f4ff; --primary-border:#91caff;
+  --text:rgba(0,0,0,.88); --text-2:rgba(0,0,0,.65); --text-3:rgba(0,0,0,.45);
+  --border:#f0f0f0; --border-2:#e5e6eb; --bg:#f3f5f9; --card:#fff;
+  --gold:#faad14; --gold-dark:#ad6800; --gold-bg:#fffbe6; --gold-border:#ffe58f;
+  --green:#52c41a; --green-bg:#f6ffed; --green-border:#b7eb8f;
+  --red:#ff4d4f; --purple:#722ed1; --purple-bg:#f9f0ff; --purple-border:#d3adf7;
+  --nav-bg:#fff; --radius:10px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+  font-size:14px;color:var(--text);background:var(--bg);overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ══════ 窗口骨架 ══════ */
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* 顶栏（窗口拖拽区）：标题居中，右侧设备状态 */
+.topbar{
+  height:46px;flex:0 0 auto;display:flex;align-items:center;
+  padding:0 14px 0 86px;background:#fff;border-bottom:1px solid var(--border);
+  -webkit-app-region:drag;position:relative;z-index:40;
+}
+.traffic{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;gap:8px}
+.traffic i{width:12px;height:12px;border-radius:50%;display:block}
+.traffic i:nth-child(1){background:#ff5f57}.traffic i:nth-child(2){background:#febc2e}.traffic i:nth-child(3){background:#28c840}
+.topbar-title{position:absolute;left:0;right:0;text-align:center;font-size:13.5px;font-weight:600;color:var(--text-2);pointer-events:none}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:25px;padding:0 11px;border-radius:13px;
+  font-size:12px;background:var(--bg);border:1px solid var(--border-2);color:var(--text-2);
+  -webkit-app-region:no-drag;white-space:nowrap;
+}
+.chip.ok{background:var(--green-bg);border-color:var(--green-border);color:#389e0d}
+.chip.run{background:var(--primary-bg);border-color:var(--primary-border);color:var(--primary);cursor:pointer}
+.chip.off{color:var(--text-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.dot.pulse{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ══════ 主体 ══════ */
+.body{flex:1;display:flex;min-height:0}
+
+/* 左侧主导航（DevEco 风格收敛版：白底、图标 + 文字） */
+.sidenav{
+  width:172px;flex:0 0 172px;background:var(--nav-bg);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:14px 10px;min-height:0;
+}
+.brand{display:flex;align-items:center;gap:9px;padding:2px 8px 14px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1677ff,#69b1ff);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+.brand .t{line-height:1.25}
+.brand .t b{display:block;font-size:13px}
+.brand .t span{font-size:10.5px;color:var(--text-3)}
+.nav-item{
+  display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:8px;
+  color:var(--text-2);cursor:pointer;font-size:13.5px;margin-bottom:2px;position:relative;
+  transition:background .12s,color .12s;
+}
+.nav-item:hover{background:#f5f5f5}
+.nav-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
+.nav-item .ico{width:18px;text-align:center;font-size:15px;flex:0 0 auto}
+.nav-item .badge{margin-left:auto;font-size:11px;min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 5px;border-radius:9px;background:#f0f0f0;color:var(--text-3)}
+.nav-item.active .badge{background:#fff;color:var(--primary)}
+.nav-item .live{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
+.nav-foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);line-height:1.8;text-align:center}
+
+/* 主区：单页切换 */
+.main{flex:1;min-width:0;min-height:0;overflow:auto;position:relative}
+.page{display:none;min-height:100%;padding:20px 24px 32px;animation:fade .18s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.page-h{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px}
+.page-h h1{font-size:19px;font-weight:700;letter-spacing:-.2px}
+.page-h .sub{font-size:12.5px;color:var(--text-3);padding-bottom:2px}
+.page-h .sp{flex:1}
+
+/* ══════ 通用零件 ══════ */
+.card{background:var(--card);border:1px solid var(--border-2);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13.5px}
+.card-h .sub{font-weight:400;font-size:12px;color:var(--text-3)}
+.card-h .sp{flex:1}
+.card-b{padding:16px}
+.btn{
+  height:32px;padding:0 15px;border-radius:6px;border:1px solid var(--border-2);background:#fff;
+  font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--text);transition:all .12s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--primary-hover);color:var(--primary-hover)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}
+.btn.danger{color:var(--red);border-color:#ffccc7}
+.btn.danger:hover{background:#fff1f0;border-color:var(--red)}
+.btn.gold{color:var(--gold-dark);border-color:var(--gold-border);background:var(--gold-bg)}
+.btn.gold:hover{border-color:var(--gold)}
+.btn.lg{height:38px;padding:0 22px;font-size:14px;border-radius:8px}
+.btn.sm{height:26px;padding:0 9px;font-size:12px;border-radius:5px}
+.btn:disabled,.btn.disabled{opacity:.42;pointer-events:none}
+.link{color:var(--primary);font-size:12.5px;cursor:pointer}
+.link:hover{color:var(--primary-hover)}
+.link.danger{color:var(--red)}
+.tag{display:inline-flex;align-items:center;gap:4px;height:21px;padding:0 8px;border-radius:4px;font-size:11.5px;border:1px solid var(--border-2);background:#fafafa;color:var(--text-2);white-space:nowrap}
+.tag.blue{background:var(--primary-bg);border-color:var(--primary-border);color:var(--primary)}
+.tag.gold{background:var(--gold-bg);border-color:var(--gold-border);color:var(--gold-dark)}
+.tag.green{background:var(--green-bg);border-color:var(--green-border);color:#389e0d}
+.tag.purple{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple)}
+.remark-pill{
+  display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:1px 9px;height:21px;font-size:12px;
+  border-radius:5px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold-dark);cursor:pointer;
+}
+.remark-pill.empty{background:#fff;border-style:dashed;border-color:var(--border-2);color:var(--text-3)}
+.remark-pill .ed{opacity:.55;font-size:11px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label{font-size:12.5px;color:var(--text-3)}
+.field .req::before{content:'*';color:var(--red);margin-right:3px}
+.sel,.inp,.ta{
+  height:32px;border:1px solid var(--border-2);border-radius:6px;padding:0 10px;background:#fff;font-size:13px;
+  outline:none;transition:border-color .12s,box-shadow .12s;width:100%;color:var(--text);
+}
+.ta{height:auto;padding:7px 10px;resize:vertical;min-height:60px;line-height:1.6}
+.sel:focus,.inp:focus,.ta:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(22,119,255,.1)}
+.sel:disabled,.inp:disabled{background:#f5f5f5;color:var(--text-3)}
+.row{display:flex;align-items:center;gap:10px}
+.row.wrap{flex-wrap:wrap}
+.spacer{flex:1}
+.muted{color:var(--text-3);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
+
+/* ══════ 首页 ══════ */
+.hero{
+  border-radius:14px;padding:30px 34px;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(115deg,#0b3d91 0%,#1677ff 55%,#4da3ff 100%);min-height:170px;
+  display:flex;flex-direction:column;justify-content:center;gap:10px;
+}
+.hero::after{
+  content:'';position:absolute;right:-70px;top:-90px;width:330px;height:330px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,rgba(255,255,255,.22),transparent 62%);
+}
+.hero::before{
+  content:'';position:absolute;right:140px;bottom:-120px;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,rgba(255,255,255,.13),transparent 60%);
+}
+.hero h2{font-size:24px;font-weight:700;letter-spacing:.3px}
+.hero p{font-size:13.5px;opacity:.92;line-height:1.9;max-width:560px}
+.hero .badges{display:flex;gap:8px;margin-top:6px}
+.hero .badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 11px;border-radius:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);font-size:11.5px;backdrop-filter:blur(2px)}
+
+/* 工具卡 */
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
+.tool{
+  background:#fff;border:1px solid var(--border-2);border-radius:var(--radius);padding:18px;
+  cursor:pointer;transition:all .16s;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:9px;
+}
+.tool:hover{border-color:var(--primary-border);box-shadow:0 6px 20px rgba(22,119,255,.1);transform:translateY(-2px)}
+.tool .t-h{display:flex;align-items:center;gap:11px}
+.tool .t-ico{
+  width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex:0 0 auto;color:#fff;
+}
+.tool .t-ico.blue{background:linear-gradient(135deg,#1677ff,#69b1ff)}
+.tool .t-ico.gold{background:linear-gradient(135deg,#faad14,#ffd666)}
+.tool .t-name{font-size:15.5px;font-weight:600}
+.tool .t-tag{font-size:11px;color:var(--text-3);margin-top:1px}
+.tool .t-desc{font-size:12.5px;color:var(--text-2);line-height:1.8;flex:1}
+.tool .t-foot{display:flex;align-items:center;gap:8px;border-top:1px dashed var(--border);padding-top:11px}
+.tool .go{margin-left:auto;color:var(--primary);font-size:12.5px;display:inline-flex;align-items:center;gap:3px;opacity:0;transform:translateX(-4px);transition:all .16s}
+.tool:hover .go{opacity:1;transform:none}
+
+/* ══════ 向导 / 配置页 ══════ */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:18px;user-select:none}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-3)}
+.step .n{
+  width:24px;height:24px;border-radius:50%;background:#f0f0f0;color:var(--text-3);
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+}
+.step .t{white-space:nowrap}
+.step.on{color:var(--primary)}
+.step.on .n{background:var(--primary);color:#fff}
+.step.done{color:var(--text-2)}
+.step.done .n{background:var(--green-bg);color:#389e0d;border:1px solid var(--green-border)}
+.step-bar{width:56px;height:1.5px;background:var(--border-2);margin:0 12px}
+.form-card{max-width:860px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+.form-grid .full{grid-column:1 / -1}
+.form-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.adv{border:1px dashed var(--border-2);border-radius:8px;padding:11px 14px;background:#fcfcfd}
+.adv-h{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer;user-select:none}
+.adv-h .arr{transition:transform .15s;font-size:10px;color:var(--text-3)}
+.adv.open .adv-h .arr{transform:rotate(90deg)}
+.adv-body{display:none;padding-top:11px}
+.adv.open .adv-body{display:block}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer}
+
+/* ══════ 采集中页 ══════ */
+.live-banner{
+  display:flex;align-items:center;gap:14px;padding:13px 18px;border-radius:var(--radius);
+  background:linear-gradient(90deg,#f0f7ff,#fff);border:1px solid var(--primary-border);margin-bottom:16px;
+}
+.live-banner .lb-ico{
+  width:38px;height:38px;border-radius:10px;background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;
+  box-shadow:0 3px 10px rgba(22,119,255,.3);
+}
+.live-banner .lb-main{min-width:0;flex:1}
+.live-banner .lb-t{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+.live-banner .lb-s{font-size:12px;color:var(--text-3);margin-top:2px}
+.stat{border:1px solid var(--border-2);border-radius:var(--radius);padding:12px 15px;background:linear-gradient(180deg,#fff,#fcfdff)}
+.stat .k{font-size:12px;color:var(--text-3)}
+.stat .v{font-size:23px;font-weight:650;margin-top:3px;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.stat .u{font-size:12px;font-weight:400;color:var(--text-3);margin-left:3px}
+.stat .d{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.stat.hero2{background:linear-gradient(180deg,#f0f7ff,#fff);border-color:var(--primary-border)}
+.stat.hero2 .v{color:var(--primary)}
+.chart{width:100%;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff;padding:10px 8px 4px}
+.chart-t{display:flex;align-items:center;gap:8px;padding:0 6px 7px;font-size:12.5px;color:var(--text-2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 13px;padding:6px 8px 2px;font-size:11.5px;color:var(--text-2)}
+.legend i{display:inline-flex;align-items:center;gap:5px;font-style:normal}
+.legend i b{width:11px;height:3px;border-radius:2px;display:inline-block}
+svg text{font-family:inherit}
+
+/* ══════ 报告页：环境信息 ══════ */
+.rp-head{display:flex;align-items:center;gap:10px;padding:4px 0 13px;flex-wrap:wrap}
+.rp-head .kind{
+  width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;
+}
+.rp-head .kind.trend{background:var(--primary-bg);color:var(--primary)}
+.rp-head .kind.snap{background:var(--gold-bg);color:var(--gold)}
+.rp-head h2{font-size:18px;font-weight:700;word-break:break-all}
+.rp-head .acts{margin-left:auto;display:flex;align-items:center;gap:8px}
+.env{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.env .e{background:#fff;padding:9px 13px;min-width:0}
+.env .e .k{font-size:11px;color:var(--text-3);margin-bottom:2px}
+.env .e .v{font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.env .e.w2{grid-column:span 2}
+
+/* 快照条形图 */
+.bars{display:flex;flex-direction:column;gap:5px;padding:4px 2px}
+.bar-row{display:grid;grid-template-columns:128px 1fr 76px;align-items:center;gap:10px;font-size:12px}
+.bar-row .bn{color:var(--text-2);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bt{height:15px;background:#f5f5f5;border-radius:3px;overflow:hidden}
+.bar-row .bf{height:100%;border-radius:3px}
+.bar-row .bv{text-align:right;font-variant-numeric:tabular-nums;color:var(--text-2)}
+
+/* 明细表 */
+table.tb{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tb th{text-align:left;padding:8px 11px;background:#fafafa;border-bottom:1px solid var(--border);font-weight:600;color:var(--text-2);white-space:nowrap;position:sticky;top:0;z-index:1}
+table.tb td{padding:7px 11px;border-bottom:1px solid #f7f7f7;white-space:nowrap}
+table.tb tbody tr:hover{background:#fafcff}
+table.tb .num{text-align:right;font-variant-numeric:tabular-nums}
+table.tb tr.total td{background:#fffbe6;font-weight:600}
+table.tb tr.sub td:first-child{padding-left:26px;color:var(--text-2)}
+
+/* ══════ 测试报告列表 ══════ */
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:13px}
+.seg{display:inline-flex;border:1px solid var(--border-2);border-radius:7px;overflow:hidden;background:#fff}
+.seg button{height:30px;padding:0 13px;font-size:12.5px;color:var(--text-2);border-right:1px solid var(--border)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--primary-bg);color:var(--primary);font-weight:600}
+.rec-list{background:#fff;border:1px solid var(--border-2);border-radius:var(--radius);overflow:hidden}
+.rec-h,.rec-i{display:grid;grid-template-columns:38px 92px minmax(150px,1.15fr) minmax(170px,1.3fr) 158px 108px 104px minmax(160px,1fr) 196px;gap:10px;align-items:center;padding:0 14px}
+.rec-h{height:38px;background:#fafafa;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-3);font-weight:600}
+.rec-i{min-height:52px;border-bottom:1px solid #f5f5f5;font-size:12.5px;cursor:pointer;transition:background .1s}
+.rec-i:last-child{border-bottom:none}
+.rec-i:hover{background:#f8fbff}
+.rec-i.sel{background:var(--primary-bg)}
+.rec-i .c{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+.rec-i .b{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-i .t{font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.rec-i .t span{color:var(--text-3)}
+.rec-i .num{font-variant-numeric:tabular-nums}
+.rec-i .num b{font-size:13.5px}
+.rec-i .dev{font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-i .acts{display:flex;gap:2px}
+.cmp-tip{
+  display:flex;align-items:center;gap:8px;margin-top:12px;padding:9px 14px;border-radius:8px;font-size:12.5px;
+  background:var(--primary-bg);border:1px solid var(--primary-border);color:var(--primary);
+}
+.cmp-tip.off{background:#fafafa;border-color:var(--border-2);color:var(--text-3)}
+.cmp-tip .sp{flex:1}
+/* 底部批量操作条 */
+.bulkbar{
+  position:sticky;bottom:0;display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 16px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border:1px solid var(--border-2);border-radius:var(--radius);
+  box-shadow:0 -2px 12px rgba(0,0,0,.05);
+}
+.bulkbar .cnt{font-size:12.5px;color:var(--text-2)}
+
+/* ══════ 对比弹窗 ══════ */
+.cmp-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:none;align-items:center;justify-content:center;padding:28px}
+.cmp-mask.on{display:flex}
+.cmp{
+  width:100%;height:100%;max-width:1500px;background:#fff;border-radius:14px;display:flex;flex-direction:column;
+  overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.28);animation:pop .18s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.cmp-h{
+  display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#fcfcfd,#fff);flex:0 0 auto;
+}
+.cmp-h h3{font-size:15px;font-weight:700}
+.cmp-h .acts{margin-left:auto;display:flex;gap:8px}
+.cmp-body{flex:1;min-height:0;overflow:auto;background:var(--bg);padding:16px}
+.cmp-cols{display:flex;gap:14px;align-items:stretch;min-height:0}
+.cmp-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.cmp-col-h{
+  display:flex;align-items:center;gap:8px;padding:10px 13px;background:#fff;border:1px solid var(--border-2);
+  border-radius:var(--radius);position:sticky;top:0;z-index:2;
+}
+.cmp-col-h .cc{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
+.cmp-col-h .n{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp-col-h .t{font-size:11.5px;color:var(--text-3);margin-left:auto;white-space:nowrap}
+.diff-up{color:var(--red);font-weight:600}
+.diff-down{color:#389e0d;font-weight:600}
+.badge-kind{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:11px;font-size:11.5px;font-weight:600}
+.badge-kind.trend{background:var(--primary-bg);color:var(--primary)}
+.badge-kind.snap{background:var(--gold-bg);color:var(--gold-dark)}
+
+/* 加载中（抓快照） */
+.loading-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:70px 0;color:var(--text-2)}
+.spinner{width:36px;height:36px;border-radius:50%;border:3px solid var(--primary-bg);border-top-color:var(--primary);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 设置弹窗 */
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90;display:none;align-items:center;justify-content:center}
+.modal-mask.on{display:flex}
+.modal{width:560px;max-width:92vw;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.25);animation:pop .16s ease}
+.modal-h{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:14.5px}
+.modal-h .x{margin-left:auto;color:var(--text-3);font-size:17px;line-height:1}
+.modal-h .x:hover{color:var(--text)}
+.modal-b{padding:18px;display:flex;flex-direction:column;gap:15px}
+.modal-f{display:flex;justify-content:flex-end;gap:9px;padding:13px 18px;border-top:1px solid var(--border);background:#fafafa}
+
+/* 返回链接 */
+.backlink{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:var(--text-2);cursor:pointer;margin-bottom:13px}
+.backlink:hover{color:var(--primary)}
+
+/* 空态 */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:var(--text-3);padding:52px 0}
+.empty .big{font-size:32px;opacity:.32}
+
+/* 设计说明 */
+.notes{position:fixed;right:0;top:0;bottom:0;width:340px;background:#fff;border-left:1px solid var(--border-2);box-shadow:-4px 0 18px rgba(0,0,0,.08);transform:translateX(102%);transition:transform .2s;z-index:100;display:flex;flex-direction:column}
+.notes.on{transform:none}
+.notes-h{padding:13px 15px;border-bottom:1px solid var(--border);font-weight:700;display:flex;align-items:center}
+.notes-b{flex:1;overflow:auto;padding:15px;font-size:12.5px;line-height:1.8;color:var(--text-2)}
+.notes-b h4{font-size:13px;color:var(--text);margin:15px 0 5px}
+.notes-b h4:first-child{margin-top:0}
+.notes-b ul{padding-left:17px}
+.notes-b code{background:#f5f5f5;padding:1px 4px;border-radius:3px;font-size:11.5px}
+.fab-notes{position:fixed;right:14px;bottom:14px;z-index:99;height:34px;padding:0 13px;border-radius:17px;background:#fff;border:1px solid var(--border-2);box-shadow:0 3px 12px rgba(0,0,0,.1);font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:5px}
+.fab-notes:hover{color:var(--primary);border-color:var(--primary-border)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 顶栏：标题居中 + 右侧全局状态 -->
+  <div class="topbar">
+    <div class="traffic"><i></i><i></i><i></i></div>
+    <div class="topbar-title">鸿蒙内存采样工具</div>
+    <div class="topbar-right">
+      <span class="chip run" id="chipSampling" onclick="go('live')" style="display:none" title="点击回到实时采样页">
+        <i class="dot pulse"></i><span id="chipSamplingText">采样中 00:47</span>
+      </span>
+      <span class="chip ok" id="chipDevice"><i class="dot"></i><span id="chipDeviceText">Mate 60 Pro</span></span>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- 左侧主导航：4 项 -->
+    <nav class="sidenav">
+      <div class="brand">
+        <span class="logo">⛁</span>
+        <span class="t"><b>内存采样工具</b><span>HarmonyOS · hidumper</span></span>
+      </div>
+      <div class="nav-item active" data-nav="home" onclick="go('home')"><span class="ico">🏠</span>首页</div>
+      <div class="nav-item" data-nav="tools" onclick="go('tools')"><span class="ico">🧰</span>工具集</div>
+      <div class="nav-item" data-nav="reports" onclick="go('reports')"><span class="ico">📋</span>测试报告<span class="badge" id="navRecBadge">8</span></div>
+      <div class="nav-item" data-nav="settings" onclick="openSettings()"><span class="ico">⚙️</span>设置</div>
+      <div class="nav-foot">v0.2.0 · 原型</div>
+    </nav>
+
+    <!-- 主区 -->
+    <main class="main" id="main">
+
+      <!-- ════════ 首页 ════════ -->
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <h2>鸿蒙内存采样工具</h2>
+          <p>面向 HarmonyOS 应用的内存分析工具箱：通过 hidumper 持续采集进程内存、一键抓取瞬时内存快照，生成可视化报告并支持同类型报告横向对比，帮助你定位内存泄漏与异常占用。</p>
+          <div class="badges">
+            <span class="badge">📈 峰值内存采样</span>
+            <span class="badge">📷 内存快照抓取</span>
+            <span class="badge">⇄ 报告对比</span>
+          </div>
+        </div>
+        <div class="page-h" style="margin-top:20px"><h1 style="font-size:16px">常用工具</h1><span class="sub">点击卡片直接进入</span></div>
+        <div class="tool-grid" id="homeTools"></div>
+      </section>
+
+      <!-- ════════ 工具集 ════════ -->
+      <section class="page" id="page-tools">
+        <div class="page-h"><h1>工具集</h1><span class="sub">全部内存分析工具（后续将持续扩充）</span></div>
+        <div class="tool-grid" id="toolsGrid"></div>
+      </section>
+
+      <!-- ════════ 峰值采样 · 配置 ════════ -->
+      <section class="page" id="page-peakCfg">
+        <div class="backlink" onclick="go('tools')">‹ 返回工具集</div>
+        <div class="steps">
+          <div class="step on"><span class="n">1</span><span class="t">配置参数</span></div>
+          <div class="step-bar"></div>
+          <div class="step" id="st2"><span class="n">2</span><span class="t">实时采样</span></div>
+          <div class="step-bar"></div>
+          <div class="step" id="st3"><span class="n">3</span><span class="t">采样报告</span></div>
+        </div>
+        <div class="card form-card">
+          <div class="card-h">📈 峰值内存采样 <span class="sub">按固定间隔执行 hidumper --mem，追踪内存随时间的变化，定位峰值与泄漏</span></div>
+          <div class="card-b">
+            <div class="form-grid">
+              <div class="field"><label class="req">目标设备</label>
+                <div class="row"><select class="sel" id="peakDev"><option>HUAWEI Mate 60 Pro（23E0224A28001338）</option><option>HUAWEI Mate 40（5QG0221418004211）</option></select>
+                <button class="btn" title="刷新设备">↻</button></div>
+              </div>
+              <div class="field"><label class="req">目标应用</label>
+                <div class="row"><select class="sel" id="peakApp"><option>com.huawei.hmos.browser</option><option>com.tencent.mm</option><option>com.example.demo</option></select>
+                <button class="btn" title="刷新应用列表">↻</button></div>
+              </div>
+              <div class="field"><label>采样间隔</label>
+                <select class="sel"><option>1 秒（推荐）</option><option>2 秒</option><option>5 秒</option><option>10 秒</option></select>
+              </div>
+              <div class="field"><label>进程 PID</label>
+                <input class="inp" value="自动解析（应用未启动时记录全 0，待启动后自动接管）" disabled />
+              </div>
+              <div class="field full"><label>备注（将写入报告，便于日后辨认）</label>
+                <textarea class="ta" id="peakRemark" placeholder="例如：冷启动 → 首页 → 视频播放 5 分钟">冷启动 → 首页 → 视频播放</textarea>
+              </div>
+              <div class="field full">
+                <div class="adv" id="peakAdv">
+                  <div class="adv-h" onclick="this.parentNode.classList.toggle('open')"><span class="arr">▶</span>高级选项：附加采集维度（会增加单次采集耗时）</div>
+                  <div class="adv-body">
+                    <div class="row wrap" style="gap:14px">
+                      <label class="chk"><input type="checkbox" />含 smaps（--mem-smaps，逐 VMA 明细，较慢）</label>
+                      <label class="chk"><input type="checkbox" />ashmem（--show-ashmem）</label>
+                      <label class="chk"><input type="checkbox" />dmabuf（--show-dmabuf）</label>
+                      <label class="chk"><input type="checkbox" />gpumem（--show-gpumem）</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-foot">
+              <button class="btn primary lg" onclick="startPeak()">▶ 开始采样</button>
+              <span class="muted">采样数据落盘 <code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">samples.jsonl</code>，每个采样点的 hidumper 原文存于 <code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">raw/&lt;包名&gt;-&lt;年月日&gt;-&lt;时分秒&gt;.&lt;毫秒&gt;.txt</code></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ 峰值采样 · 实时 ════════ -->
+      <section class="page" id="page-live">
+        <div class="live-banner">
+          <span class="lb-ico">📈</span>
+          <div class="lb-main">
+            <div class="lb-t"><span id="liveTitle">com.huawei.hmos.browser</span><span class="tag green"><i class="dot pulse"></i>采样中</span></div>
+            <div class="lb-s" id="liveSub">12:15:30 开始 · 间隔 1 秒 · PID 12483 · Mate 60 Pro</div>
+          </div>
+          <button class="btn sm" onclick="alert('原型：系统文件管理器打开采集目录（含 samples.jsonl 与 raw/ 原文）')">📂 采集目录</button>
+          <button class="btn danger" onclick="stopPeak()">■ 结束采样</button>
+        </div>
+        <div class="grid4" style="margin-bottom:16px">
+          <div class="stat hero2"><div class="k">当前 Total Pss</div><div class="v" id="liveTotal">412.6<span class="u">MB</span></div><div class="d">较起始 +18.3 MB</div></div>
+          <div class="stat"><div class="k">Private Dirty</div><div class="v">286.1<span class="u">MB</span></div><div class="d">私有脏页</div></div>
+          <div class="stat"><div class="k">采样点数</div><div class="v" id="liveCount">48</div><div class="d">每点一条 raw 原文</div></div>
+          <div class="stat"><div class="k">已采样时长</div><div class="v" id="liveDur">00:47</div><div class="d">结束后自动生成报告</div></div>
+        </div>
+        <div class="chart" id="liveChart"></div>
+      </section>
+
+      <!-- ════════ 快照 · 配置 ════════ -->
+      <section class="page" id="page-snapCfg">
+        <div class="backlink" onclick="go('tools')">‹ 返回工具集</div>
+        <div class="steps">
+          <div class="step on"><span class="n">1</span><span class="t">配置参数</span></div>
+          <div class="step-bar"></div>
+          <div class="step" id="st2s"><span class="n">2</span><span class="t">抓取快照</span></div>
+          <div class="step-bar"></div>
+          <div class="step" id="st3s"><span class="n">3</span><span class="t">快照报告</span></div>
+        </div>
+        <div class="card form-card">
+          <div class="card-h">📷 内存快照抓取 <span class="sub">一次性执行 hidumper --mem &lt;pid&gt;，定格当前时刻的完整内存构成</span></div>
+          <div class="card-b">
+            <div class="form-grid">
+              <div class="field"><label class="req">目标设备</label>
+                <div class="row"><select class="sel"><option>HUAWEI Mate 60 Pro（23E0224A28001338）</option><option>HUAWEI Mate 40（5QG0221418004211）</option></select>
+                <button class="btn">↻</button></div>
+              </div>
+              <div class="field"><label class="req">目标应用</label>
+                <div class="row"><select class="sel" id="snapApp"><option>com.huawei.hmos.browser</option><option>com.tencent.mm</option><option>com.example.demo</option></select>
+                <button class="btn">↻</button></div>
+              </div>
+              <div class="field full"><label>备注（将写入快照报告）</label>
+                <textarea class="ta" id="snapRemark" placeholder="例如：视频播放 3 分钟后内存水位">视频播放 3 分钟后</textarea>
+              </div>
+              <div class="field full">
+                <div class="adv" id="snapAdv">
+                  <div class="adv-h" onclick="this.parentNode.classList.toggle('open')"><span class="arr">▶</span>高级选项：附加采集维度</div>
+                  <div class="adv-body">
+                    <div class="row wrap" style="gap:14px">
+                      <label class="chk"><input type="checkbox" />ashmem（--show-ashmem）</label>
+                      <label class="chk"><input type="checkbox" />dmabuf（--show-dmabuf）</label>
+                      <label class="chk"><input type="checkbox" />gpumem（--show-gpumem）</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-foot">
+              <button class="btn gold lg" onclick="startSnap()">📷 开始抓取</button>
+              <span class="muted">快照落盘为独立目录：含 <code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">snapshot.json</code>（结构化）、<code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">&lt;包名&gt;-&lt;时间戳&gt;.txt</code>（hidumper 原文）、<code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">meta.json</code></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ 快照 · 抓取中 ════════ -->
+      <section class="page" id="page-snapping">
+        <div class="card" style="max-width:620px;margin:80px auto 0">
+          <div class="card-b loading-box">
+            <div class="spinner"></div>
+            <div style="font-size:15px;font-weight:600">正在抓取内存快照…</div>
+            <div class="muted" style="text-align:center;line-height:1.9">
+              正在对 <b id="snapTarget">com.huawei.hmos.browser</b> 执行<br />
+              <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px">hidumper --mem 12483</code>（单次采集，约 1~3 秒）
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ 报告详情（趋势 / 快照共用容器） ════════ -->
+      <section class="page" id="page-report">
+        <div class="backlink" onclick="go('reports')">‹ 返回测试报告</div>
+        <div id="reportBody"></div>
+      </section>
+
+      <!-- ════════ 测试报告 ════════ -->
+      <section class="page" id="page-reports">
+        <div class="page-h"><h1>测试报告</h1><span class="sub">共 <b id="recTotal">8</b> 份 · 点击行查看详情 · 勾选同类型报告可对比</span>
+          <span class="sp"></span>
+          <button class="btn sm" onclick="alert('原型：弹出目录选择框，导入已保存的报告目录')">📂 导入历史目录</button>
+          <button class="btn sm" onclick="renderReports()">↻ 刷新</button>
+        </div>
+        <div class="toolbar">
+          <div class="seg">
+            <button class="on" data-f="all" onclick="setFilter('all',this)">全部</button>
+            <button data-f="trend" onclick="setFilter('trend',this)">📈 峰值采样</button>
+            <button data-f="snapshot" onclick="setFilter('snapshot',this)">📷 内存快照</button>
+          </div>
+          <input class="inp" style="width:220px" placeholder="搜索包名 / 备注 / 设备…" oninput="q=this.value;renderReports()" />
+          <select class="sel" style="width:160px"><option>全部设备</option><option>Mate 60 Pro</option><option>Mate 40</option></select>
+        </div>
+        <div class="rec-list">
+          <div class="rec-h">
+            <span><input type="checkbox" class="c" id="chkAll" onchange="toggleAll(this.checked)" style="width:15px;height:15px;accent-color:var(--primary)" /></span>
+            <span>类型</span><span>包名</span><span>备注</span><span>采样时间</span><span>时长 / 点数</span><span style="text-align:right">Total Pss</span><span>设备</span><span>操作</span>
+          </div>
+          <div id="recList"></div>
+        </div>
+        <div class="cmp-tip off" id="cmpTip">
+          <span id="cmpTipText">勾选 2~4 份<b>同类型</b>报告后可进行对比（峰值采样 ↔ 峰值采样，快照 ↔ 快照）</span>
+          <span class="sp"></span>
+          <button class="btn primary sm" id="btnCompare" disabled onclick="openCompare()">⇄ 对比已选报告</button>
+        </div>
+        <div class="bulkbar">
+          <span class="cnt">已选 <b id="selCount">0</b> 份</span>
+          <button class="btn sm" onclick="selectAllFiltered()">全选当前列表</button>
+          <button class="btn sm" onclick="clearSel()">清空选择</button>
+          <span class="spacer"></span>
+          <button class="btn sm danger" id="btnDel" disabled onclick="delSelected()">🗑 删除所选</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══════ 对比弹窗（独立窗口等价物） ══════ -->
+<div class="cmp-mask" id="cmpMask">
+  <div class="cmp">
+    <div class="cmp-h">
+      <span id="cmpKind" class="badge-kind trend">📈 峰值采样对比</span>
+      <h3 id="cmpTitle">对比 2 份报告</h3>
+      <span class="muted" id="cmpSub"></span>
+      <div class="acts">
+        <button class="btn sm" onclick="alert('原型：将对比结果导出为 Markdown / PNG')">⬇ 导出对比</button>
+        <button class="btn sm" onclick="closeCompare()">✕ 关闭</button>
+      </div>
+    </div>
+    <div class="cmp-body" id="cmpBody"></div>
+  </div>
+</div>
+
+<!-- ══════ 设置弹窗 ══════ -->
+<div class="modal-mask" id="setMask">
+  <div class="modal">
+    <div class="modal-h">⚙️ 设置<span class="x" onclick="closeSettings()">✕</span></div>
+    <div class="modal-b">
+      <div class="field"><label>报告默认存储路径</label>
+        <div class="row">
+          <input class="inp" value="~/Library/Application Support/鸿蒙内存采样工具/sessions" />
+          <button class="btn" style="flex:0 0 auto">选择…</button>
+        </div>
+        <span class="muted">留空则使用默认路径；历史目录变更后自动重新扫描。</span>
+      </div>
+      <div class="field"><label>hdc 可执行文件路径</label>
+        <div class="row">
+          <input class="inp" value="/usr/local/bin/hdc" />
+          <button class="btn" style="flex:0 0 auto">选择…</button>
+          <button class="btn" style="flex:0 0 auto" title="自动从 PATH / 常见安装目录探测">自动探测</button>
+        </div>
+        <span class="muted">hdc 来自 HarmonyOS SDK / DevEco Studio，用于与设备通信执行 hidumper。</span>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="closeSettings()">取消</button>
+      <button class="btn primary" onclick="closeSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab-notes" onclick="toggleNotes()">✦ 设计说明</button>
+<aside class="notes" id="notes">
+  <div class="notes-h">✦ 设计说明（v3）<span style="flex:1"></span><button class="icon-btn" onclick="toggleNotes()">✕</button></div>
+  <div class="notes-b">
+    <h4>信息架构（按需求重排）</h4>
+    <ul>
+      <li>左导航仅 4 项：<b>首页 / 工具集 / 测试报告 / 设置</b>（设置点击弹窗，不占页面）。</li>
+      <li>首页 = 简介 Hero + 常用工具卡（目前 2 个工具，与工具集数据同源）。</li>
+      <li>工具集 = 全部工具卡片（后续新增工具只需注册一条元数据）。</li>
+      <li>测试报告 = 列表管理：行点击查看详情；多选/全选删除；同类型报告可「对比」（新窗口）。</li>
+      <li>不显示「近期报告」。</li>
+    </ul>
+    <h4>向导式任务流</h4>
+    <ul>
+      <li><b>峰值采样</b>：配置页（设备/应用/备注/间隔/高级选项）→ 开始采样 → 实时页（趋势图 + 实时统计 + 结束按钮）→ 结束 → 自动落盘并跳转报告页。</li>
+      <li><b>内存快照</b>：配置页 → 开始抓取 → 抓取中（Spinner，hidumper 单次执行提示）→ 完成 → 跳转报告页。</li>
+      <li>顶部步骤条（1 配置 / 2 采集 / 3 报告）标明当前阶段；实时采样期间顶栏出现可点击的「采样中」芯片，随时回到实时页。</li>
+    </ul>
+    <h4>报告详情页</h4>
+    <ul>
+      <li>顶部：类型图标 + 包名 + 类型标签 + 备注胶囊（可编辑）+ 操作（打开目录 / 查看 hidumper 原文 / 导出）。</li>
+      <li>环境信息网格：采样时间（起~止）、设备型号+序列号、系统版本/API、PID、时长、点数、采样间隔、运行内存、分辨率。</li>
+      <li>趋势报告：概览统计 + 全宽趋势图；快照报告：概览统计 + 分类条形图 + 附加指标 + 可排序明细表。</li>
+    </ul>
+    <h4>报告对比（新窗口）</h4>
+    <ul>
+      <li>列表勾选后底部出现对比条；<b>类型不一致时按钮禁用</b>并提示原因。</li>
+      <li>趋势对比：同一坐标系叠加多份报告的 Total Pss 曲线 + 峰值/均值/结束值/增长量差异表。</li>
+      <li>快照对比：各快照 Total Pss 并排列 + 分类差异表（相对基准的增减，红绿着色）。</li>
+      <li>原型用全屏弹窗模拟独立窗口；落地时用 <code>BrowserWindow</code> 打开 <code>compare.html</code>，经 IPC 拉取数据。</li>
+    </ul>
+    <h4>与现状的映射</h4>
+    <ul>
+      <li>主进程 / IPC / 存储层零改动；flexlayout 页签工作区退役，改为单页路由 + 独立对比窗口。</li>
+      <li>设备/应用选择从全局侧栏下沉到各工具的配置页（每次任务显式确认目标，避免误采）。</li>
+    </ul>
+  </div>
+</aside>
+
+<script>
+/* ═══════════════ 数据 ═══════════════ */
+const CATS=[
+  {n:'Total',c:'#e6194b'},{n:'GL',c:'#911eb4'},{n:'Graph',c:'#4363d8'},{n:'ark ts heap',c:'#f58231'},
+  {n:'native heap',c:'#3cb44b'},{n:'stack',c:'#46f0f0'},{n:'.so',c:'#d4a017'},{n:'.hap',c:'#9a6324'},
+  {n:'AnonPage other',c:'#f032e6'},{n:'FilePage other',c:'#808080'},{n:'.db',c:'#008080'},{n:'.ttf',c:'#bcf60c'}
+];
+const DEV1={name:'HUAWEI Mate 60 Pro',model:'BRA-AL00',os:'HarmonyOS 5.0.0.102',api:'12',sn:'23E0224A28001338',ram:'11.6 GB',screen:'2720 × 1260'};
+const DEV2={name:'HUAWEI Mate 40',model:'NOH-AN00',os:'HarmonyOS 4.2.0.180',api:'11',sn:'5QG0221418004211',ram:'7.6 GB',screen:'2772 × 1344'};
+const TOOLS=[
+  {id:'peak',ico:'📈',cls:'blue',name:'峰值内存采样',tag:'持续采集 · 趋势',
+   desc:'按固定间隔执行 hidumper --mem，持续追踪进程内存随时间的变化曲线，定位内存峰值与疑似泄漏点，结束后自动生成趋势报告。'},
+  {id:'snap',ico:'📷',cls:'gold',name:'内存快照抓取',tag:'单次采集 · 定格',
+   desc:'对目标进程执行一次 hidumper --mem，完整定格当前时刻的内存构成（分类 Pss、私有脏、Swap、Heap 明细等），适合抓取异常现场。'}
+];
+let RECORDS=[
+  {id:'r1',type:'trend',bundle:'com.huawei.hmos.browser',remark:'冷启动 → 首页 → 视频播放',start:'2026-09-30 12:15:30',end:'2026-09-30 12:45:12',dur:'29m42s',count:1782,pss:412.6,peak:446.2,dev:DEV1,pid:12483},
+  {id:'r2',type:'snapshot',bundle:'com.huawei.hmos.browser',remark:'视频播放 3 分钟后',start:'2026-09-30 12:44:58',pss:438.2,dev:DEV1,pid:12483},
+  {id:'r3',type:'trend',bundle:'com.tencent.mm',remark:'',start:'2026-09-30 11:02:11',end:'2026-09-30 11:20:03',dur:'17m52s',count:1072,pss:684.9,peak:701.5,dev:DEV1,pid:8821},
+  {id:'r4',type:'snapshot',bundle:'com.tencent.mm',remark:'聊天页滑动卡顿复现',start:'2026-09-30 11:19:40',pss:702.4,dev:DEV1,pid:8821},
+  {id:'r5',type:'trend',bundle:'com.example.demo',remark:'列表滚动压测',start:'2026-09-29 20:31:07',end:'2026-09-29 21:05:44',dur:'34m37s',count:692,pss:256.3,peak:289.0,dev:DEV2,pid:3312},
+  {id:'r6',type:'snapshot',bundle:'com.example.demo',remark:'',start:'2026-09-29 21:04:52',pss:268.7,dev:DEV2,pid:3312},
+  {id:'r7',type:'trend',bundle:'com.huawei.hmos.browser',remark:'多标签页 20 个',start:'2026-09-29 16:08:19',end:'2026-09-29 16:41:02',dur:'32m43s',count:1963,pss:891.5,peak:923.8,dev:DEV1,pid:7745},
+  {id:'r8',type:'snapshot',bundle:'com.ohos.settings',remark:'设置首页常驻',start:'2026-09-28 09:14:55',pss:98.2,dev:DEV2,pid:1120}
+];
+
+/* ═══════════════ 工具函数 ═══════════════ */
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const shortName=b=>b.split('.').pop()||b;
+const timeOnly=s=>s.split(' ')[1]||s;
+const MB=v=>v.toFixed(1);
+/* 颜色（对比用，独立于分类色） */
+const CMP_COLORS=['#1677ff','#fa8c16','#52c41a','#722ed1'];
+
+/* 折线图（模拟数据） */
+function lineChart(host,opts={}){
+  const W=host.clientWidth||900,H=opts.height||280,P={l:46,r:14,t:12,b:26};
+  const N=opts.points||60;
+  const series=(opts.series||CATS.slice(0,6)).map((c,i)=>{
+    let base=c.base??(c.n==='Total'?380:[120,90,70,60,40,30][i]||20);
+    let v=base,arr=[];
+    for(let k=0;k<N;k++){v+=(Math.random()-.46)*(base*.022);v=Math.max(base*.55,v);arr.push(v)}
+    return{...c,arr};
+  });
+  const maxY=Math.max(...series.map(s=>Math.max(...s.arr)))*1.1;
+  const x=i=>P.l+(W-P.l-P.r)*i/(N-1), y=v=>P.t+(H-P.t-P.b)*(1-v/maxY);
+  let g='';
+  for(let i=0;i<=4;i++){const yy=P.t+(H-P.t-P.b)*i/4;
+    g+=`<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="#f0f0f0"/>
+        <text x="${P.l-7}" y="${yy+4}" font-size="10.5" fill="rgba(0,0,0,.45)" text-anchor="end">${Math.round(maxY*(1-i/4))}</text>`}
+  const paths=series.map(s=>`<path d="${s.arr.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')}"
+    fill="none" stroke="${s.c}" stroke-width="${s.n==='Total'||opts.bold?2.2:1.4}" stroke-linejoin="round" opacity="${opts.faded&&!s.n.startsWith('☆')?.32:.92}"/>`).join('');
+  host.innerHTML=`
+    <div class="chart-t"><span>${opts.title||'内存趋势（MB）'}</span><span class="spacer" style="flex:1"></span><span class="muted">纵轴 PSS / MB</span></div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}${paths}</svg>
+    <div class="legend">${series.map(s=>`<i><b style="background:${s.c}"></b>${s.label||s.n}</i>`).join('')}</div>`;
+}
+
+/* ═══════════════ 导航 ═══════════════ */
+const NAV=['home','tools','reports'];
+function go(page){
+  $$('.page').forEach(p=>p.classList.remove('active'));
+  const el=$('#page-'+page); if(el)el.classList.add('active');
+  $$('.nav-item[data-nav]').forEach(n=>n.classList.toggle('active',n.dataset.nav===page||((page==='peakCfg'||page==='snapCfg'||page==='live'||page==='snapping')&&n.dataset.nav==='tools')||(page==='report'&&n.dataset.nav==='reports')));
+  $('#main').scrollTop=0;
+  if(page==='live'){requestAnimationFrame(()=>{const h=$('#liveChart');if(h)lineChart(h,{points:60,height:300})})}
+}
+
+/* 工具卡（首页 & 工具集共用） */
+function toolCard(t){
+  return `<div class="tool" onclick="openTool('${t.id}')">
+    <div class="t-h"><span class="t-ico ${t.cls}">${t.ico}</span>
+      <div><div class="t-name">${t.name}</div><div class="t-tag">${t.tag}</div></div></div>
+    <div class="t-desc">${t.desc}</div>
+    <div class="t-foot"><span class="muted">hidumper --mem</span><span class="go">进入使用 →</span></div>
+  </div>`;
+}
+$('#homeTools').innerHTML=TOOLS.map(toolCard).join('');
+$('#toolsGrid').innerHTML=TOOLS.map(toolCard).join('');
+function openTool(id){ go(id==='peak'?'peakCfg':'snapCfg') }
+
+/* ═══════════════ 采样流程 ═══════════════ */
+let sampling=false,sampleSec=47,sampleCnt=48,liveTimer=null;
+function startPeak(){
+  sampling=true;sampleSec=0;sampleCnt=0;
+  $('#st2').className='step on';$('#st1');
+  $('#chipSampling').style.display='inline-flex';
+  $('#liveTitle').textContent=$('#peakApp').value;
+  $('#liveSub').textContent='刚刚开始 · 间隔 1 秒 · PID 12483 · Mate 60 Pro';
+  go('live');
+  clearInterval(liveTimer);
+  liveTimer=setInterval(()=>{
+    if(!sampling)return;
+    sampleSec++;sampleCnt++;
+    const mm=String(Math.floor(sampleSec/60)).padStart(2,'0'),ss=String(sampleSec%60).padStart(2,'0');
+    $('#chipSamplingText').textContent=`采样中 ${mm}:${ss}`;
+    $('#liveCount').textContent=sampleCnt;
+    $('#liveDur').textContent=`${mm}:${ss}`;
+    $('#liveTotal').innerHTML=(412+Math.sin(sampleSec/6)*9+sampleCnt*.04).toFixed(1)+'<span class="u">MB</span>';
+  },1000);
+}
+function stopPeak(){
+  sampling=false;clearInterval(liveTimer);
+  $('#chipSampling').style.display='none';
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const now=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  const mm=String(Math.floor(sampleSec/60)).padStart(2,'0'),ss=String(sampleSec%60).padStart(2,'0');
+  const rec={id:'r'+Date.now(),type:'trend',bundle:$('#peakApp').value,remark:$('#peakRemark').value.trim(),
+    start:now,end:now,dur:`${mm}m${ss}s`,count:sampleCnt,pss:418.5,peak:446.2,dev:DEV1,pid:12483};
+  RECORDS.unshift(rec);
+  updateBadge();renderReports();
+  $('#st3').className='step on';
+  openReport(rec.id);
+}
+function startSnap(){
+  $('#st2s').className='step on';
+  $('#snapTarget').textContent=$('#snapApp').value;
+  go('snapping');
+  setTimeout(()=>{
+    const d=new Date(),p=n=>String(n).padStart(2,'0');
+    const now=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    const rec={id:'r'+Date.now(),type:'snapshot',bundle:$('#snapApp').value,remark:$('#snapRemark').value.trim(),
+      start:now,pss:380+Math.random()*120,dev:DEV1,pid:12483};
+    RECORDS.unshift(rec);
+    updateBadge();renderReports();
+    $('#st3s').className='step on';
+    openReport(rec.id);
+  },1600);
+}
+
+/* ═══════════════ 报告详情 ═══════════════ */
+let currentReport=null;
+function env(k,v,w2){return `<div class="e${w2?' w2':''}"><div class="k">${k}</div><div class="v" title="${v}">${v}</div></div>`}
+function openReport(id){
+  const rec=RECORDS.find(r=>r.id===id); if(!rec)return;
+  currentReport=rec;
+  const isSnap=rec.type==='snapshot';
+  const envHtml=`<div class="env">
+    ${env(isSnap?'快照时间':'采样时间',isSnap?rec.start:`${rec.start} ~ ${timeOnly(rec.end)}`,true)}
+    ${env('设备',`${rec.dev.name}（${rec.dev.sn}）`,true)}
+    ${env('系统版本',`${rec.dev.os} / API ${rec.dev.api}`)}
+    ${env('设备型号',rec.dev.model)}
+    ${env('PID',rec.pid)}
+    ${isSnap?env('采集方式','hidumper --mem（单次）'):env('时长',rec.dur)}
+    ${isSnap?env('原文文件',`${shortName(rec.bundle)}-${rec.start.replace(/[-: ]/g,'')}.txt`):env('采样点数',`${rec.count} 点`)}
+    ${isSnap?env('运行内存',rec.dev.ram):env('采样间隔','1 秒')}
+    ${isSnap?env('屏幕分辨率',rec.dev.screen):env('运行内存',rec.dev.ram)}
+    ${isSnap?'':env('屏幕分辨率',rec.dev.screen)}
+  </div>`;
+  const head=`<div class="rp-head">
+    <span class="kind ${isSnap?'snap':'trend'}">${isSnap?'📷':'📈'}</span>
+    <h2>${rec.bundle}</h2>
+    <span class="tag ${isSnap?'gold':'blue'}">${isSnap?'内存快照':'峰值采样'}</span>
+    ${rec.remark?`<span class="remark-pill" onclick="editRemark('${rec.id}')">备注：${rec.remark}<span class="ed">✎</span></span>`
+                :`<span class="remark-pill empty" onclick="editRemark('${rec.id}')">添加备注<span class="ed">✎</span></span>`}
+    <div class="acts">
+      <button class="btn sm" onclick="alert('原型：内置查看器展示本次采集的 hidumper 原文（只读、等宽字体、可复制）')">📄 查看原文</button>
+      <button class="btn sm" onclick="alert('原型：系统文件管理器打开报告目录')">📂 打开目录</button>
+      <button class="btn sm" onclick="alert('原型：导出报告（JSON / Markdown 摘要）')">⬇ 导出</button>
+    </div>
+  </div>${envHtml}`;
+  $('#reportBody').innerHTML=head+(isSnap?snapDetail(rec):trendDetail(rec));
+  go('report');
+  if(!isSnap)requestAnimationFrame(()=>{const h=$('#chart-detail');if(h)lineChart(h,{points:80,height:330})});
+}
+function trendDetail(rec){
+  return `
+  <div class="grid4" style="margin-bottom:16px">
+    <div class="stat hero2"><div class="k">峰值 Total Pss</div><div class="v">${MB(rec.peak)}<span class="u">MB</span></div><div class="d">出现时刻已标注于曲线</div></div>
+    <div class="stat"><div class="k">结束值</div><div class="v">${MB(rec.pss)}<span class="u">MB</span></div><div class="d">较起始 +${MB(rec.pss*.05)} MB</div></div>
+    <div class="stat"><div class="k">均值</div><div class="v">${MB((rec.pss+rec.peak)/2)}<span class="u">MB</span></div><div class="d">全程 ${rec.count} 个采样点</div></div>
+    <div class="stat"><div class="k">增长幅度</div><div class="v" style="color:var(--red)">+${MB(rec.pss*.05)}<span class="u">MB</span></div><div class="d">起始 → 结束</div></div>
+  </div>
+  <div class="chart" id="chart-detail"></div>
+  <div class="muted" style="margin-top:11px;line-height:1.8">
+    ⓘ 原文核查：<code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">raw/</code> 目录共 ${rec.count} 个 hidumper 原文文件，
+    命名为 <code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">${shortName(rec.bundle)}-20260930-121530.456.txt</code>，
+    文件名时间戳与 <code style="background:#f5f5f5;padding:1px 4px;border-radius:3px">samples.jsonl</code> 中样本 timestamp 一一对应。
+  </div>`;
+}
+function snapDetail(rec){
+  const cats=CATS.filter(c=>c.n!=='Total').map((c,i)=>({n:c.n,c:c.c,v:[86.4,64.2,58.9,47.3,32.8,21.4,14.9,9.6,6.2,3.8,1.9][i]||.4}));
+  const max=Math.max(...cats.map(c=>c.v));
+  const tr=(n,p)=>`<tr><td>${n}</td><td class="num">${p.toFixed(2)}</td><td class="num">${(p*.62).toFixed(2)}</td><td class="num">${(p*.21).toFixed(2)}</td><td class="num">${(p*.11).toFixed(2)}</td><td class="num">${(p*.06).toFixed(2)}</td><td class="num">${(p*.03).toFixed(2)}</td><td class="num">${(p*.14).toFixed(2)}</td></tr>`;
+  const heap=[['jemalloc meta',18.4],['jemalloc heap',42.1],['brk heap',6.8],['musl heap',3.2]];
+  return `
+  <div class="grid4" style="margin-bottom:16px">
+    <div class="stat hero2"><div class="k">Total Pss</div><div class="v">${MB(rec.pss)}<span class="u">MB</span></div><div class="d">进程物理内存占用</div></div>
+    <div class="stat"><div class="k">Private Dirty</div><div class="v">${MB(rec.pss*.62)}<span class="u">MB</span></div><div class="d">私有脏页 · 回收成本最高</div></div>
+    <div class="stat"><div class="k">Swap Pss</div><div class="v">${MB(rec.pss*.09)}<span class="u">MB</span></div><div class="d">已换出部分</div></div>
+    <div class="stat"><div class="k">Heap 已用容量</div><div class="v">${MB(rec.pss*.14)}<span class="u">MB</span></div><div class="d">alloc / size</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-h">分类占用（Pss）<span class="sp"></span><span class="sub">按 Pss 降序 · 单位 MB</span></div>
+    <div class="card-b" style="padding:13px 16px">
+      <div class="bars">${cats.map(c=>`<div class="bar-row">
+        <span class="bn" title="${c.n}">${c.n}</span>
+        <span class="bt"><span class="bf" style="width:${(c.v/max*100).toFixed(1)}%;background:${c.c}"></span></span>
+        <span class="bv">${c.v.toFixed(1)}</span></div>`).join('')}</div>
+      <div class="row wrap" style="margin-top:12px;gap:6px">
+        <span class="tag purple">PurgSum 12840 kB</span><span class="tag purple">PurgPin 3072 kB</span>
+        <span class="tag blue">Dma 20480 kB</span><span class="tag gold">Total Ashmem 15360 kB</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h">内存明细<span class="sp"></span><span class="sub">点击列头可排序 · 单位 MB</span></div>
+    <div style="overflow:auto;max-height:340px">
+      <table class="tb">
+        <thead><tr><th>分类</th><th class="num">Pss ↕</th><th class="num">私有脏 ↕</th><th class="num">私有净 ↕</th><th class="num">共享脏 ↕</th><th class="num">共享净 ↕</th><th class="num">Swap ↕</th><th class="num">Heap 已用 ↕</th></tr></thead>
+        <tbody>
+          ${`<tr class="total"><td><b>Total</b></td><td class="num">${rec.pss.toFixed(2)}</td><td class="num">${(rec.pss*.62).toFixed(2)}</td><td class="num">${(rec.pss*.21).toFixed(2)}</td><td class="num">${(rec.pss*.11).toFixed(2)}</td><td class="num">${(rec.pss*.06).toFixed(2)}</td><td class="num">${(rec.pss*.03).toFixed(2)}</td><td class="num">${(rec.pss*.14).toFixed(2)}</td></tr>`}
+          ${cats.map(c=>tr(c.n,c.v)).join('')}
+          ${heap.map(h=>`<tr class="sub"><td>↳ ${h[0]}</td><td class="num">${h[1].toFixed(2)}</td><td class="num">${(h[1]*.7).toFixed(2)}</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">${(h[1]*.3).toFixed(2)}</td><td class="num">0.00</td><td class="num">${h[1].toFixed(2)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function editRemark(id){
+  const rec=RECORDS.find(r=>r.id===id);
+  const v=prompt('编辑备注（将写回 meta.json）：',rec.remark||'');
+  if(v==null)return;
+  rec.remark=v.trim();
+  openReport(id);renderReports();
+}
+
+/* ═══════════════ 报告列表 ═══════════════ */
+let filter='all',q='',sel=new Set();
+function filtered(){
+  return RECORDS.filter(r=>(filter==='all'||r.type===filter)&&
+    (!q||(r.bundle+(r.remark||'')+r.dev.name+r.dev.sn).toLowerCase().includes(q.toLowerCase())));
+}
+function setFilter(f,node){filter=f;sel.clear();$$('.seg button').forEach(b=>b.classList.toggle('on',b===node));renderReports()}
+function toggleAll(on){
+  sel.clear();
+  if(on)filtered().forEach(r=>sel.add(r.id));
+  renderReports();
+}
+function toggleOne(id,on,ev){
+  ev.stopPropagation();
+  if(on)sel.add(id);else sel.delete(id);
+  renderReports(false);
+}
+function selectAllFiltered(){sel.clear();filtered().forEach(r=>sel.add(r.id));renderReports()}
+function clearSel(){sel.clear();renderReports()}
+function selRecords(){return[...sel].map(id=>RECORDS.find(r=>r.id===id)).filter(Boolean)}
+function delSelected(){
+  const list=selRecords(); if(!list.length)return;
+  if(!confirm(`确认删除所选 ${list.length} 份报告？\n将永久删除对应目录（含 hidumper 原文），不可恢复。`))return;
+  RECORDS=RECORDS.filter(r=>!sel.has(r.id));
+  sel.clear();updateBadge();renderReports();
+}
+function renderReports(resetCkAll=true){
+  const list=filtered();
+  $('#recList').innerHTML=list.length?list.map(r=>{
+    const isSnap=r.type==='snapshot';
+    return `<div class="rec-i${sel.has(r.id)?' sel':''}" onclick="openReport('${r.id}')">
+      <span><input type="checkbox" class="c" ${sel.has(r.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleOne('${r.id}',this.checked,event)" /></span>
+      <span><span class="tag ${isSnap?'gold':'blue'}">${isSnap?'📷 快照':'📈 峰值'}</span></span>
+      <span class="b" title="${r.bundle}">${r.bundle}</span>
+      <span>${r.remark?`<span class="remark-pill" title="点击编辑" onclick="event.stopPropagation();editRemark('${r.id}')">${r.remark.length>12?r.remark.slice(0,12)+'…':r.remark}<span class="ed">✎</span></span>`
+                      :`<span class="remark-pill empty" title="点击添加" onclick="event.stopPropagation();editRemark('${r.id}')">添加备注<span class="ed">✎</span></span>`}</span>
+      <span class="t">${r.start}${isSnap?'':'<span> ~ '+timeOnly(r.end)+'</span>'}</span>
+      <span class="num">${isSnap?'<span class="muted">单次</span>':`${r.dur} · ${r.count} 点`}</span>
+      <span class="num" style="text-align:right"><b>${MB(r.pss)}</b> <span class="muted">MB</span></span>
+      <span class="dev" title="${r.dev.name}（${r.dev.sn}）">${r.dev.name}</span>
+      <span class="acts">
+        <button class="btn sm" onclick="event.stopPropagation();openReport('${r.id}')">查看</button>
+        <button class="btn sm" onclick="event.stopPropagation();alert('原型：打开目录')" title="打开目录">📂</button>
+        <button class="btn sm danger" onclick="event.stopPropagation();delOne('${r.id}')" title="删除">🗑</button>
+      </span>
+    </div>`}).join(''):
+    `<div class="empty"><div class="big">📋</div>没有匹配的报告</div>`;
+  if(resetCkAll){
+    const all=list.length>0&&list.every(r=>sel.has(r.id));
+    $('#chkAll').checked=all;
+  }
+  // 对比条状态：同类型 2~4 份才可对比
+  const s=selRecords();
+  const types=[...new Set(s.map(r=>r.type))];
+  const ok=s.length>=2&&s.length<=4&&types.length===1;
+  const tip=$('#cmpTip');
+  if(s.length<2){tip.className='cmp-tip off';$('#cmpTipText').innerHTML='勾选 2~4 份<b>同类型</b>报告后可进行对比（峰值采样 ↔ 峰值采样，快照 ↔ 快照）'}
+  else if(types.length>1){tip.className='cmp-tip off';$('#cmpTipText').innerHTML='⚠ 所选报告类型不一致：<b>峰值采样与内存快照不可互相对比</b>，请仅勾选同类型报告'}
+  else if(s.length>4){tip.className='cmp-tip off';$('#cmpTipText').innerHTML='⚠ 一次最多对比 4 份报告，请减少勾选'}
+  else{tip.className='cmp-tip';$('#cmpTipText').innerHTML=`已选 ${s.length} 份 <b>${types[0]==='snapshot'?'内存快照':'峰值采样'}</b> 报告，可以对比`}
+  $('#btnCompare').disabled=!ok;
+  $('#selCount').textContent=s.length;
+  $('#btnDel').disabled=s.length===0;
+  $('#recTotal').textContent=RECORDS.length;
+}
+function delOne(id){
+  const r=RECORDS.find(x=>x.id===id);
+  if(!confirm(`确认删除「${r.bundle}」于 ${r.start} 的${r.type==='snapshot'?'快照':'采样'}报告？`))return;
+  RECORDS=RECORDS.filter(x=>x.id!==id);sel.delete(id);
+  updateBadge();renderReports();
+}
+function updateBadge(){$('#navRecBadge').textContent=RECORDS.length}
+
+/* ═══════════════ 对比 ═══════════════ */
+function openCompare(){
+  const s=selRecords();
+  if(s.length<2)return;
+  const isSnap=s[0].type==='snapshot';
+  $('#cmpKind').className='badge-kind '+(isSnap?'snap':'trend');
+  $('#cmpKind').textContent=isSnap?'📷 内存快照对比':'📈 峰值采样对比';
+  $('#cmpTitle').textContent=`对比 ${s.length} 份报告`;
+  $('#cmpSub').textContent='在新窗口中展示 · 关闭后不影响原报告';
+  $('#cmpBody').innerHTML=isSnap?snapCompareHtml(s):trendCompareHtml(s);
+  $('#cmpMask').classList.add('on');
+  requestAnimationFrame(()=>{
+    const h=$('#cmpChart'); if(h) lineChart(h,{
+      points:70,height:300,title:'Total Pss 趋势叠加（MB）',bold:true,
+      series:s.map((r,i)=>({n:'☆'+i,c:CMP_COLORS[i%CMP_COLORS.length],label:`${shortName(r.bundle)} · ${r.start.slice(5,16)}`,base:r.pss}))
+    });
+  });
+}
+function closeCompare(){$('#cmpMask').classList.remove('on')}
+$('#cmpMask').addEventListener('click',e=>{if(e.target.id==='cmpMask')closeCompare()});
+function trendCompareHtml(s){
+  const peakMax=Math.max(...s.map(r=>r.peak));
+  return `
+  <div class="chart" id="cmpChart" style="margin-bottom:14px"></div>
+  <div class="card">
+    <div class="card-h">关键指标差异<span class="sp"></span><span class="sub">相对第 1 份（基准）报告</span></div>
+    <div style="overflow:auto">
+      <table class="tb">
+        <thead><tr><th>报告</th><th>采样时间</th><th class="num">峰值 Pss</th><th class="num">均值</th><th class="num">结束值</th><th class="num">增长幅度</th><th class="num">时长</th><th class="num">点数</th><th class="num">峰值差</th></tr></thead>
+        <tbody>
+          ${s.map((r,i)=>{
+            const diff=r.peak-s[0].peak;
+            const cls=diff>0.5?'diff-up':(diff<-0.5?'diff-down':'');
+            const txt=i===0?'基准':`${diff>0?'+':''}${diff.toFixed(1)} MB`;
+            return `<tr>
+              <td><span style="display:inline-flex;align-items:center;gap:7px"><i style="width:11px;height:11px;border-radius:3px;background:${CMP_COLORS[i%CMP_COLORS.length]}"></i><b>${shortName(r.bundle)}</b></span><div class="muted" style="margin-top:2px">${r.remark||'（无备注）'}</div></td>
+              <td class="muted">${r.start.slice(5)}</td>
+              <td class="num"><b>${MB(r.peak)}</b>${r.peak===peakMax?' 🔺':''}</td>
+              <td class="num">${MB((r.pss+r.peak)/2)}</td>
+              <td class="num">${MB(r.pss)}</td>
+              <td class="num">+${MB(r.pss*.05)}</td>
+              <td class="num">${r.dur}</td>
+              <td class="num">${r.count}</td>
+              <td class="num ${cls}">${txt}</td>
+            </tr>`}).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function snapCompareHtml(s){
+  const base=s[0];
+  return `
+  <div class="grid${Math.min(s.length,4)===2?'2':(s.length===3?'3':'4')}" style="margin-bottom:14px">
+    ${s.map((r,i)=>`<div class="stat${i===0?' hero2':''}">
+      <div class="k"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${CMP_COLORS[i%CMP_COLORS.length]};margin-right:5px"></i>${i===0?'基准 · ':''}${shortName(r.bundle)}</div>
+      <div class="v">${MB(r.pss)}<span class="u">MB</span></div>
+      <div class="d">${r.start.slice(5,16)} · ${r.remark||'（无备注）'}</div>
+    </div>`).join('')}
+  </div>
+  <div class="card">
+    <div class="card-h">分类构成差异<span class="sp"></span><span class="sub">相对基准（第 1 份）· 单位 MB · 红=增长 绿=下降</span></div>
+    <div style="overflow:auto">
+      <table class="tb">
+        <thead><tr><th>分类</th>${s.map((r,i)=>`<th class="num"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${CMP_COLORS[i%CMP_COLORS.length]};margin-right:5px"></i>${i===0?'基准':shortName(r.bundle).slice(0,10)}</th>`).join('')}${s.length>1?'<th class="num">最大差异</th>':''}</tr></thead>
+        <tbody>
+          ${CATS.filter(c=>c.n!=='Total').slice(0,10).map((c,ci)=>{
+            const baseV=[86.4,64.2,58.9,47.3,32.8,21.4,14.9,9.6,6.2,3.8][ci];
+            const vals=s.map((r,i)=>baseV*(0.9+((r.pss/438)+(i*.07))%0.25));
+            const maxDiff=Math.max(...vals)-Math.min(...vals);
+            return `<tr><td><b style="color:${c.c}">●</b> ${c.n}</td>
+              ${vals.map((v,i)=>{
+                const d=v-vals[0];
+                const cls=i===0?'':(d>1?'diff-up':(d<-1?'diff-down':''));
+                return `<td class="num ${cls}">${v.toFixed(1)}${i>0&&Math.abs(d)>1?`<br/><span style="font-size:10.5px">${d>0?'+':''}${d.toFixed(1)}</span>`:''}</td>`;
+              }).join('')}
+              ${s.length>1?`<td class="num ${maxDiff>2?'diff-up':''}">${maxDiff.toFixed(1)}</td>`:''}</tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════ 设置 / 说明 ═══════════════ */
+function openSettings(){$('#setMask').classList.add('on')}
+function closeSettings(){$('#setMask').classList.remove('on')}
+$('#setMask').addEventListener('click',e=>{if(e.target.id==='setMask')closeSettings()});
+function toggleNotes(){$('#notes').classList.toggle('on')}
+
+/* ═══════════════ 初始化 ═══════════════ */
+window.addEventListener('resize',()=>{
+  const h=$('#liveChart');if(h&&$('#page-live').classList.contains('active'))lineChart(h,{points:60,height:300});
+  const d=$('#chart-detail');if(d&&$('#page-report').classList.contains('active'))lineChart(d,{points:80,height:330});
+});
+renderReports();
+</script>
+</body>
+</html>

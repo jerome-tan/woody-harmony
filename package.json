@@ -1,0 +1,39 @@
+{
+  "name": "woody",
+  "version": "0.1.0",
+  "productName": "Woody",
+  "description": "Woody · 鸿蒙开发调试工具：内存采样 / 快照 / 报告对比",
+  "main": "./out/main/index.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/genBuildInfo.js && node scripts/patchElectronName.js && electron-vite dev",
+    "postinstall": "node scripts/genBuildInfo.js && node scripts/patchElectronName.js",
+    "build": "node scripts/genBuildInfo.js && electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.3.7",
+    "antd": "^5.19.0",
+    "echarts": "^5.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^44.4.4",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.3.0"
+  }
+}

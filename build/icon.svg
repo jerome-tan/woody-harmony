@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bgH" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ede9fe"/>
+      <stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <linearGradient id="bodyH" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS 图标规范：1024 画布，圆角矩形主体 824（约 80%），四周透明边距 -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bgH)"/>
+  <!-- 内部图案：以 256 设计稿等比缩放到主体区域（鸟约占主体 60%，与系统图标视觉密度一致） -->
+  <g transform="translate(100,100) scale(3.21875)">
+    <g>
+      <path d="M124 64 Q132 34 112 22 Q140 36 140 66 Z" fill="#6d28d9"/>
+      <circle cx="128" cy="144" r="76" fill="url(#bodyH)"/>
+      <circle cx="100" cy="124" r="24" fill="#ffffff"/>
+      <circle cx="156" cy="124" r="24" fill="#ffffff"/>
+      <circle cx="104" cy="128" r="12" fill="#3b0764"/>
+      <circle cx="152" cy="128" r="12" fill="#3b0764"/>
+      <circle cx="108" cy="123" r="4" fill="#ffffff"/>
+      <circle cx="156" cy="123" r="4" fill="#ffffff"/>
+      <path d="M118 150 L138 150 L128 188 Z" fill="#fbbf24"/>
+    </g>
+  </g>
+</svg>

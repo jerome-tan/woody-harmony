@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bgH" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ede9fe"/>
+      <stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <linearGradient id="bodyH" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Windows 版：满幅圆角矩形（任务栏/安装包习惯满幅图标） -->
+  <rect width="256" height="256" rx="40" fill="url(#bgH)"/>
+  <path d="M124 64 Q132 34 112 22 Q140 36 140 66 Z" fill="#6d28d9"/>
+  <circle cx="128" cy="144" r="76" fill="url(#bodyH)"/>
+  <circle cx="100" cy="124" r="24" fill="#ffffff"/>
+  <circle cx="156" cy="124" r="24" fill="#ffffff"/>
+  <circle cx="104" cy="128" r="12" fill="#3b0764"/>
+  <circle cx="152" cy="128" r="12" fill="#3b0764"/>
+  <circle cx="108" cy="123" r="4" fill="#ffffff"/>
+  <circle cx="156" cy="123" r="4" fill="#ffffff"/>
+  <path d="M118 150 L138 150 L128 188 Z" fill="#fbbf24"/>
+</svg>

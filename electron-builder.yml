@@ -1,0 +1,25 @@
+appId: com.woody.devtools
+productName: Woody
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - nsis
+  icon: build/icon-win.png
+  artifactName: ${productName}-${version}-setup.${ext}
+afterPack: ./scripts/afterPack.js
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+  artifactName: ${productName}-${version}.${ext}
+  # 显式跳过 electron-builder 的签名，改由 afterPack 钩子做 ad-hoc 重签名
+  identity: null
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
