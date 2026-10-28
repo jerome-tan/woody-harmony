@@ -15,7 +15,8 @@ const { spawnSync } = require('child_process')
 
 const APP_NAME = 'Woody'
 
-if (process.platform !== 'darwin') process.exit(0)
+// CI 只构建安装包，跳过开发环境专用的 Electron.app 修改与 LaunchServices 注册。
+if (process.platform !== 'darwin' || process.env.CI) process.exit(0)
 
 const distDir = path.join(__dirname, '..', 'node_modules', 'electron', 'dist')
 const appDir = path.join(distDir, 'Electron.app')

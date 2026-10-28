@@ -1,126 +1,128 @@
 # Woody
 
-鸿蒙开发调试工具，基于 Electron，支持 macOS / Windows。通过设备 hdc 接口执行 `hidumper` 采集内存数据：实时趋势、内存快照、持续采样与多报告对比；日志、Trace 等更多调试能力持续扩展中。
+[![Build and Release](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml/badge.svg)](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/jerome-tan/woody-harmony)](https://github.com/jerome-tan/woody-harmony/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 功能特性
+鸿蒙开发调试桌面工具，支持 macOS / Windows。通过 hdc 执行 `hidumper`，提供实时内存趋势、单次快照、持续采样和多报告对比。
 
-- 展示设备信息：型号名称、型号代码、软件版本、序列号、运行内存、屏幕分辨率；侧栏宽度可拖拽调节
-- 查看并选择已连接鸿蒙设备（手机、平板、2in1 等）上的应用列表
-- 开始采集前弹出配置：hidumper 采样间隔、是否采集 smaps / ashmem / DMA / GPU 明细、Ability 名称、是否自动启动
-- 应用未运行时通过 hdc `aa start` 自动拉起
-- 按指定间隔通过 `hidumper --mem pid` 采样，数据落盘保留
-- 实时显示内存总量及细分（GL / Graph / ark ts heap / native heap / .so / stack 等）多色趋势线
-- 停止后展示完整周期趋势，鼠标悬停显示竖虚线与各分类具体数值，支持缩放
-- 打开历史采样目录回看趋势图
+## 下载
 
-## 技术栈
+在 [Releases](https://github.com/jerome-tan/woody-harmony/releases/latest) 下载对应安装包：
 
-Electron 31 · electron-vite · React 18 · TypeScript · Ant Design 5 · ECharts 5
-
-## 环境要求
-
-- Node.js 20+ 与 npm
-- 本机可用的 hdc（DevEco Studio 或 HarmonyOS / OpenHarmony SDK 自带）。工具会自动在常见 SDK 路径、环境变量与 PATH 中查找，也可在右上角「设置」中手动配置 hdc 路径
-- 鸿蒙设备已开启开发者模式 / USB 调试并连接
-
-## 目录结构
-
-```
-src/
-├── main/            # 主进程
-│   ├── hdc.ts       # hdc 定位与命令封装
-│   ├── hidumper.ts  # hidumper 输出解析
-│   ├── sampler.ts   # 采样引擎
-│   ├── storage.ts   # JSONL 落盘 / 历史加载
-│   ├── ipc.ts       # IPC handlers
-│   └── index.ts     # 窗口入口
-├── preload/         # contextBridge 桥接
-├── shared/          # 主/渲染进程共享类型
-└── renderer/        # React UI（设备面板 / 应用列表 / 配置弹窗 / 趋势图）
-```
-
-## 安装
-
-```bash
-npm install
-```
-
-## 开发运行
-
-```bash
-npm run dev
-```
-
-## 编译与打包
-
-| 命令 | 说明 |
+| 平台 | 安装包 |
 | --- | --- |
-| `npm run typecheck` | TypeScript 类型检查 |
-| `npm run build` | 编译主进程 / 预加载 / 渲染进程到 `out/` |
-| `npm run build:unpack` | 打包为未压缩的应用目录（`dist/`） |
-| `npm run build:mac` | 打包 macOS DMG（生成于 `dist/`） |
-| `npm run build:win` | 打包 Windows NSIS 安装包（建议在 Windows 上执行） |
+| macOS Apple Silicon（M 系列） | `Woody-<版本>-mac-arm64.dmg` |
+| macOS Intel | `Woody-<版本>-mac-x64.dmg` |
+| Windows x64 | `Woody-<版本>-win-x64-setup.exe` |
 
-## 使用说明
+每个版本附带 `SHA256SUMS.txt`，可用于核对安装包完整性。macOS 安装包使用 ad-hoc 签名，未配置 Apple Developer ID 签名与公证；Windows 安装包未配置代码签名，首次运行可能出现系统安全提示。
 
-1. 启动后自动检测并选中设备，或在「目标设备」下拉框中选择；如 hdc 未自动定位，在右上角「设置」中填写 hdc 路径后保存。
-2. 在应用列表点击「刷新」，选中目标应用。
-3. 点击「开始采集」，在弹窗中配置采样间隔、是否采集 smaps / ashmem / DMA / GPU 明细、Ability 名称、是否自动启动。
-4. 采样过程中实时查看趋势图；点击「停止采集」后展示完整周期趋势。
-5. 鼠标在图表上移动时显示竖虚线与各分类数值。
-6. 点击「打开历史」选择之前保存的采样目录即可回看。
+## 功能
+
+- **设备与应用**：自动探测 hdc，选择设备，查看型号、系统/API 版本、内存、分辨率与应用运行状态。
+- **实时内存**：查看 Total PSS 和 GL、Graph、ArkTS heap、native heap 等分类趋势，支持缩放、平移、自动跟随；不落盘、不生成报告。
+- **持续采样**：配置采样间隔与时长，默认每秒采样、10 分钟自动结束；保存结构化样本和 hidumper 原文。
+- **内存快照**：定格当前进程内存构成，可附加 ashmem、DMA、GPU 明细，以及单独采集 smaps 原文。
+- **报告管理**：加载历史、搜索筛选、重命名、删除、打开目录，并在独立窗口查看报告。
+- **报告对比**：选择 2～4 份同类型报告，按开始、峰值或结束对齐趋势，也可比较选定采样点和快照分类差异。
+
+## 使用要求
+
+- 本机有可用的 hdc（DevEco Studio 或 HarmonyOS / OpenHarmony SDK 自带）。Woody 会在常见 SDK 目录、`HDC_PATH` 和 PATH 中查找，也可在「设置」中手动指定路径。
+- 鸿蒙设备已开启开发者模式 / USB 调试，并完成连接授权。
+- smaps 和部分资源明细是否可用，取决于系统版本、应用构建类型及设备权限。
+
+## 使用流程
+
+1. 启动后确认顶部设备信息；必要时在「设置」中配置 hdc 路径。
+2. 在「工具集」选择实时内存、持续内存采样或内存快照。
+3. 选择目标设备和应用，配置参数并开始采集。
+4. 持续采样结束或快照完成后，查看生成的报告；在「查看报告」中选择同类型报告进行对比。
+
+实时查看和持续采样允许在应用尚未启动时开始：此时记录 `pid: null` 的零值占位样本，待手动启动应用后自动采集。Woody 不会自动启动应用。内存快照要求目标应用正在运行。
 
 ## 数据保存
 
-每次采样的数据保存在 `~/.woody/reports/<bundleName>-<时间戳>/` 目录下（可在设置页自定义）：
+默认保存到用户主目录下的 `.woody/reports/`，可在「设置」中修改输出目录。
 
-- `meta.json`：会话元信息（设备、应用、配置、起止时间、采样点数）
-- `samples.jsonl`：每个采样点一行 JSON
+| 类型 | 内容 |
+| --- | --- |
+| 持续采样 | `meta.json`、`samples.jsonl`、`raw/` 下每次采集的原始文本 |
+| 内存快照 | `meta.json`、`snapshot.json`、hidumper 原始文本；勾选 smaps 后另存 `.smaps.txt` |
+| 实时查看 | 仅保留在内存中，不生成文件 |
 
-## 注意事项
+## 开发
 
-- `hidumper --mem-smaps` 仅 **debug 版应用** 支持；采集到的 smaps 原始文本保存于样本的 `smapsRaw` 字段，趋势图仍基于 `--mem` 的分类汇总。
-- macOS 未配置 Apple Developer ID 证书时，`electron-builder` 会跳过签名；本项目已通过 `afterPack` 钩子对产物做 **ad-hoc 签名**，使签名完整有效。`dmg` 安装后首次打开会提示「无法验证开发者」，用户需在 系统设置 → 隐私与安全性 中点「仍要打开」（或右键 → 打开）。要彻底消除提示，需 Apple Developer ID 证书 + 公证（$99/年）。
+技术栈：Electron 44 · electron-vite · React 18 · TypeScript · Ant Design 5 · ECharts 5。
 
-## 常见问题
+需要 Node.js **22.12.0 或更高版本**，推荐 Node.js 24（与 GitHub Actions 一致）。
 
-### macOS 提示「已阻止恶意软件并移到废纸篓，未打开 Electron.app」
+```bash
+npm ci
+npm run dev
+```
 
-macOS Gatekeeper 会拦截签名失效的 Electron 二进制（`npm install` 解压会破坏官方签名，且文件带 `com.apple.quarantine` 隔离属性），随后 `npm run dev` 会报 `spawn .../Electron.app/.../Electron ENOENT`。
+```text
+src/
+├── main/            # hdc、hidumper 解析、采样引擎、存储、IPC、窗口管理
+├── preload/         # contextBridge 暴露类型化 window.api
+├── shared/          # 主进程与界面的共享类型
+└── renderer/src/
+    ├── pages/       # 首页、工具流程、报告列表、设置
+    ├── components/  # 选择器、趋势图、快照与报告组件
+    ├── App.tsx      # 主窗口状态与流程
+    ├── ReportApp.tsx
+    └── CompareApp.tsx
+```
 
-修复（重新下载二进制 + ad-hoc 重签名 + 移除隔离属性）：
+| 命令 | 用途 |
+| --- | --- |
+| `npm run typecheck` | 主进程与界面的 TypeScript 检查 |
+| `npm run build` | 编译到 `out/` |
+| `npm run build:unpack` | 生成未压缩应用目录 |
+| `npm run build:mac -- --arm64` | macOS Apple Silicon DMG |
+| `npm run build:mac -- --x64` | macOS Intel DMG |
+| `npm run build:win -- --x64` | Windows x64 NSIS 安装包 |
+
+安装包输出到 `dist/`。macOS 包在 macOS 上构建，Windows 包在 Windows 上构建。打包命令默认不上传任何文件。
+
+## GitHub Actions 与版本发布
+
+[Build and Release](.github/workflows/build.yml) 在以下场景自动执行三平台构建：
+
+- 推送到 `main`、提交面向 `main` 的 Pull Request，或手动运行工作流：检查类型、编译、打包，安装包保存在 Actions Artifacts 中 14 天。
+- 推送 `v*` 标签：额外校验标签与 `package.json` 版本一致；全部构建成功后，汇总安装包、生成 SHA-256 校验文件并发布 GitHub Release。
+
+发布任务使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需额外配置个人访问令牌。普通构建只有仓库读取权限，发布任务单独申请 `contents: write`。
+
+后续发布示例（工作区需干净）：
+
+1. 如需自定义说明，先提交 `.github/release-notes/v0.1.1.md`；没有对应文件时自动生成说明。
+2. 更新版本并推送：
+
+   ```bash
+   npm version 0.1.1
+   git push origin main
+   git push origin v0.1.1
+   ```
+
+如果构建或上传失败，修复后可重跑工作流；未完成的 Release 保持草稿状态。已正式发布的版本不会被工作流覆盖，应使用新版本号发布后续改动。
+
+## macOS 开发环境故障
+
+开发脚本会修改本地 `node_modules/electron/dist/Electron.app` 的名称和图标。如开发运行遭系统拦截，可重新下载并对本机开发副本签名：
 
 ```bash
 node node_modules/electron/install.js
+node scripts/patchElectronName.js
 codesign --force --deep --sign - node_modules/electron/dist/Electron.app
 xattr -cr node_modules/electron/dist/Electron.app
+npm run dev
 ```
 
-执行后再运行 `npm run dev` 即可。若重装依赖或删除 `node_modules/electron/dist` 后再次遇到，重复上述命令。
+此操作针对本地开发副本；发布包的 ad-hoc 签名由 `scripts/afterPack.js` 完成。
 
-### dmg 安装后提示「已阻止恶意软件」/「无法验证开发者」
+## 许可证
 
-这是 macOS 的 **Gatekeeper** 安全机制，涉及两个概念：
-
-- **代码签名**：用证书证明「应用来自谁、未被篡改」。
-- **公证（Notarization）**：Apple 扫描应用确认无恶意内容后盖章。
-- **Gatekeeper**：运行时校验签名与公证。
-
-拦截行为分两种，取决于签名是否**完整**：
-
-| 状态 | 表现 | 能否绕过 |
-| --- | --- | --- |
-| 签名**损坏**（`codesign --verify` 失败） | 「已阻止恶意软件」并直接移到废纸篓 | 不能点允许 |
-| 签名**完整**但非 Apple 证书（ad-hoc/自签名） | 「无法验证开发者」 | 可右键 → 打开，或 系统设置 → 隐私与安全性 → 仍要打开 |
-
-本项目通过 `afterPack` 钩子对产物做 ad-hoc 签名，保证签名完整，因此属于第二种，可手动放行。
-
-临时放行（本机一次性）：
-
-```bash
-xattr -cr "/Applications/HarmonyOS Memory Tools.app"
-```
-
-或右键点击应用 → 打开 → 点「打开」。
-
-彻底消除提示（他人机器无感安装）：需注册 [Apple Developer Program](https://developer.apple.com/programs/)（$99/年），配置 Developer ID Application 证书 + 公证，再填写 `electron-builder.yml` 的 `mac.identity` 与 `mac.notarize` 相关配置。
+[MIT](LICENSE)

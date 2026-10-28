@@ -4,8 +4,19 @@
   "productName": "Woody",
   "description": "Woody · 鸿蒙开发调试工具：内存采样 / 快照 / 报告对比",
   "main": "./out/main/index.js",
-  "author": "",
+  "author": "Jialiang Tan",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerome-tan/woody-harmony.git"
+  },
+  "homepage": "https://github.com/jerome-tan/woody-harmony#readme",
+  "bugs": {
+    "url": "https://github.com/jerome-tan/woody-harmony/issues"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "node scripts/genBuildInfo.js && node scripts/patchElectronName.js && electron-vite dev",
     "postinstall": "node scripts/genBuildInfo.js && node scripts/patchElectronName.js",
@@ -14,9 +25,9 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "build:unpack": "npm run build && electron-builder --dir",
-    "build:mac": "npm run build && electron-builder --mac",
-    "build:win": "npm run build && electron-builder --win"
+    "build:unpack": "npm run build && electron-builder --dir --publish never",
+    "build:mac": "npm run build && electron-builder --mac --publish never",
+    "build:win": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",
