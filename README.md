@@ -10,6 +10,8 @@
 
 正式版本在 [Releases](https://github.com/jerome-tan/woody-harmony/releases/latest) 下载；最新开发构建可在 [Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml) 的 Artifacts 中下载。构建同时提供安装包和免安装包，免安装包会随后续正式版本发布：
 
+Actions 中以 `-portable` 结尾的 Artifact 单独包含免安装包，可按需下载。
+
 | 平台 | 安装包 | 免安装包 |
 | --- | --- | --- |
 | macOS Apple Silicon（M 系列） | `Woody-<版本>-mac-arm64.dmg` | `Woody-<版本>-mac-arm64-portable.zip` |

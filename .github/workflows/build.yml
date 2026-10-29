@@ -27,21 +27,18 @@ jobs:
           - os: macos-15
             platform: mac
             arch: arm64
-            artifacts: |
-              dist/*-mac-arm64.dmg
-              dist/*-mac-arm64-portable.zip
+            installer: dist/*-mac-arm64.dmg
+            portable: dist/*-mac-arm64-portable.zip
           - os: macos-15-intel
             platform: mac
             arch: x64
-            artifacts: |
-              dist/*-mac-x64.dmg
-              dist/*-mac-x64-portable.zip
+            installer: dist/*-mac-x64.dmg
+            portable: dist/*-mac-x64-portable.zip
           - os: windows-2022
             platform: win
             arch: x64
-            artifacts: |
-              dist/*-win-x64-setup.exe
-              dist/*-win-x64-portable.exe
+            installer: dist/*-win-x64-setup.exe
+            portable: dist/*-win-x64-portable.exe
     defaults:
       run:
         shell: bash
@@ -98,11 +95,20 @@ jobs:
             `### Package sizes\n\n| File | Bytes | MB |\n| --- | ---: | ---: |\n${rows.join('\n')}\n`)
           NODE
 
-      - name: Upload installers and portable apps
+      - name: Upload installer
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: woody-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ matrix.artifacts }}
+          path: ${{ matrix.installer }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload portable app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: woody-${{ matrix.platform }}-${{ matrix.arch }}-portable
+          path: ${{ matrix.portable }}
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
