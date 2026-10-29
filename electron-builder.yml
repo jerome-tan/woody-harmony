@@ -9,20 +9,27 @@ files:
 win:
   target:
     - nsis
+    - portable
   icon: build/icon-win.png
   artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
 afterPack: ./scripts/afterPack.js
 mac:
   target:
     - dmg
+    - zip
   category: public.app-category.developer-tools
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  artifactName: ${productName}-${version}-mac-${arch}-portable.${ext}
   # 显式跳过 electron-builder 的签名，改由 afterPack 钩子做 ad-hoc 重签名
   identity: null
 dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # 仅压缩安装介质，保留完整应用内容；挂载和复制时会比 UDZO 稍慢。
   format: UDBZ
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
+portable:
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
+  requestExecutionLevel: user
+  unpackDirName: false
