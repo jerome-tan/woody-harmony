@@ -87,6 +87,8 @@ src/
 
 安装包输出到 `dist/`。macOS 包在 macOS 上构建，Windows 包在 Windows 上构建。打包命令默认不上传任何文件。
 
+前端的 React、Ant Design、ECharts 等依赖由 Vite 打包，放在 `devDependencies`，避免再把完整 `node_modules` 重复装入安装包。以后若主进程或 preload 使用未被打包的运行时依赖，仍需放入 `dependencies`。生产前端启用代码压缩，并自动附带 `THIRD_PARTY_LICENSES.txt`；Electron 运行时、语言资源与功能组件保持完整。DMG 使用 UDBZ 压缩以减少下载体积，挂载和复制时会比默认格式稍慢。
+
 ## GitHub Actions 与版本发布
 
 [Build and Release](.github/workflows/build.yml) 在以下场景自动执行三平台构建：

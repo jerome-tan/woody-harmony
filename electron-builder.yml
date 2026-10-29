@@ -19,6 +19,9 @@ mac:
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # 显式跳过 electron-builder 的签名，改由 afterPack 钩子做 ad-hoc 重签名
   identity: null
+dmg:
+  # 仅压缩安装介质，保留完整应用内容；挂载和复制时会比 UDZO 稍慢。
+  format: UDBZ
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
