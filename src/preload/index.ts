@@ -10,6 +10,8 @@ import type {
 } from '../shared/types'
 
 const api: IpcApi = {
+  platform: process.platform,
+  showWindowMenu: (x: number, y: number) => ipcRenderer.invoke('window:show-menu', x, y),
   getHdcPath: () => ipcRenderer.invoke('hdc:getPath'),
   setHdcPath: (path: string) => ipcRenderer.invoke('hdc:setPath', path),
   getSessionsDir: () => ipcRenderer.invoke('settings:getSessionsDir'),

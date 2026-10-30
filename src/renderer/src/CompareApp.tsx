@@ -1,3 +1,4 @@
+import WindowTitleBar from './components/WindowTitleBar'
 import { Card, Empty, Segmented, Select, Slider, Table, Tabs, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { HolderOutlined } from '@ant-design/icons'
@@ -1214,31 +1215,15 @@ export default function CompareApp(): JSX.Element {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f3f5f9' }}>
-      {/* 顶栏（拖拽区） */}
-      <div
-        style={
-          {
-            height: 46,
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '0 14px 0 86px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
-            WebkitAppRegion: 'drag'
-          } as React.CSSProperties
+      <WindowTitleBar
+        title={`对比 ${items?.length ?? dirs.length} 份报告`}
+        badge={
+          <Tag color={kinds.has('snapshot') ? 'gold' : 'blue'}>
+            {kinds.has('snapshot') ? '📷 内存快照对比' : '📈 持续采样对比'}
+          </Tag>
         }
-      >
-        <Tag
-          color={kinds.has('snapshot') ? 'gold' : 'blue'}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          {kinds.has('snapshot') ? '📷 内存快照对比' : '📈 持续采样对比'}
-        </Tag>
-        <b style={{ fontSize: 14 }}>对比 {items?.length ?? dirs.length} 份报告</b>
-        <span style={{ fontSize: 12, color: '#8c8c8c' }}>独立窗口 · 关闭后不影响原报告</span>
-      </div>
+        description="独立窗口 · 关闭后不影响原报告"
+      />
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: 12 }}>
         {error ? (
           <Card>

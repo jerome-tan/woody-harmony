@@ -180,6 +180,10 @@ export interface SnapshotOptions {
 
 // preload 暴露给渲染进程的 API
 export interface IpcApi {
+  /** Actual host platform, supplied by preload rather than inferred from the user agent. */
+  readonly platform: string
+  /** Open the application menu for the calling window; resolves when the menu closes. */
+  showWindowMenu(x: number, y: number): Promise<void>
   getHdcPath(): Promise<string>
   setHdcPath(path: string): Promise<void>
   /** 采集报告输出目录：custom 为自定义值（空串=默认），defaultDir 为默认目录 */

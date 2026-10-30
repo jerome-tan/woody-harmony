@@ -25,6 +25,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test:window-chrome": "node scripts/smokeWindowChrome.cjs",
     "build:unpack": "npm run build && electron-builder --dir --publish never",
     "build:mac": "npm run build && electron-builder --mac --publish never",
     "build:win": "npm run build && electron-builder --win --publish never"

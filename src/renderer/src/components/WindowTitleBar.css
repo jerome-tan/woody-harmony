@@ -1,0 +1,109 @@
+.window-titlebar {
+  height: var(--titlebar-height);
+  flex: 0 0 var(--titlebar-height);
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  color: #262626;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.window-titlebar__safe-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  min-width: 0;
+  padding: 0 14px;
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: titlebar;
+}
+
+/* The OS supplies the usable area, including changes on resize, DPI and fullscreen. */
+.window-titlebar[data-overlay='visible'] .window-titlebar__safe-area {
+  margin-left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, 100%);
+}
+
+.window-titlebar[data-overlay='unavailable'][data-platform='mac'] .window-titlebar__safe-area {
+  padding-left: 86px;
+}
+
+.window-titlebar[data-overlay='unavailable'][data-platform='windows'] .window-titlebar__safe-area {
+  padding-right: 152px;
+}
+
+.window-titlebar__menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #595959;
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.window-titlebar__menu:hover,
+.window-titlebar__menu[aria-expanded='true'] {
+  background: #f0f0f0;
+}
+
+.window-titlebar__menu:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.window-titlebar__content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.window-titlebar__badge {
+  flex: 0 0 auto;
+}
+
+.window-titlebar__badge .ant-tag {
+  margin-inline-end: 0;
+}
+
+.window-titlebar__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+
+.window-titlebar__description {
+  flex: 0 5 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.window-titlebar__actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 75%;
+  -webkit-app-region: no-drag;
+}
+
+@container titlebar (max-width: 700px) {
+  .window-titlebar__description {
+    display: none;
+  }
+}

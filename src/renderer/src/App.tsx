@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Layout, Modal, Tag } from 'antd'
+import { Badge, Layout, Tag } from 'antd'
 import { version as APP_VERSION } from '../../../package.json'
 import {
   AppstoreOutlined,
@@ -8,7 +8,6 @@ import {
   SettingOutlined
 } from '@ant-design/icons'
 import type {
-  AboutInfo,
   AppInfo,
   DeviceInfo,
   DeviceSummary,
@@ -19,6 +18,7 @@ import type {
   SnapshotOptions
 } from '@shared/types'
 import AppLogo from './components/AppLogo'
+import WindowTitleBar from './components/WindowTitleBar'
 import type { PageKey, PageProps } from './pages/types'
 import type { ToolTargetState } from './components/TargetPicker'
 import HomePage from './pages/HomePage'
@@ -49,10 +49,6 @@ const NAV_ITEMS: Array<{ key: PageKey; icon: React.ReactNode; label: string }> =
 
 export default function App(): JSX.Element {
   const [page, setPage] = useState<PageKey>('home')
-  // 「关于」弹窗（菜单触发，数据来自主进程）
-  const [aboutInfo, setAboutInfo] = useState<AboutInfo | null>(null)
-  useEffect(() => window.api.onShowAbout(setAboutInfo), [])
-
   // 设置
   const [hdcPath, setHdcPath] = useState('')
   const [sessionsDir, setSessionsDir] = useState('')
@@ -406,34 +402,24 @@ export default function App(): JSX.Element {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      {/* 顶栏：窗口拖拽区 + 全局状态 */}
-      <div
-        style={
-          {
-            height: 46,
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 14px 0 86px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
-            WebkitAppRegion: 'drag'
-          } as React.CSSProperties
+      <WindowTitleBar
+        title="Woody"
+        actions={
+          <>
+            {sampling && (
+              <Tag
+                color={liveTool === 'watch' ? 'success' : 'processing'}
+                style={{ marginInlineEnd: 8, cursor: 'pointer', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                onClick={() => setPage(liveTool === 'watch' ? 'watch' : 'live')}
+                title={liveTool === 'watch' ? '点击回到实时查看页' : '点击回到实时采样页'}
+              >
+                <Badge status="processing" /> {liveTool === 'watch' ? '查看中' : '采样中'} · {samples.length} 点
+              </Tag>
+            )}
+            {deviceChip}
+          </>
         }
-      >
-        <span style={{ flex: 1 }} />
-        {sampling && (
-          <Tag
-            color={liveTool === 'watch' ? 'success' : 'processing'}
-            style={{ marginInlineEnd: 8, cursor: 'pointer', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            onClick={() => setPage(liveTool === 'watch' ? 'watch' : 'live')}
-            title={liveTool === 'watch' ? '点击回到实时查看页' : '点击回到实时采样页'}
-          >
-            <Badge status="processing" /> {liveTool === 'watch' ? '查看中' : '采样中'} · {samples.length} 点
-          </Tag>
-        )}
-        {deviceChip}
-      </div>
+      />
 
       <Layout>
         {/* 左侧主导航 */}
@@ -572,59 +558,6 @@ export default function App(): JSX.Element {
           )}
         </Content>
       </Layout>
-
-      {/* 关于弹窗（macOS 菜单「关于 Woody」触发，自绘以自定义内容顺序） */}
-      <Modal
-        open={!!aboutInfo}
-        footer={null}
-        onCancel={() => setAboutInfo(null)}
-        width={340}
-        centered
-      >
-        <div style={{ padding: '8px 0 2px' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <AppLogo size={64} radius={14} />
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 600, marginTop: 10 }}>Woody</div>
-            <div style={{ fontSize: 12.5, color: '#595959', marginTop: 4 }}>
-              鸿蒙（HarmonyOS）开发者工具
-            </div>
-          </div>
-          {aboutInfo && (
-            <div
-              style={{
-                marginTop: 14,
-                paddingTop: 12,
-                borderTop: '1px solid #f0f0f0',
-                fontSize: 12,
-                lineHeight: 2
-              }}
-            >
-              {(
-                [
-                  ['版本', `v${aboutInfo.version}`],
-                  ['提交', aboutInfo.commit],
-                  ['日期', aboutInfo.commitDate],
-                  ['Electron', aboutInfo.electron],
-                  ['Node.js', aboutInfo.node],
-                  ['V8', aboutInfo.v8],
-                  ['OS', aboutInfo.os]
-                ] as Array<[string, string]>
-              ).map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ width: 72, flex: '0 0 auto', textAlign: 'right', color: '#8c8c8c' }}>
-                    {k}:
-                  </span>
-                  <span style={{ color: '#262626', fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>
-                    {v}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Modal>
     </Layout>
   )
 }

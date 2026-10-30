@@ -2,6 +2,7 @@ import { Card, Empty, Tag } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReportData } from './components/ReportView'
 import ReportView from './components/ReportView'
+import WindowTitleBar from './components/WindowTitleBar'
 import { notify } from './notify'
 
 /** 单报告查看窗口入口（独立 BrowserWindow）：经 query 传入会话目录，自行加载数据 */
@@ -54,35 +55,11 @@ export default function ReportApp(): JSX.Element {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f3f5f9' }}>
-      {/* 顶栏（拖拽区） */}
-      <div
-        style={
-          {
-            height: 46,
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '0 14px 0 86px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
-            WebkitAppRegion: 'drag'
-          } as React.CSSProperties
-        }
-      >
-        {report && (
-          <Tag
-            color={isSnap ? 'gold' : 'blue'}
-            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          >
-            {isSnap ? '📷 内存快照' : '📈 持续采样'}
-          </Tag>
-        )}
-        <b style={{ fontSize: 14 }}>
-          {report ? report.meta.taskName || report.meta.bundleName : '加载中…'}
-        </b>
-        <span style={{ fontSize: 12, color: '#8c8c8c' }}>独立窗口 · 关闭后不影响原报告</span>
-      </div>
+      <WindowTitleBar
+        title={report ? report.meta.taskName || report.meta.bundleName : '加载中…'}
+        badge={report ? <Tag color={isSnap ? 'gold' : 'blue'}>{isSnap ? '📷 内存快照' : '📈 持续采样'}</Tag> : undefined}
+        description="独立窗口 · 关闭后不影响原报告"
+      />
       <div
         style={{
           flex: 1,

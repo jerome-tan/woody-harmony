@@ -48,6 +48,8 @@ Windows 免安装版双击 `portable.exe` 运行，无需安装或管理员权�
 
 实时查看和持续采样允许在应用尚未启动时开始：此时记录 `pid: null` 的零值占位样本，待手动启动应用后自动采集。Woody 不会自动启动应用。内存快照要求目标应用正在运行。
 
+主窗口、报告窗口和对比窗口使用统一的单行顶栏。macOS 保留左上角系统按钮和屏幕顶部菜单；Windows 在顶栏左侧提供应用菜单按钮（也可按 `Alt` 或 `F10` 打开），右侧保留系统最小化、最大化、关闭按钮。编辑、窗口和关于操作作用于当前窗口，Windows 支持 `Ctrl+W` 关闭当前窗口、`Ctrl+M` 最小化、`Ctrl+Q` 退出应用。
+
 ## 数据保存
 
 默认保存到用户主目录下的 `.woody/reports/`，可在「设置」中修改输出目录。
@@ -86,6 +88,7 @@ src/
 | --- | --- |
 | `npm run typecheck` | 主进程与界面的 TypeScript 检查 |
 | `npm run build` | 编译到 `out/` |
+| `npm run test:window-chrome` | 在当前桌面系统检查三种窗口的顶栏与菜单（先运行 build，无需连接设备） |
 | `npm run build:unpack` | 生成未压缩应用目录 |
 | `npm run build:mac -- --arm64` | macOS Apple Silicon DMG + 免安装 ZIP |
 | `npm run build:mac -- --x64` | macOS Intel DMG + 免安装 ZIP |
@@ -101,6 +104,8 @@ src/
 
 - 推送到 `main`、提交面向 `main` 的 Pull Request，或手动运行工作流：检查类型、编译、打包，验证每个平台的安装包与免安装包均已生成，并在构建摘要显示文件大小；产物保存在 Actions Artifacts 中 14 天。
 - 推送 `v*` 标签：额外校验标签与 `package.json` 版本一致；全部构建成功后，汇总 6 个包、生成 SHA-256 校验文件并发布 GitHub Release。
+
+Windows 构建还会启动 Electron 检查顶栏、原生按钮避让、窄窗口、菜单和窗口快捷键；截图与结果保存在独立的 `window-chrome-win-x64` Artifact 中。
 
 发布任务使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需额外配置个人访问令牌。普通构建只有仓库读取权限，发布任务单独申请 `contents: write`。
 

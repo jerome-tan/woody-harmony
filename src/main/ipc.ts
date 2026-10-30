@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell as electronShell } from 'ele
 import { promises as fsp } from 'fs'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
+import { configureWindowChrome, windowChromeOptions } from './windowChrome'
 import {
   getCurrentTarget,
   getDeviceProps,
@@ -317,7 +318,7 @@ export function registerIpc(): void {
       minWidth: 640,
       minHeight: 600,
       title: '报告 - Woody',
-      titleBarStyle: 'hiddenInset',
+      ...windowChromeOptions(),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
@@ -325,6 +326,7 @@ export function registerIpc(): void {
         nodeIntegration: false
       }
     })
+    configureWindowChrome(win)
     if (process.env['ELECTRON_RENDERER_URL']) {
       void win.loadURL(
         `${process.env['ELECTRON_RENDERER_URL']}?mode=report&dir=${encodeURIComponent(dir)}`
@@ -348,7 +350,7 @@ export function registerIpc(): void {
       minWidth: 640,
       minHeight: 620,
       title: '报告对比 - Woody',
-      titleBarStyle: 'hiddenInset',
+      ...windowChromeOptions(),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
@@ -356,6 +358,7 @@ export function registerIpc(): void {
         nodeIntegration: false
       }
     })
+    configureWindowChrome(win)
     if (process.env['ELECTRON_RENDERER_URL']) {
       void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?${query}`)
     } else {
