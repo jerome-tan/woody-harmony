@@ -16,9 +16,11 @@ Actions 中以 `-portable` 结尾的 Artifact 单独包含免安装包，可按�
 | --- | --- | --- |
 | macOS Apple Silicon（M 系列） | `Woody-<版本>-mac-arm64.dmg` | `Woody-<版本>-mac-arm64-portable.zip` |
 | macOS Intel | `Woody-<版本>-mac-x64.dmg` | `Woody-<版本>-mac-x64-portable.zip` |
-| Windows x64 | `Woody-<版本>-win-x64-setup.exe` | `Woody-<版本>-win-x64-portable.exe` |
+| Windows x64 | `Woody-<版本>-win-x64-setup.exe` | `Woody-<版本>-win-x64-portable.zip` |
 
-Windows 免安装版双击 `portable.exe` 运行，无需安装或管理员权限；启动时会解压到临时目录，退出后清理临时程序文件。macOS 免安装版解压 ZIP 后直接打开 `Woody.app`，也可自行移动到常用目录。
+Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立文件夹，再双击其中的 `Woody.exe`，无需安装或管理员权限，也无需每次启动时临时解压。请保留同目录的 `resources/`、`locales/`、DLL 等文件，不能只复制 `Woody.exe`。macOS 免安装版解压 ZIP 后直接打开 `Woody.app`，也可自行移动到常用目录。
+
+从 Actions 下载时，Artifact 的外层 ZIP 内还包含上述免安装 ZIP，需要继续解压；从 Release 下载则直接获得程序 ZIP。
 
 免安装版与安装版使用相同的设置和报告保存位置，报告默认仍在用户主目录的 `.woody/reports/`，可在「设置」中更改。程序所在目录不会自动成为数据目录；hdc 仍需按下文配置。
 
@@ -92,7 +94,7 @@ src/
 | `npm run build:unpack` | 生成未压缩应用目录 |
 | `npm run build:mac -- --arm64` | macOS Apple Silicon DMG + 免安装 ZIP |
 | `npm run build:mac -- --x64` | macOS Intel DMG + 免安装 ZIP |
-| `npm run build:win -- --x64` | Windows x64 NSIS 安装包 + Portable EXE |
+| `npm run build:win -- --x64` | Windows x64 NSIS 安装包 + 目录式免安装 ZIP |
 
 安装包输出到 `dist/`。macOS 包在 macOS 上构建，Windows 包在 Windows 上构建。打包命令默认不上传任何文件。
 
@@ -106,6 +108,8 @@ src/
 - 推送 `v*` 标签：额外校验标签与 `package.json` 版本一致；全部构建成功后，汇总 6 个包、生成 SHA-256 校验文件并发布 GitHub Release。
 
 Windows 构建还会启动 Electron 检查顶栏、原生按钮避让、窄窗口、菜单和窗口快捷键；截图与结果保存在独立的 `window-chrome-win-x64` Artifact 中。
+
+Windows 打包后还会解压免安装 ZIP，对照未压缩应用核对运行文件的 SHA-256，并从包含空格和中文的路径启动、关闭程序。
 
 发布任务使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需额外配置个人访问令牌。普通构建只有仓库读取权限，发布任务单独申请 `contents: write`。
 

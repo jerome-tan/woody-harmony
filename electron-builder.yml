@@ -9,9 +9,9 @@ files:
 win:
   target:
     - nsis
-    - portable
+    - zip
   icon: build/icon-win.png
-  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
 afterPack: ./scripts/afterPack.js
 mac:
   target:
@@ -26,10 +26,7 @@ dmg:
   # 仅压缩安装介质，保留完整应用内容；挂载和复制时会比 UDZO 稍慢。
   format: UDBZ
 nsis:
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
-portable:
-  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
-  requestExecutionLevel: user
-  unpackDirName: false

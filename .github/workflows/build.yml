@@ -38,7 +38,7 @@ jobs:
             platform: win
             arch: x64
             installer: dist/*-win-x64-setup.exe
-            portable: dist/*-win-x64-portable.exe
+            portable: dist/*-win-x64-portable.zip
     defaults:
       run:
         shell: bash
@@ -88,6 +88,13 @@ jobs:
       - name: Package installers and portable apps
         run: npx --no-install electron-builder --${{ matrix.platform }} --${{ matrix.arch }} --publish never
 
+      - name: Verify Windows portable ZIP and launch
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          ./scripts/verifyWindowsPortable.ps1 -ArchivePath "dist/Woody-$version-win-${{ matrix.arch }}-portable.zip" -UnpackedPath dist/win-unpacked
+
       - name: Verify packages and report sizes
         env:
           BUILD_PLATFORM: ${{ matrix.platform }}
@@ -99,7 +106,7 @@ jobs:
           const prefix = `Woody-${version}-${process.env.BUILD_PLATFORM}-${process.env.BUILD_ARCH}`
           const names = process.env.BUILD_PLATFORM === 'mac'
             ? [`${prefix}.dmg`, `${prefix}-portable.zip`]
-            : [`${prefix}-setup.exe`, `${prefix}-portable.exe`]
+            : [`${prefix}-setup.exe`, `${prefix}-portable.zip`]
           const rows = names.map(name => {
             const stat = fs.statSync(`dist/${name}`)
             if (!stat.isFile() || stat.size === 0) throw new Error(`Missing or empty package: ${name}`)
@@ -161,7 +168,7 @@ jobs:
             "Woody-${version}-mac-x64.dmg"
             "Woody-${version}-mac-x64-portable.zip"
             "Woody-${version}-win-x64-setup.exe"
-            "Woody-${version}-win-x64-portable.exe"
+            "Woody-${version}-win-x64-portable.zip"
           )
           for asset in "${assets[@]}"; do
             test -s "$asset"
