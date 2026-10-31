@@ -44,6 +44,7 @@ public:
 
   Q_INVOKABLE void initialize();
   Q_INVOKABLE void requestQuit();
+  Q_INVOKABLE void prepareWindow(QObject *window);
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
   Q_INVOKABLE void refreshApps();

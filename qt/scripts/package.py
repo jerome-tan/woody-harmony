@@ -11,7 +11,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = json.loads((ROOT/'package.json').read_text())['version']
+VERSION = json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
 
 
 def run(command, **kwargs):

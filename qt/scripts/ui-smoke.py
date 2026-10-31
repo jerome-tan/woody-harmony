@@ -68,7 +68,7 @@ def main():
     if result.returncode:
         if (output/'ui-result.json').exists():print((output/'ui-result.json').read_text(encoding='utf-8'))
         raise SystemExit(result.returncode)
-    verification=json.loads((output/'ui-result.json').read_text())
+    verification=json.loads((output/'ui-result.json').read_text(encoding='utf-8'))
     if not verification['passed']:raise SystemExit(2)
     if any(marker in log for marker in ['TypeError:','ReferenceError:','Unable to assign','Binding loop','failed to load component','Cannot specify','Row will not function']):
         raise RuntimeError('QML runtime diagnostics found; see application.log')

@@ -45,7 +45,7 @@ def measure(label,command,output,environment):
             now=time.perf_counter()
             if now-started>100:raise RuntimeError('Benchmark timed out: '+label)
             if ready_ms is None and (output/'ready').exists():ready_ms=(now-started)*1000
-            try:last_phase=json.loads((output/'phase.json').read_text())['phase']
+            try:last_phase=json.loads((output/'phase.json').read_text(encoding='utf-8'))['phase']
             except (OSError,json.JSONDecodeError):pass
             try:tree=[parent]+parent.children(recursive=True)
             except psutil.Error:tree=[]
@@ -76,7 +76,9 @@ def measure(label,command,output,environment):
         if phase not in ['idle','report-idle','interaction'] or len(rows)<2:continue
         elapsed=rows[-1]['time']-rows[0]['time']
         summary['phases'][phase]={'durationSeconds':elapsed,'meanRssBytes':statistics.mean(r['rss'] for r in rows),'peakRssBytes':max(r['rss'] for r in rows),'privateResidentBytes':uss.get(phase),'meanCpuPercentOneCore':100*(rows[-1]['cpu']-rows[0]['cpu'])/elapsed,'processCount':max(r['processes'] for r in rows)}
-    if (output/'interaction.json').exists():summary['interaction']=json.loads((output/'interaction.json').read_text())
+    if (output/'interaction.json').exists():
+        summary['interaction']=json.loads((output/'interaction.json').read_text(encoding='utf-8'))
+        if summary['interaction']['inputTicks'] != 400:raise RuntimeError('Incomplete input workload')
     (output/'observations.json').write_text(json.dumps({'summary':summary,'samples':dict(phases)},indent=2),encoding='utf-8')
     print(json.dumps(summary,indent=2),flush=True)
     return summary
@@ -96,7 +98,7 @@ def main():
                     config=folder/'config.json';config.write_text(json.dumps({'output':str(folder),'fixtures':str(fixtures),'mode':mode}));env['WOODY_PERF_CONFIG']=str(config);command=[str(executable),str(ROOT/'qt/scripts/electron-perf.cjs')]
                 result=measure(label,command,folder,env);result.update(mode=mode,repetition=repetition+1);rows.append(result)
                 time.sleep(1)
-    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','electron':json.loads((ROOT/'node_modules/electron/package.json').read_text())['version'],'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; USS is separately sampled where available.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends hover at 40 Hz and wheel input at 10 Hz. Timer-delay diagnostics are not FPS or input-to-photon latency.','Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable.'],'runs':rows}
+    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','electron':json.loads((ROOT/'node_modules/electron/package.json').read_text(encoding='utf-8'))['version'],'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; USS is separately sampled where available.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.','Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable.'],'runs':rows}
     (output/'benchmark.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
 
 

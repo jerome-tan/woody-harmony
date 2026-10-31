@@ -50,6 +50,22 @@ UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
   mWorkTimer.setTimerType(Qt::PreciseTimer);
   connect(&mWorkTimer, &QTimer::timeout, this, [this] {
     const auto now = mWorkClock.elapsed();
+    if (mWorkItem) {
+      mTimerLags.append(std::max<qint64>(0, now - mLastWorkTick - 25));
+      mLastWorkTick = now;
+      const int due = int(std::min<qint64>(now, mWorkDuration) / 25);
+      // Catch up delayed timer ticks so both runtimes receive exactly the same
+      // input count.
+      while (mWorkTicks < due) {
+        const double x = 80 + (mWorkItem->width() - 110) *
+                                  (.5 + .4 * std::sin(mWorkTicks * .07));
+        hover(mWorkItem, x, mWorkItem->height() * .45);
+        if (mWorkTicks % 4 == 0)
+          wheel(mWorkItem, mWorkItem->width() * .55, mWorkItem->height() * .5,
+                (mWorkTicks / 80) % 2 ? -80 : 80);
+        ++mWorkTicks;
+      }
+    }
     if (now >= mWorkDuration || !mWorkItem) {
       mWorkTimer.stop();
       std::sort(mTimerLags.begin(), mTimerLags.end());
@@ -58,23 +74,14 @@ UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
                              : mTimerLags[int((mTimerLags.size() - 1) * .95)];
       QFile output(QDir(mDirectory).filePath("interaction.json"));
       if (output.open(QIODevice::WriteOnly))
-        output.write(QJsonDocument(QJsonObject{{"timerLagP95Ms", p95},
-                                               {"inputTicks", mWorkTicks},
-                                               {"elapsedMs", now}})
-                         .toJson());
+        output.write(
+            QJsonDocument(QJsonObject{{"timerLagP95Ms", p95},
+                                      {"inputTicks", mWorkTicks},
+                                      {"elapsedMs", mWorkClock.elapsed()}})
+                .toJson());
       mark("done");
       emit workloadFinished();
-      return;
     }
-    mTimerLags.append(std::max<qint64>(0, now - mLastWorkTick - 25));
-    mLastWorkTick = now;
-    const double x = 80 + (mWorkItem->width() - 110) *
-                              (.5 + .4 * std::sin(mWorkTicks * .07));
-    hover(mWorkItem, x, mWorkItem->height() * .45);
-    if (mWorkTicks % 4 == 0)
-      wheel(mWorkItem, mWorkItem->width() * .55, mWorkItem->height() * .5,
-            (mWorkTicks / 80) % 2 ? -80 : 80);
-    ++mWorkTicks;
   });
 }
 

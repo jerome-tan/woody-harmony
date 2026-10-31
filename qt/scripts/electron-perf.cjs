@@ -52,10 +52,13 @@ app.whenReady().then(async () => {
       const timer = setInterval(() => {
         const now = performance.now()
         lags.push(Math.max(0, now - previous - 25)); previous = now
+        const due = Math.floor(Math.min(now - started, 10000) / 25)
+        while (ticks < due) {
         const x = Math.round(rect.x + 80 + (rect.width - 110) * (.5 + .4 * Math.sin(ticks * .07)))
         report.webContents.sendInputEvent({ type: 'mouseMove', x, y: Math.round(rect.y + rect.height * .45) })
         if (ticks % 4 === 0) report.webContents.sendInputEvent({ type: 'mouseWheel', x: Math.round(rect.x + rect.width * .55), y: Math.round(rect.y + rect.height * .5), deltaY: Math.floor(ticks / 80) % 2 ? 80 : -80, canScroll: true })
         ++ticks
+        }
         if (now - started >= 10000) { clearInterval(timer); resolve() }
       }, 25)
     })

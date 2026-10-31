@@ -1,5 +1,6 @@
 #include "Backend.h"
 #include "MemoryParser.h"
+#include "PlatformWindow.h"
 #include "ReportStore.h"
 #include <QDateTime>
 #include <QDesktopServices>
@@ -10,6 +11,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QUuid>
+#include <QWindow>
 #include <QtConcurrent>
 #include <stdexcept>
 
@@ -101,6 +103,10 @@ void Backend::requestQuit() {
     stopSampling();
   if (!mActive && !mSnapshotting)
     emit quitReady();
+}
+void Backend::prepareWindow(QObject *object) {
+  if (auto *window = qobject_cast<QWindow *>(object))
+    configurePlatformWindow(window);
 }
 
 Backend::~Backend() {

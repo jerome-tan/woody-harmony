@@ -12,7 +12,7 @@ ApplicationWindow {
     property alias bodyItem: body
     property string renameDirectory: ""
     property string messageText: ""
-    title: caption.length ? caption + " · Woody" : "Woody"
+    title: caption.length && caption !== "Woody" ? caption + " · Woody" : "Woody"
     width: 1280
     height: 840
     minimumWidth: 640
@@ -23,6 +23,11 @@ ApplicationWindow {
     leftPadding: 0
     rightPadding: 0
     flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
+    Component.onCompleted: backend.prepareWindow(win)
+    onVisibleChanged: if (visible)
+        Qt.callLater(function () {
+            backend.prepareWindow(win);
+        })
     function edit(action) {
         var item = activeFocusItem;
         if (item && typeof item[action] === "function")

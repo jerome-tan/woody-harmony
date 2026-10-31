@@ -59,7 +59,7 @@ def main():
 
     def download(job):
         relative, destination = job
-        checksum = fetch(relative + '.sha1', Path(str(destination) + '.sha1'), mirrors).read_text().split()[0]
+        checksum = fetch(relative + '.sha1', Path(str(destination) + '.sha1'), mirrors).read_text(encoding='utf-8').split()[0]
         archive = fetch(relative, destination, mirrors)
         if hashlib.sha1(archive.read_bytes()).hexdigest() != checksum:
             raise RuntimeError(f'Checksum mismatch: {archive}')
