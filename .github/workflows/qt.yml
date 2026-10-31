@@ -67,6 +67,16 @@ jobs:
       - name: Validate native Windows UI and live capture
         if: matrix.platform == 'win'
         run: python qt/scripts/ui-smoke.py --exe dist/qt-build/qt/Release/Woody.exe --hdc dist/qt-build/qt/Release/woody_fake_hdc.exe --output dist/qt-evidence/built --fixtures dist/qt-fixtures
+      - name: Upload Windows native frame evidence early
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: woody-qt-window-win-x64
+          path: |
+            dist/qt-evidence/built/native-main.png
+            dist/qt-evidence/built/native-trend.png
+          retention-days: 14
+          if-no-files-found: error
       - name: Install NSIS if needed
         if: matrix.platform == 'win'
         shell: pwsh
