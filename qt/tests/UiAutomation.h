@@ -34,6 +34,7 @@ private:
   void tick();
   void finish(const QString &error = {});
   QQmlApplicationEngine *mEngine;
+  QObject *mBackend;
   QString mDirectory;
   QJsonArray mSteps, mResults;
   QElapsedTimer mTotal, mStepTime;

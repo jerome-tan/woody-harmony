@@ -20,7 +20,7 @@
 
 UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
                            QObject *backend, const QString &file)
-    : QObject(engine), mEngine(engine),
+    : QObject(engine), mEngine(engine), mBackend(backend),
       mDirectory(QFileInfo(file).absolutePath()) {
   QFile input(file);
   if (!input.open(QIODevice::ReadOnly)) {
@@ -256,5 +256,9 @@ void UiAutomation::finish(const QString &error) {
                         {"elapsedMs", mTotal.isValid() ? mTotal.elapsed() : 0},
                         {"steps", mResults}})
             .toJson());
-  QCoreApplication::exit(error.isEmpty() ? 0 : 2);
+  // Successful scenarios also exercise the production quit/finalization path.
+  if (error.isEmpty())
+    QMetaObject::invokeMethod(mBackend, "requestQuit", Qt::QueuedConnection);
+  else
+    QCoreApplication::exit(2);
 }

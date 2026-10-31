@@ -16,6 +16,7 @@ WindowBase {
     captionNote: backend.target ? F.device(backend.deviceInfo, backend.target) : "未连接设备"
     property string page: "home"
     property bool watching: false
+    property bool quitting: false
     property var childWindows: []
     function go(next) {
         page = next;
@@ -46,6 +47,10 @@ WindowBase {
         });
     }
     onClosing: function (close) {
+        if (quitting) {
+            close.accepted = true;
+            return;
+        }
         close.accepted = false;
         backend.requestQuit();
     }
@@ -219,6 +224,9 @@ WindowBase {
     }
     Connections {
         target: backend
+        function onQuitReady() {
+            appWindow.quitting = true;
+        }
         function onReportOpened(report) {
             appWindow.openReportObject(report);
         }
