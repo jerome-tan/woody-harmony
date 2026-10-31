@@ -1,0 +1,142 @@
+{
+  "version": "0.1.0",
+  "qt": "6.12.0",
+  "platform": "mac",
+  "arch": "x64",
+  "expandedBytes": 85699814,
+  "fileCount": 1872,
+  "artifacts": [
+    {
+      "name": "Woody-0.1.0-qt-mac-x64-portable.zip",
+      "bytes": 31779157,
+      "sha256": "4bb7c1f6a110fe4ad7fe109c47d4a694e29b1a75c54b239b1498b669ed6522ed"
+    },
+    {
+      "name": "Woody-0.1.0-qt-mac-x64.dmg",
+      "bytes": 35808470,
+      "sha256": "55339907a9584401126285e3c09ad4741e3046efd1c633e31238a5ec358e2aa9"
+    }
+  ],
+  "largestFiles": [
+    {
+      "file": "Contents/Frameworks/QtGui.framework/Versions/A/QtGui",
+      "bytes": 9529632
+    },
+    {
+      "file": "Contents/Frameworks/QtCore.framework/Versions/A/QtCore",
+      "bytes": 6734912
+    },
+    {
+      "file": "Contents/Frameworks/QtWidgets.framework/Versions/A/QtWidgets",
+      "bytes": 6669504
+    },
+    {
+      "file": "Contents/Frameworks/QtQuick.framework/Versions/A/QtQuick",
+      "bytes": 6657168
+    },
+    {
+      "file": "Contents/Frameworks/QtQml.framework/Versions/A/QtQml",
+      "bytes": 5334480
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2FluentWinUI3.framework/Versions/A/QtQuickControls2FluentWinUI3",
+      "bytes": 3380240
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Imagine.framework/Versions/A/QtQuickControls2Imagine",
+      "bytes": 3282736
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickDialogs2QuickImpl.framework/Versions/A/QtQuickDialogs2QuickImpl",
+      "bytes": 3183760
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2IOS.framework/Versions/A/QtQuickControls2IOS",
+      "bytes": 2492544
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Material.framework/Versions/A/QtQuickControls2Material",
+      "bytes": 2341296
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Basic.framework/Versions/A/QtQuickControls2Basic",
+      "bytes": 2248960
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickTemplates2.framework/Versions/A/QtQuickTemplates2",
+      "bytes": 2149488
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Universal.framework/Versions/A/QtQuickControls2Universal",
+      "bytes": 1960224
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Fusion.framework/Versions/A/QtQuickControls2Fusion",
+      "bytes": 1874816
+    },
+    {
+      "file": "Contents/MacOS/Woody",
+      "bytes": 1779088
+    },
+    {
+      "file": "Contents/Frameworks/QtNetwork.framework/Versions/A/QtNetwork",
+      "bytes": 1769200
+    },
+    {
+      "file": "Contents/PlugIns/sqldrivers/libqsqlite.dylib",
+      "bytes": 1720448
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickNativeStyle.framework/Versions/A/QtQuickNativeStyle",
+      "bytes": 1278976
+    },
+    {
+      "file": "Contents/Resources/qml/QtQuick/Controls/FluentWinUI3/Config.qml",
+      "bytes": 1215107
+    },
+    {
+      "file": "Contents/Frameworks/QtQmlModels.framework/Versions/A/QtQmlModels",
+      "bytes": 1028864
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickControls2Macos.framework/Versions/A/QtQuickControls2Macos",
+      "bytes": 1016240
+    },
+    {
+      "file": "Contents/PlugIns/platforms/libqcocoa.dylib",
+      "bytes": 992768
+    },
+    {
+      "file": "Contents/Frameworks/QtDBus.framework/Versions/A/QtDBus",
+      "bytes": 740112
+    },
+    {
+      "file": "Contents/Resources/qml/QtQuick/plugins.qmltypes",
+      "bytes": 675942
+    },
+    {
+      "file": "Contents/PlugIns/imageformats/libqjpeg.dylib",
+      "bytes": 652624
+    },
+    {
+      "file": "Contents/Frameworks/QtOpenGL.framework/Versions/A/QtOpenGL",
+      "bytes": 634672
+    },
+    {
+      "file": "Contents/Frameworks/QtSvg.framework/Versions/A/QtSvg",
+      "bytes": 632464
+    },
+    {
+      "file": "Contents/_CodeSignature/CodeResources",
+      "bytes": 578816
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickParticles.framework/Versions/A/QtQuickParticles",
+      "bytes": 577776
+    },
+    {
+      "file": "Contents/Frameworks/QtQuickEffects.framework/Versions/A/QtQuickEffects",
+      "bytes": 380944
+    }
+  ]
+}

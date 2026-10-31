@@ -2,6 +2,7 @@
 
 This branch replaces the Electron runtime with C++20, Qt 6.12.0, and Qt Quick.
 The original Electron sources remain available as the reference implementation.
+See [measured results and validation boundaries](VALIDATION.md).
 
 ## Build
 
@@ -67,7 +68,9 @@ never overwritten. The Electron reference workflow is manual-only.
 ## Reproduce the performance comparison
 
 ```sh
-npm ci && npm run build
+npm ci
+node node_modules/electron/install.js
+npm run build
 python -m pip install psutil==7.1.3
 python qt/scripts/generate-fixtures.py dist/qt-fixtures --benchmark
 python qt/scripts/benchmark.py \
@@ -81,5 +84,6 @@ The same 3,600-point report, 13 categories, 40 Hz hover and 10 Hz wheel workload
 is sent to both applications. Measurements include every process in each tree.
 The JSON contains raw samples and per-run results; startup is a warm process
 launch (filesystem caches are not cleared). RSS can count shared pages more
-than once; USS is included only where the OS permits it. Timer delay is a
-harness diagnostic, not FPS or input-to-photon latency.
+than once. Private working set (USS) is also sampled on Windows; macOS Mach VM
+page walks are excluded because they can block monitoring and disturb timing.
+Timer delay is a harness diagnostic, not FPS or input-to-photon latency.

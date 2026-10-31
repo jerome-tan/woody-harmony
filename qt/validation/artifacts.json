@@ -1,0 +1,55 @@
+{
+  "codeCommit": "393ba6b7c0fa3ca6a5ab07561f40cca3730e75c2",
+  "run": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090",
+  "artifacts": [
+    {
+      "name": "woody-qt-package-mac-x64",
+      "id": 13028250900,
+      "bytes": 67587955,
+      "digest": "sha256:160fe1a306e91f0273bb09e26844f64c19986911991289d511d326dc0e7c913c",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13028250900"
+    },
+    {
+      "name": "woody-qt-evidence-mac-x64",
+      "id": 13028106589,
+      "bytes": 3860061,
+      "digest": "sha256:850e61579b6bf4fb72074af378aa6ee3845019f50c709fbec8b248302df048a4",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13028106589"
+    },
+    {
+      "name": "woody-qt-evidence-win-x64",
+      "id": 13028066287,
+      "bytes": 8324955,
+      "digest": "sha256:a2f255df779b64bbf2498721fc2e7953a60322cc860dfe67b97ea9d63bc603b1",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13028066287"
+    },
+    {
+      "name": "woody-qt-package-win-x64",
+      "id": 13028061344,
+      "bytes": 47718158,
+      "digest": "sha256:d5854e9112499cbc29a045dc7b2364f566bf79dbbdf0bd3c56adafcadb427679",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13028061344"
+    },
+    {
+      "name": "woody-qt-evidence-mac-arm64",
+      "id": 13027516934,
+      "bytes": 3710905,
+      "digest": "sha256:716d06e4fced7790756539d84c059aa6070347fc8d2415fcb0bf6e2cf591e30f",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13027516934"
+    },
+    {
+      "name": "woody-qt-package-mac-arm64",
+      "id": 13027516924,
+      "bytes": 61167378,
+      "digest": "sha256:b8bd1b46e8f6701f9cbc7489d6a605a0b1087557689789a8532512b81b18d976",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13027516924"
+    },
+    {
+      "name": "woody-qt-window-win-x64",
+      "id": 13027157521,
+      "bytes": 203222,
+      "digest": "sha256:1951978ad17dc74ad48f682ab820d61064f8f1b9035168ca411fdda5f88042cd",
+      "url": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090/artifacts/13027157521"
+    }
+  ]
+}

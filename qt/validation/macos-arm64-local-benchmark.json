@@ -1,0 +1,337 @@
+{
+  "host": "macOS-26.6.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "logicalCpus": 10,
+  "physicalMemoryBytes": 34359738368,
+  "qt": "6.12.0",
+  "electron": "44.4.4",
+  "sampleCount": 3600,
+  "categoryCount": 13,
+  "notes": [
+    "Warm process launches: filesystem caches were not cleared.",
+    "RSS sums every process and can double-count shared pages; private working set (USS) is separately sampled on Windows. macOS VM page walking is excluded from the timing run.",
+    "CPU includes the full app process tree; 100% is one logical core.",
+    "The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.",
+    "Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable."
+  ],
+  "runs": [
+    {
+      "label": "electron",
+      "startupMs": 626.1302079074085,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.9377739999908954,
+          "meanRssBytes": 546327458.9090909,
+          "peakRssBytes": 548831232,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 5.046165157716674,
+          "processCount": 4
+        }
+      },
+      "mode": "main",
+      "repetition": 1
+    },
+    {
+      "label": "qt",
+      "startupMs": 318.31554183736444,
+      "phases": {
+        "idle": {
+          "durationSeconds": 3.0461212920490652,
+          "meanRssBytes": 193469917.86666667,
+          "peakRssBytes": 193527808,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 1.800831770658081,
+          "processCount": 1
+        }
+      },
+      "mode": "main",
+      "repetition": 1
+    },
+    {
+      "label": "electron",
+      "startupMs": 393.7388751655817,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.9472369998693466,
+          "meanRssBytes": 537512174.1395348,
+          "peakRssBytes": 541032448,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.3508765667796143,
+          "processCount": 4
+        }
+      },
+      "mode": "main",
+      "repetition": 2
+    },
+    {
+      "label": "qt",
+      "startupMs": 325.634874869138,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.9895024159923196,
+          "meanRssBytes": 193691648,
+          "peakRssBytes": 193691648,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.3817705561616548,
+          "processCount": 1
+        }
+      },
+      "mode": "main",
+      "repetition": 2
+    },
+    {
+      "label": "electron",
+      "startupMs": 398.84108398109674,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.95402029203251,
+          "meanRssBytes": 537141819.5348837,
+          "peakRssBytes": 540786688,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.7296748792869429,
+          "processCount": 4
+        }
+      },
+      "mode": "main",
+      "repetition": 3
+    },
+    {
+      "label": "qt",
+      "startupMs": 324.822667054832,
+      "phases": {
+        "idle": {
+          "durationSeconds": 3.063783082878217,
+          "meanRssBytes": 194219576.8888889,
+          "peakRssBytes": 194363392,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 1.1712194704818908,
+          "processCount": 1
+        }
+      },
+      "mode": "main",
+      "repetition": 3
+    },
+    {
+      "label": "electron",
+      "startupMs": 462.3300831299275,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.9332940420135856,
+          "meanRssBytes": 542563607.2727273,
+          "peakRssBytes": 550649856,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 8.003961711210966,
+          "processCount": 4
+        },
+        "report-idle": {
+          "durationSeconds": 2.9845475000329316,
+          "meanRssBytes": 1042409813.3333334,
+          "peakRssBytes": 1084243968,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 102.38173391330795,
+          "processCount": 5
+        },
+        "interaction": {
+          "durationSeconds": 9.961342834169045,
+          "meanRssBytes": 1174857807.7922077,
+          "peakRssBytes": 1244856320,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 51.291219698555906,
+          "processCount": 5
+        }
+      },
+      "interaction": {
+        "inputTicks": 400,
+        "elapsedMs": 10016.413625,
+        "mainProcessTimerLagP95Ms": 1.2342499999995198
+      },
+      "mode": "report",
+      "repetition": 1
+    },
+    {
+      "label": "qt",
+      "startupMs": 450.19474998116493,
+      "phases": {
+        "idle": {
+          "durationSeconds": 3.0415448751300573,
+          "meanRssBytes": 194436937.95555556,
+          "peakRssBytes": 194609152,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 1.143289526461879,
+          "processCount": 1
+        },
+        "report-idle": {
+          "durationSeconds": 2.962329166010022,
+          "meanRssBytes": 286390085.8181818,
+          "peakRssBytes": 286556160,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 2.0579482084400387,
+          "processCount": 1
+        },
+        "interaction": {
+          "durationSeconds": 9.911972416797653,
+          "meanRssBytes": 310446237.53846157,
+          "peakRssBytes": 319209472,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 53.14519567339447,
+          "processCount": 1
+        }
+      },
+      "interaction": {
+        "elapsedMs": 10001,
+        "inputTicks": 400,
+        "timerLagP95Ms": 45
+      },
+      "mode": "report",
+      "repetition": 1
+    },
+    {
+      "label": "electron",
+      "startupMs": 719.580709002912,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.9669770828913897,
+          "meanRssBytes": 548076450.9090909,
+          "peakRssBytes": 552435712,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 1.7140930509122423,
+          "processCount": 4
+        },
+        "report-idle": {
+          "durationSeconds": 2.8873950419947505,
+          "meanRssBytes": 920188308.8372093,
+          "peakRssBytes": 920289280,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.29740745118365974,
+          "processCount": 5
+        },
+        "interaction": {
+          "durationSeconds": 9.968550750054419,
+          "meanRssBytes": 1089126611.4064517,
+          "peakRssBytes": 1179795456,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 60.68223742520424,
+          "processCount": 5
+        }
+      },
+      "interaction": {
+        "inputTicks": 400,
+        "elapsedMs": 10014.589791,
+        "mainProcessTimerLagP95Ms": 1.2218330000014248
+      },
+      "mode": "report",
+      "repetition": 2
+    },
+    {
+      "label": "qt",
+      "startupMs": 523.6727909650654,
+      "phases": {
+        "idle": {
+          "durationSeconds": 3.0008967500180006,
+          "meanRssBytes": 194952851.91111112,
+          "peakRssBytes": 198508544,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 2.2861488986446625,
+          "processCount": 1
+        },
+        "report-idle": {
+          "durationSeconds": 2.9810899160802364,
+          "meanRssBytes": 284826373.6888889,
+          "peakRssBytes": 287850496,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 4.811864252273668,
+          "processCount": 1
+        },
+        "interaction": {
+          "durationSeconds": 9.933948625111952,
+          "meanRssBytes": 309773435.9235669,
+          "peakRssBytes": 318308352,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 51.96841629470195,
+          "processCount": 1
+        }
+      },
+      "interaction": {
+        "elapsedMs": 10022,
+        "inputTicks": 400,
+        "timerLagP95Ms": 42
+      },
+      "mode": "report",
+      "repetition": 2
+    },
+    {
+      "label": "electron",
+      "startupMs": 1787.1889581438154,
+      "phases": {
+        "idle": {
+          "durationSeconds": 2.950012000044808,
+          "meanRssBytes": 545403927.8139535,
+          "peakRssBytes": 547340288,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 2.649330239972339,
+          "processCount": 4
+        },
+        "report-idle": {
+          "durationSeconds": 2.913433583918959,
+          "meanRssBytes": 921441494.3255814,
+          "peakRssBytes": 921518080,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.27160172943966376,
+          "processCount": 5
+        },
+        "interaction": {
+          "durationSeconds": 9.940360458102077,
+          "meanRssBytes": 1090204890.0129032,
+          "peakRssBytes": 1170358272,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 59.951660577284905,
+          "processCount": 5
+        }
+      },
+      "interaction": {
+        "inputTicks": 400,
+        "elapsedMs": 10005.004083,
+        "mainProcessTimerLagP95Ms": 1.2170829999995476
+      },
+      "mode": "report",
+      "repetition": 3
+    },
+    {
+      "label": "qt",
+      "startupMs": 398.62670795992017,
+      "phases": {
+        "idle": {
+          "durationSeconds": 3.0196392089128494,
+          "meanRssBytes": 199037929.24444443,
+          "peakRssBytes": 199213056,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 1.0335852014332725,
+          "processCount": 1
+        },
+        "report-idle": {
+          "durationSeconds": 2.9367897079791874,
+          "meanRssBytes": 287307918.88372093,
+          "peakRssBytes": 287309824,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 0.46312829151662294,
+          "processCount": 1
+        },
+        "interaction": {
+          "durationSeconds": 9.89472695812583,
+          "meanRssBytes": 316110042.0129032,
+          "peakRssBytes": 324501504,
+          "privateResidentBytes": null,
+          "meanCpuPercentOneCore": 52.67263024089726,
+          "processCount": 1
+        }
+      },
+      "interaction": {
+        "elapsedMs": 10006,
+        "inputTicks": 400,
+        "timerLagP95Ms": 43
+      },
+      "mode": "report",
+      "repetition": 3
+    }
+  ]
+}

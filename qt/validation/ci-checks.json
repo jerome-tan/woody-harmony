@@ -1,0 +1,1670 @@
+{
+  "codeCommit": "393ba6b7c0fa3ca6a5ab07561f40cca3730e75c2",
+  "workflowRun": "https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090",
+  "platforms": {
+    "win-x64": {
+      "backendSuitesPassed": 2,
+      "ui": {
+        "portable/ui-result.json": {
+          "elapsedMs": 9487,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 824,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 99,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 316,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 108,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 262,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 96,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 295,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 112,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 279,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 116,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 273,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 86,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 278,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 195,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 346,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 112,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 202,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 107,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 503,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 94,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 237,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 333,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 94,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 105,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 121,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 120,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 263,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 321,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 334,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 386,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 106,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 87,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 121,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 213,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 425,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 193,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 335,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 113,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 108,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 109,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 99,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 129,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 296,
+              "name": "narrow screenshot",
+              "passed": true
+            }
+          ]
+        },
+        "built/ui-result.json": {
+          "elapsedMs": 11307,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 842,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 85,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 273,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 175,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 269,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 84,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 292,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 120,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 288,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 152,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 267,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 93,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 272,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 214,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 319,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 88,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 211,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 530,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 94,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 251,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 319,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 110,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 112,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 118,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 310,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 345,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 359,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 361,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 86,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 128,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 204,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 421,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 205,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 345,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 129,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 107,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 148,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 93,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 126,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 298,
+              "name": "narrow screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 113,
+              "name": "live configuration",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1176,
+              "name": "start live via button",
+              "passed": true
+            },
+            {
+              "elapsedMs": 198,
+              "name": "live window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 113,
+              "name": "stop live via button",
+              "passed": true
+            }
+          ]
+        },
+        "installed/ui/ui-result.json": {
+          "elapsedMs": 9671,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 825,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 303,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 115,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 269,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 96,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 297,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 109,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 310,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 122,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 312,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 302,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 212,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 336,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 112,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 201,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 509,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 93,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 252,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 103,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 354,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 102,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 144,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 127,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 270,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 344,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 329,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 375,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 89,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 87,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 127,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 212,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 405,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 206,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 328,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 124,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 99,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 114,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 96,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 139,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 288,
+              "name": "narrow screenshot",
+              "passed": true
+            }
+          ]
+        },
+        "installer": {
+          "installed": true,
+          "uiPassed": true,
+          "uninstalled": true,
+          "preservedUnrelatedFile": true,
+          "unicodePath": "D:\\a\\woody-harmony\\woody-harmony\\dist\\qt-evidence\\installed\\中文 安装目录"
+        }
+      }
+    },
+    "mac-arm64": {
+      "backendSuitesPassed": 2,
+      "ui": {
+        "built/ui-result.json": {
+          "elapsedMs": 12151,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 903,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 105,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 234,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 116,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 211,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 117,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 237,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 114,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 266,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 132,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 264,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 125,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 275,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 265,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 241,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 119,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 170,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 157,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 541,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 105,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 270,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 123,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 299,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 89,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 181,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 203,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 220,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 270,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 318,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 308,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 86,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 136,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 159,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 180,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 319,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 184,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 260,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 160,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 82,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1126,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 145,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 127,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 279,
+              "name": "narrow screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 144,
+              "name": "live configuration",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1226,
+              "name": "start live via button",
+              "passed": true
+            },
+            {
+              "elapsedMs": 185,
+              "name": "live window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 177,
+              "name": "stop live via button",
+              "passed": true
+            }
+          ]
+        },
+        "deployed/ui-result.json": {
+          "elapsedMs": 10755,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 828,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 111,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 262,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 112,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 253,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 106,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 243,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 90,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 248,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 115,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 250,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 118,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 294,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 235,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 289,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 161,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 195,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 83,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 502,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 85,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 389,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 158,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 332,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 118,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 123,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 147,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 158,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 335,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 308,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 391,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 342,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 85,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 89,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 146,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 180,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 326,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 248,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 302,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 165,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 84,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1229,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 109,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 136,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 246,
+              "name": "narrow screenshot",
+              "passed": true
+            }
+          ]
+        }
+      }
+    },
+    "mac-x64": {
+      "backendSuitesPassed": 2,
+      "ui": {
+        "built/ui-result.json": {
+          "elapsedMs": 17749,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 3098,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 252,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 388,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 122,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 320,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 118,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 340,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 109,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 293,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 198,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 313,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 289,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 444,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 468,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 120,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 308,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 167,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 511,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 102,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 339,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 174,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 394,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 83,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 132,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 114,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 92,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 715,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 372,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 655,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 448,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 147,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 115,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 243,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 364,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 591,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 472,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 394,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 121,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 84,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1306,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 140,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 122,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 273,
+              "name": "narrow screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 138,
+              "name": "live configuration",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1255,
+              "name": "start live via button",
+              "passed": true
+            },
+            {
+              "elapsedMs": 206,
+              "name": "live window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 134,
+              "name": "stop live via button",
+              "passed": true
+            }
+          ]
+        },
+        "deployed/ui-result.json": {
+          "elapsedMs": 12714,
+          "passed": true,
+          "steps": [
+            {
+              "elapsedMs": 920,
+              "name": "main window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 113,
+              "name": "navigate tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 351,
+              "name": "render tools",
+              "passed": true
+            },
+            {
+              "elapsedMs": 120,
+              "name": "navigate watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 246,
+              "name": "render watch",
+              "passed": true
+            },
+            {
+              "elapsedMs": 106,
+              "name": "navigate peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 228,
+              "name": "render peak",
+              "passed": true
+            },
+            {
+              "elapsedMs": 104,
+              "name": "navigate snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 232,
+              "name": "render snap",
+              "passed": true
+            },
+            {
+              "elapsedMs": 147,
+              "name": "navigate reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 334,
+              "name": "render reports",
+              "passed": true
+            },
+            {
+              "elapsedMs": 123,
+              "name": "navigate settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 438,
+              "name": "render settings",
+              "passed": true
+            },
+            {
+              "elapsedMs": 487,
+              "name": "open trend",
+              "passed": true
+            },
+            {
+              "elapsedMs": 381,
+              "name": "trend layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 185,
+              "name": "zoom native chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 266,
+              "name": "hover sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 130,
+              "name": "enter tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 512,
+              "name": "tooltip remains enterable",
+              "passed": true
+            },
+            {
+              "elapsedMs": 100,
+              "name": "leave tooltip",
+              "passed": true
+            },
+            {
+              "elapsedMs": 227,
+              "name": "tooltip dismissed",
+              "passed": true
+            },
+            {
+              "elapsedMs": 110,
+              "name": "expand chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 356,
+              "name": "expanded screenshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 111,
+              "name": "restore expanded chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 148,
+              "name": "reset chart",
+              "passed": true
+            },
+            {
+              "elapsedMs": 134,
+              "name": "rename report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 132,
+              "name": "restore name",
+              "passed": true
+            },
+            {
+              "elapsedMs": 478,
+              "name": "open snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 377,
+              "name": "snapshot",
+              "passed": true
+            },
+            {
+              "elapsedMs": 724,
+              "name": "open four-report comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 490,
+              "name": "overlay layout",
+              "passed": true
+            },
+            {
+              "elapsedMs": 124,
+              "name": "peak alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 91,
+              "name": "end alignment",
+              "passed": true
+            },
+            {
+              "elapsedMs": 186,
+              "name": "change baseline",
+              "passed": true
+            },
+            {
+              "elapsedMs": 278,
+              "name": "picked mode",
+              "passed": true
+            },
+            {
+              "elapsedMs": 482,
+              "name": "select a sample",
+              "passed": true
+            },
+            {
+              "elapsedMs": 355,
+              "name": "snapshot comparison",
+              "passed": true
+            },
+            {
+              "elapsedMs": 311,
+              "name": "snapshot difference",
+              "passed": true
+            },
+            {
+              "elapsedMs": 124,
+              "name": "activate independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 86,
+              "name": "minimize independent window shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 1232,
+              "name": "restore independent window",
+              "passed": true
+            },
+            {
+              "elapsedMs": 146,
+              "name": "independent window close shortcut",
+              "passed": true
+            },
+            {
+              "elapsedMs": 123,
+              "name": "narrow title and report",
+              "passed": true
+            },
+            {
+              "elapsedMs": 316,
+              "name": "narrow screenshot",
+              "passed": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

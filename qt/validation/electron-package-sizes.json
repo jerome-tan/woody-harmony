@@ -1,0 +1,37 @@
+{
+  "commit": "4e562bb913a31239bed89b137eaf6877330cce30",
+  "run": "https://github.com/jerome-tan/woody-harmony/actions/runs/41014290111",
+  "method": "Sizes read from GitHub artifact ZIP central directories, excluding outer artifact wrapper",
+  "artifacts": [
+    {
+      "name": "Woody-0.1.0-win-x64-setup.exe",
+      "bytes": 114918073,
+      "crc32": "e5925723"
+    },
+    {
+      "name": "Woody-0.1.0-win-x64-portable.zip",
+      "bytes": 153734732,
+      "crc32": "17f811da"
+    },
+    {
+      "name": "Woody-0.1.0-mac-arm64.dmg",
+      "bytes": 117820818,
+      "crc32": "9ce40dbc"
+    },
+    {
+      "name": "Woody-0.1.0-mac-x64.dmg",
+      "bytes": 122314528,
+      "crc32": "820f5976"
+    },
+    {
+      "name": "Woody-0.1.0-mac-arm64-portable.zip",
+      "bytes": 124683852,
+      "crc32": "21f869d9"
+    },
+    {
+      "name": "Woody-0.1.0-mac-x64-portable.zip",
+      "bytes": 130095700,
+      "crc32": "a042a9ac"
+    }
+  ]
+}

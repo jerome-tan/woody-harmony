@@ -8,6 +8,8 @@
 
 本分支为 **Qt 6.12.0 原生版**，使用 C++20 / Qt Quick。保留原 Electron 源码用于功能与性能对照；Qt 安装包不包含 Electron、Chromium、Node.js 或 WebEngine。
 
+迁移范围、实际包体积、三轮性能对照和验证边界见 [Qt 验证报告](qt/VALIDATION.md)。
+
 ## 下载
 
 Qt 分支构建在 [Native Qt Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml) 的 Artifacts 下载。已发布的 [v0.1.0 Release](https://github.com/jerome-tan/woody-harmony/releases/tag/v0.1.0) 仍是 Electron 版；本次迁移不覆盖它。

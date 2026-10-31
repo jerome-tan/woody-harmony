@@ -1,0 +1,142 @@
+{
+  "version": "0.1.0",
+  "qt": "6.12.0",
+  "platform": "win",
+  "arch": "x64",
+  "expandedBytes": 78022646,
+  "fileCount": 1457,
+  "artifacts": [
+    {
+      "name": "Woody-0.1.0-qt-win-x64-portable.zip",
+      "bytes": 29087699,
+      "sha256": "9ea2707bb9b0f51d644324380def75b3fb317b85e8587b7e83669baf7508a0b7"
+    },
+    {
+      "name": "Woody-0.1.0-qt-win-x64-setup.exe",
+      "bytes": 18630119,
+      "sha256": "05726234639437aa31abe9c7851c11584c3db848c4aa8bcc8ba64b59bd39f206"
+    }
+  ],
+  "largestFiles": [
+    {
+      "file": "Qt6Core.dll",
+      "bytes": 10472760
+    },
+    {
+      "file": "Qt6Gui.dll",
+      "bytes": 9683256
+    },
+    {
+      "file": "Qt6Quick.dll",
+      "bytes": 6752568
+    },
+    {
+      "file": "Qt6Qml.dll",
+      "bytes": 5390136
+    },
+    {
+      "file": "Qt6QuickControls2FluentWinUI3.dll",
+      "bytes": 3588920
+    },
+    {
+      "file": "Qt6QuickControls2Imagine.dll",
+      "bytes": 3520312
+    },
+    {
+      "file": "Qt6QuickDialogs2QuickImpl.dll",
+      "bytes": 3370296
+    },
+    {
+      "file": "Qt6QuickControls2Material.dll",
+      "bytes": 2620216
+    },
+    {
+      "file": "Qt6QuickControls2Basic.dll",
+      "bytes": 2539832
+    },
+    {
+      "file": "Qt6QuickControls2Universal.dll",
+      "bytes": 2213688
+    },
+    {
+      "file": "Qt6QuickControls2Fusion.dll",
+      "bytes": 2127160
+    },
+    {
+      "file": "Qt6QuickTemplates2.dll",
+      "bytes": 2048824
+    },
+    {
+      "file": "Qt6OpenGL.dll",
+      "bytes": 1989944
+    },
+    {
+      "file": "Qt6Network.dll",
+      "bytes": 1780536
+    },
+    {
+      "file": "Woody.exe",
+      "bytes": 1623552
+    },
+    {
+      "file": "qml/QtQuick/Controls/FluentWinUI3/Config.qml",
+      "bytes": 1235982
+    },
+    {
+      "file": "Qt6QuickNativeStyle.dll",
+      "bytes": 1200440
+    },
+    {
+      "file": "Qt6QmlModels.dll",
+      "bytes": 1021752
+    },
+    {
+      "file": "platforms/qwindows.dll",
+      "bytes": 1001784
+    },
+    {
+      "file": "Qt6QuickControls2Windows.dll",
+      "bytes": 956728
+    },
+    {
+      "file": "qml/QtQuick/plugins.qmltypes",
+      "bytes": 675924
+    },
+    {
+      "file": "Qt6Svg.dll",
+      "bytes": 608056
+    },
+    {
+      "file": "imageformats/qjpeg.dll",
+      "bytes": 592696
+    },
+    {
+      "file": "msvcp140.dll",
+      "bytes": 557728
+    },
+    {
+      "file": "Qt6QuickEffects.dll",
+      "bytes": 445752
+    },
+    {
+      "file": "qmltooling/qmldbg_preview.dll",
+      "bytes": 417592
+    },
+    {
+      "file": "Qt6QuickControls2MaterialStyleImpl.dll",
+      "bytes": 390968
+    },
+    {
+      "file": "vccorlib140.dll",
+      "bytes": 352384
+    },
+    {
+      "file": "Qt6QuickShapes.dll",
+      "bytes": 348472
+    },
+    {
+      "file": "Qt6QuickControls2Impl.dll",
+      "bytes": 325944
+    }
+  ]
+}
