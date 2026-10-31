@@ -1,0 +1,98 @@
+name: Native Qt build and validation
+
+on:
+  push:
+    branches: ['codex/qt-*']
+  pull_request:
+    branches: [main]
+    paths: ['qt/**', 'CMakeLists.txt', '.github/workflows/qt.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Qt 6.12.0 ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: mac
+            arch: arm64
+            cmake_arch: arm64
+          - os: macos-15-intel
+            platform: mac
+            arch: x64
+            cmake_arch: x86_64
+          - os: windows-2022
+            platform: win
+            arch: x64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install pinned official Qt SDK
+        run: python qt/scripts/install-qt.py --output "$RUNNER_TEMP/qt-sdk"
+      - name: Configure macOS
+        if: matrix.platform == 'mac'
+        run: cmake -S . -B dist/qt-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.cmake_arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=14.4
+      - name: Configure Windows
+        if: matrix.platform == 'win'
+        run: cmake -S . -B dist/qt-build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$QT_ROOT"
+      - name: Build native application and tests
+        run: cmake --build dist/qt-build --config Release --parallel 4
+      - name: Test parser, report compatibility, and hdc lifecycle
+        run: ctest --test-dir dist/qt-build -C Release --output-on-failure
+      - name: Create shared deterministic reports
+        run: python qt/scripts/generate-fixtures.py dist/qt-fixtures
+      - name: Validate native macOS UI and live capture
+        if: matrix.platform == 'mac'
+        run: python qt/scripts/ui-smoke.py --exe dist/qt-build/qt/Woody.app/Contents/MacOS/Woody --hdc dist/qt-build/qt/woody_fake_hdc --output dist/qt-evidence/built --fixtures dist/qt-fixtures
+      - name: Validate native Windows UI and live capture
+        if: matrix.platform == 'win'
+        run: python qt/scripts/ui-smoke.py --exe dist/qt-build/qt/Release/Woody.exe --hdc dist/qt-build/qt/Release/woody_fake_hdc.exe --output dist/qt-evidence/built --fixtures dist/qt-fixtures
+      - name: Install NSIS if needed
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+      - name: Build installer and directory ZIP; measure actual sizes
+        run: python qt/scripts/package.py --build dist/qt-build --qt "$QT_ROOT" --output dist/qt-package --arch ${{ matrix.arch }}
+      - name: Validate deployed macOS app
+        if: matrix.platform == 'mac'
+        run: python qt/scripts/ui-smoke.py --exe dist/qt-package/staging/Woody.app/Contents/MacOS/Woody --output dist/qt-evidence/deployed --fixtures dist/qt-fixtures
+      - name: Extract Windows ZIP into Unicode path
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $archive = Get-ChildItem dist/qt-package/*-portable.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $archive.FullName -DestinationPath 'dist/Qt 免安装测试' -Force
+      - name: Validate extracted Windows portable app
+        if: matrix.platform == 'win'
+        run: python qt/scripts/ui-smoke.py --exe "dist/Qt 免安装测试/Woody/Woody.exe" --output dist/qt-evidence/portable --fixtures dist/qt-fixtures
+      - name: Upload installers and validation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: woody-qt-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/qt-package/*-portable.zip
+            dist/qt-package/*-setup.exe
+            dist/qt-package/*.dmg
+            dist/qt-package/package-sizes.json
+            dist/qt-evidence/
+            dist/qt-build/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
+          retention-days: 14
