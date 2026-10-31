@@ -4,6 +4,7 @@ import "Format.js" as F
 
 Popup {
     id: tip
+    popupType: Popup.Item
     property var data: ({})
     property var retained: ({})
     onDataChanged: {

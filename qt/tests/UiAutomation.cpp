@@ -15,6 +15,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSaveFile>
+#include <QScreen>
 #include <algorithm>
 #include <cmath>
 
@@ -180,6 +181,12 @@ bool UiAutomation::screenshot(QObject *object, const QString &name) {
     return false;
   const auto file = QDir(mDirectory).filePath(name);
   QDir().mkpath(QFileInfo(file).absolutePath());
+#ifdef Q_OS_WIN
+  const auto frame = window->frameGeometry();
+  window->screen()
+      ->grabWindow(0, frame.x(), frame.y(), frame.width(), frame.height())
+      .save(QDir(mDirectory).filePath("native-" + name));
+#endif
   return window->grabWindow().save(file);
 }
 void UiAutomation::print(const QString &message) {

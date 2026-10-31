@@ -97,7 +97,11 @@ WCard {
                 spacing: 3
                 Repeater {
                     model: Math.max(0, Math.floor((plot.height - (chart.compact ? 92 : 114)) / 6))
-                    Rectangle { width: 1; height: 3; color: "#8c8c8c" }
+                    Rectangle {
+                        width: 1
+                        height: 3
+                        color: "#8c8c8c"
+                    }
                 }
             }
             onPointSelected: function (index) {
@@ -168,12 +172,19 @@ WCard {
     ChartTip {
         objectName: "chartTip"
         data: plot.tooltip
-        source: plot
+        source: expanded.opened ? null : plot
         alpha: chart.tooltipAlpha
+    }
+    Shortcut {
+        sequence: "Escape"
+        enabled: expanded.opened
+        context: Qt.ApplicationShortcut
+        onActivated: expanded.close()
     }
     Popup {
         id: expanded
         objectName: "expandedChart"
+        popupType: Popup.Item
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: parent ? parent.width - 20 : 800

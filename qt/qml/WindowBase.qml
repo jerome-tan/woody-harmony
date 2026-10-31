@@ -59,7 +59,7 @@ ApplicationWindow {
             MenuSeparator {}
             Action {
                 text: "退出 Woody"
-                shortcut: StandardKey.Quit
+                shortcut: Qt.platform.os === "osx" ? StandardKey.Quit : ""
                 onTriggered: backend.requestQuit()
             }
         }
@@ -101,7 +101,7 @@ ApplicationWindow {
             title: "窗口"
             Action {
                 text: "最小化"
-                shortcut: Qt.platform.os === "osx" ? "Meta+M" : "Ctrl+M"
+                shortcut: Qt.platform.os === "osx" ? "Ctrl+M" : ""
                 onTriggered: win.showMinimized()
             }
             Action {
@@ -111,7 +111,7 @@ ApplicationWindow {
             MenuSeparator {}
             Action {
                 text: "关闭窗口"
-                shortcut: StandardKey.Close
+                shortcut: Qt.platform.os === "osx" ? StandardKey.Close : ""
                 onTriggered: win.close()
             }
         }
@@ -224,6 +224,21 @@ ApplicationWindow {
                 onTriggered: backend.requestQuit()
             }
         }
+    }
+    Shortcut {
+        sequence: "Ctrl+W"
+        enabled: Qt.platform.os !== "osx"
+        onActivated: win.close()
+    }
+    Shortcut {
+        sequence: "Ctrl+M"
+        enabled: Qt.platform.os !== "osx"
+        onActivated: win.showMinimized()
+    }
+    Shortcut {
+        sequence: "Ctrl+Q"
+        enabled: Qt.platform.os !== "osx"
+        onActivated: backend.requestQuit()
     }
     Shortcut {
         sequence: "Alt"
