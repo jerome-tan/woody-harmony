@@ -45,7 +45,8 @@ jobs:
           persist-credentials: false
       - name: Check release version
         if: startsWith(github.ref, 'refs/tags/')
-        run: python -c 'import json,os; expected="v"+json.load(open("package.json"))["version"]; assert os.environ["GITHUB_REF_NAME"]==expected, "Tag must match package.json version: "+expected'
+        run: |
+          python -c 'import json,os; expected="v"+json.load(open("package.json"))["version"]; assert os.environ["GITHUB_REF_NAME"]==expected, "Tag must match package.json version: "+expected'
       - name: Install pinned official Qt SDK
         run: python qt/scripts/install-qt.py --output "$RUNNER_TEMP/qt-sdk"
       - name: Configure macOS

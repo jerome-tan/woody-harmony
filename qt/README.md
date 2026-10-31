@@ -83,4 +83,3 @@ The JSON contains raw samples and per-run results; startup is a warm process
 launch (filesystem caches are not cleared). RSS can count shared pages more
 than once; USS is included only where the OS permits it. Timer delay is a
 harness diagnostic, not FPS or input-to-photon latency.
-
