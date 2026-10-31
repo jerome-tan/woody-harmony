@@ -74,6 +74,8 @@ jobs:
           if (!(Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
       - name: Build installer and directory ZIP; measure actual sizes
         run: python qt/scripts/package.py --build dist/qt-build --qt "$QT_ROOT" --output dist/qt-package --arch ${{ matrix.arch }}
+      - name: Hide SDK before testing self-contained packages
+        run: python -c 'import os,pathlib; kit=pathlib.Path(os.environ["QT_ROOT"]); kit.rename(kit.with_name(kit.name+"-disabled-for-deployment-test"))'
       - name: Validate deployed macOS app
         if: matrix.platform == 'mac'
         run: python qt/scripts/ui-smoke.py --exe dist/qt-package/staging/Woody.app/Contents/MacOS/Woody --output dist/qt-evidence/deployed --fixtures dist/qt-fixtures
