@@ -15,6 +15,7 @@ WindowBase {
     property string metric: "Total"
     property string alignment: "start"
     property real tipAlpha: .8
+    property var hiddenReports: []
     property real split: Number(backend.uiPreference("compare.split.v1", 55))
     readonly property bool snapshots: ordered.length > 0 && ordered[0].meta.type === "snapshot"
     readonly property var metricOptions: {
@@ -152,7 +153,7 @@ WindowBase {
                     id: chip
                     required property var modelData
                     required property int index
-                    width: Math.min(500, chipText.implicitWidth + (index === 0 ? 82 : 42))
+                    width: Math.min(500, chipText.implicitWidth + (index === 0 ? 110 : 60))
                     height: 28
                     radius: 6
                     color: index === 0 ? "#f0f7ff" : "white"
@@ -208,14 +209,14 @@ WindowBase {
             visible: !win.snapshots
             spacing: 14
             height: 38
-            WButton {
+            WTab {
                 text: "📈 趋势叠加对比"
-                tone: win.tab === 0 ? "primary" : "default"
+                selected: win.tab === 0
                 onClicked: win.tab = 0
             }
-            WButton {
+            WTab {
                 text: "🎯 采样点对比"
-                tone: win.tab === 1 ? "primary" : "default"
+                selected: win.tab === 1
                 onClicked: win.tab = 1
             }
         }
@@ -229,7 +230,7 @@ WindowBase {
         id: opacityControl
         Row {
             spacing: 6
-            Slider {
+            WSlider {
                 width: 76
                 height: 26
                 from: .3
@@ -320,7 +321,9 @@ WindowBase {
                             Repeater {
                                 model: win.ordered
                                 Row {
+                                    id: reportLegend
                                     required property var modelData
+                                    opacity: win.hiddenReports.indexOf(modelData.meta.sessionDir) >= 0 ? .35 : 1
                                     spacing: 5
                                     Rectangle {
                                         width: 10
@@ -334,6 +337,19 @@ WindowBase {
                                         width: Math.min(350, implicitWidth)
                                         font.pixelSize: 12
                                     }
+                                    HoverHandler {
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
+                                    TapHandler {
+                                        onTapped: {
+                                            var hidden = win.hiddenReports.slice(), key = reportLegend.modelData.meta.sessionDir, i = hidden.indexOf(key);
+                                            if (i < 0)
+                                                hidden.push(key);
+                                            else
+                                                hidden.splice(i, 1);
+                                            win.hiddenReports = hidden;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -343,6 +359,7 @@ WindowBase {
                             controls: false
                             legend: false
                             reports: win.ordered
+                            hiddenReports: win.hiddenReports
                             metric: win.metric
                             alignment: win.alignment
                             tooltipAlpha: win.tipAlpha

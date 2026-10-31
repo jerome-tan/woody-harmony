@@ -17,6 +17,7 @@ WCard {
     property int selectedIndex: -1
     property real tooltipAlpha: .8
     property var hidden: []
+    property var hiddenReports: []
     property bool smooth: false
     property bool points: true
     property bool maximized: false
@@ -30,8 +31,8 @@ WCard {
             spacing: 10
             Row {
                 spacing: 6
-                Slider {
-                    width: 76
+                WSlider {
+                    width: chart.width < 800 ? 50 : 76
                     height: 26
                     from: .3
                     to: 1
@@ -39,6 +40,7 @@ WCard {
                     onMoved: chart.tooltipAlpha = value
                 }
                 WText {
+                    visible: chart.width >= 800
                     text: "透明度"
                     height: 26
                     font.pixelSize: 12
@@ -46,21 +48,22 @@ WCard {
                 }
             }
             WSwitch {
-                text: "显示采样点"
+                text: chart.width < 800 ? "采样点" : "显示采样点"
                 checked: chart.points
                 onClicked: chart.points = checked
             }
             WSwitch {
-                text: "平滑曲线"
+                text: chart.width < 800 ? "平滑" : "平滑曲线"
                 checked: chart.smooth
                 onClicked: chart.smooth = checked
             }
             WButton {
-                text: chart.live && !plot.following ? "跟随最新" : "重置视图"
+                text: chart.live && !plot.following ? "跟随最新" : chart.width < 800 ? "重置" : "重置视图"
                 small: true
                 onClicked: plot.resetView()
             }
             WButton {
+                objectName: "maximizeChart"
                 text: chart.maximized ? "↙" : "⛶"
                 small: true
                 hint: chart.maximized ? "还原" : "最大化图表"
@@ -85,6 +88,18 @@ WCard {
             smooth: chart.smooth
             points: chart.points
             hiddenCategories: chart.hidden
+            hiddenReports: chart.hiddenReports
+            // Move the cursor in the scene graph without repainting/uploading the chart texture.
+            Column {
+                visible: plot.hoverX >= 0
+                x: plot.hoverX
+                y: 30
+                spacing: 3
+                Repeater {
+                    model: Math.max(0, Math.floor((plot.height - (chart.compact ? 92 : 114)) / 6))
+                    Rectangle { width: 1; height: 3; color: "#8c8c8c" }
+                }
+            }
             onPointSelected: function (index) {
                 chart.pointSelected(index);
             }
@@ -97,7 +112,7 @@ WCard {
         }
         ScrollView {
             visible: chart.legend && chart.reports.length === 1
-            Layout.preferredWidth: 178
+            Layout.preferredWidth: chart.width < 800 ? 140 : 178
             Layout.fillHeight: true
             clip: true
             Column {
@@ -151,12 +166,14 @@ WCard {
         }
     }
     ChartTip {
+        objectName: "chartTip"
         data: plot.tooltip
         source: plot
         alpha: chart.tooltipAlpha
     }
     Popup {
         id: expanded
+        objectName: "expandedChart"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: parent ? parent.width - 20 : 800
@@ -174,16 +191,30 @@ WCard {
             active: expanded.opened
             source: active ? Qt.resolvedUrl("MemoryChart.qml") : ""
             onLoaded: {
-                item.reports = Qt.binding(function () { return chart.reports; });
-                item.live = Qt.binding(function () { return chart.live; });
+                item.reports = Qt.binding(function () {
+                    return chart.reports;
+                });
+                item.live = Qt.binding(function () {
+                    return chart.live;
+                });
                 item.metric = chart.metric;
                 item.alignment = chart.alignment;
                 item.legend = chart.legend;
+                item.hidden = chart.hidden;
+                item.hiddenReports = chart.hiddenReports;
+                item.points = chart.points;
+                item.smooth = chart.smooth;
                 item.maximized = true;
                 item.tooltipAlpha = chart.tooltipAlpha;
-                item.selectedIndex = Qt.binding(function () { return chart.selectedIndex; });
-                item.restoreRequested.connect(function () { expanded.close(); });
-                item.pointSelected.connect(function (index) { chart.pointSelected(index); });
+                item.selectedIndex = Qt.binding(function () {
+                    return chart.selectedIndex;
+                });
+                item.restoreRequested.connect(function () {
+                    expanded.close();
+                });
+                item.pointSelected.connect(function (index) {
+                    chart.pointSelected(index);
+                });
             }
         }
     }

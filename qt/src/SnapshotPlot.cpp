@@ -66,6 +66,13 @@ void SnapshotPlot::paint(QPainter *p) {
   const double radius = std::min(width(), height()) * .29, inner = radius * .69;
   const QRectF circle(center.x() - radius, center.y() - radius, 2 * radius,
                       2 * radius);
+  struct Label {
+    Slice slice;
+    QPointF edge;
+    double y;
+    bool right;
+  };
+  QList<Label> labels;
   double angle = 90;
   for (const auto &r : rows) {
     const double degrees = r.value / sum * 360;
@@ -74,32 +81,58 @@ void SnapshotPlot::paint(QPainter *p) {
     p->drawPie(circle, int(angle * 16), -int(degrees * 16));
     if (r.value / sum >= .02) {
       const double radians = (angle - degrees / 2) * std::numbers::pi / 180;
-      const double dir = std::cos(radians) >= 0 ? 1 : -1;
-      const QPointF edge(center.x() + radius * std::cos(radians),
-                         center.y() - radius * std::sin(radians));
-      const QPointF bend(center.x() + (radius + 14) * std::cos(radians),
-                         center.y() - (radius + 14) * std::sin(radians));
-      const QPointF end(bend.x() + dir * 12, bend.y());
-      p->setPen(QColor("#bfbfbf"));
-      p->drawLine(edge, bend);
-      p->drawLine(bend, end);
-      const double labelWidth = std::max(
-          40.0, std::min(120.0, dir > 0 ? width() - end.x() - 3 : end.x() - 3));
-      const QRectF label(dir > 0 ? end.x() + 3 : end.x() - labelWidth - 3,
-                         end.y() - 15, labelWidth, 30);
-      const int align = dir > 0 ? Qt::AlignLeft : Qt::AlignRight;
-      p->setPen(QColor("#262626"));
-      p->drawText(
-          QRectF(label.x(), label.y(), label.width(), 15),
-          align | Qt::AlignVCenter,
-          p->fontMetrics().elidedText(r.name, Qt::ElideRight, label.width()));
-      p->setPen(QColor("#8c8c8c"));
-      p->drawText(QRectF(label.x(), label.y() + 15, label.width(), 15),
-                  align | Qt::AlignVCenter,
-                  QString::number(r.value / 1024, 'f', 1) + " MB · " +
-                      QString::number(r.value / sum * 100, 'f', 1) + "%");
+      labels.append({r,
+                     {center.x() + radius * std::cos(radians),
+                      center.y() - radius * std::sin(radians)},
+                     center.y() - (radius + 14) * std::sin(radians),
+                     std::cos(radians) >= 0});
     }
     angle -= degrees;
+  }
+  // Relax each side independently, preserving angular order so leader lines do
+  // not cross.
+  for (bool right : {false, true}) {
+    QList<Label *> side;
+    for (auto &label : labels)
+      if (label.right == right)
+        side.append(&label);
+    std::sort(side.begin(), side.end(),
+              [](auto a, auto b) { return a->y < b->y; });
+    const double spacing =
+        std::min(32.0, (height() - 32) / std::max<qsizetype>(1, side.size()));
+    double previous = 16 - spacing;
+    for (auto *label : side) {
+      label->y = std::max(previous + spacing, label->y);
+      previous = label->y;
+    }
+    if (!side.isEmpty() && side.last()->y > height() - 16) {
+      side.last()->y = height() - 16;
+      for (int i = side.size() - 2; i >= 0; --i)
+        side[i]->y = std::min(side[i]->y, side[i + 1]->y - spacing);
+    }
+    for (const auto *label : side) {
+      const double direction = right ? 1 : -1;
+      const QPointF end(center.x() + direction * (radius + 25), label->y);
+      const QPointF bend(end.x() - direction * 12, label->y);
+      p->setPen(QColor("#bfbfbf"));
+      p->drawLine(label->edge, bend);
+      p->drawLine(bend, end);
+      const double available =
+          std::max(20.0, right ? width() - end.x() - 4 : end.x() - 4);
+      const QRectF rect(right ? end.x() + 3 : 1, label->y - 14, available, 30);
+      const int align = right ? Qt::AlignLeft : Qt::AlignRight;
+      p->setPen(QColor("#262626"));
+      p->drawText(QRectF(rect.x(), rect.y(), rect.width(), 15),
+                  align | Qt::AlignVCenter,
+                  p->fontMetrics().elidedText(label->slice.name, Qt::ElideRight,
+                                              rect.width()));
+      p->setPen(QColor("#8c8c8c"));
+      p->drawText(
+          QRectF(rect.x(), rect.y() + 15, rect.width(), 15),
+          align | Qt::AlignVCenter,
+          QString::number(label->slice.value / 1024, 'f', 1) + " MB · " +
+              QString::number(label->slice.value / sum * 100, 'f', 1) + "%");
+    }
   }
   p->setPen(Qt::NoPen);
   p->setBrush(Qt::white);

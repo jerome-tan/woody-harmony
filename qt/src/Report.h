@@ -19,6 +19,7 @@ public:
   QJsonObject metadata;
   QJsonObject snapshotData;
   QString compareColor;
+  int compareOrdinal = 0;
   QList<QJsonObject> samples;
   QVariantMap meta() const { return metadata.toVariantMap(); }
   QVariantMap snapshot() const { return snapshotData.toVariantMap(); }
@@ -36,4 +37,9 @@ public:
   static QColor color(const QString &category, int index = 0);
 signals:
   void changed();
+
+private:
+  mutable QStringList mCategories;
+  mutable QVariantMap mStats;
+  mutable bool mCategoriesValid = false, mStatsValid = false;
 };

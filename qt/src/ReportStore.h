@@ -6,6 +6,7 @@
 namespace ReportStore {
 QJsonObject readObject(const QString &file);
 void writeObject(const QString &file, const QJsonObject &value);
+void updateMetadata(const QString &directory, const QJsonObject &changes);
 void writeText(const QString &file, const QByteArray &text,
                bool append = false);
 QJsonObject load(const QString &directory);

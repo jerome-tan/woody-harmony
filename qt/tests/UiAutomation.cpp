@@ -1,4 +1,5 @@
 #include "UiAutomation.h"
+#include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -13,6 +14,9 @@
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QSaveFile>
+#include <algorithm>
+#include <cmath>
 
 UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
                            QObject *backend, const QString &file)
@@ -42,6 +46,62 @@ UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
   mTotal.start();
   mStepTime.start();
   mTimer.start();
+  mWorkTimer.setInterval(25);
+  mWorkTimer.setTimerType(Qt::PreciseTimer);
+  connect(&mWorkTimer, &QTimer::timeout, this, [this] {
+    const auto now = mWorkClock.elapsed();
+    if (now >= mWorkDuration || !mWorkItem) {
+      mWorkTimer.stop();
+      std::sort(mTimerLags.begin(), mTimerLags.end());
+      const double p95 = mTimerLags.isEmpty()
+                             ? 0
+                             : mTimerLags[int((mTimerLags.size() - 1) * .95)];
+      QFile output(QDir(mDirectory).filePath("interaction.json"));
+      if (output.open(QIODevice::WriteOnly))
+        output.write(QJsonDocument(QJsonObject{{"timerLagP95Ms", p95},
+                                               {"inputTicks", mWorkTicks},
+                                               {"elapsedMs", now}})
+                         .toJson());
+      mark("done");
+      emit workloadFinished();
+      return;
+    }
+    mTimerLags.append(std::max<qint64>(0, now - mLastWorkTick - 25));
+    mLastWorkTick = now;
+    const double x = 80 + (mWorkItem->width() - 110) *
+                              (.5 + .4 * std::sin(mWorkTicks * .07));
+    hover(mWorkItem, x, mWorkItem->height() * .45);
+    if (mWorkTicks % 4 == 0)
+      wheel(mWorkItem, mWorkItem->width() * .55, mWorkItem->height() * .5,
+            (mWorkTicks / 80) % 2 ? -80 : 80);
+    ++mWorkTicks;
+  });
+}
+
+void UiAutomation::mark(const QString &phase) {
+  QSaveFile output(QDir(mDirectory).filePath("phase.json"));
+  if (output.open(QIODevice::WriteOnly)) {
+    output.write(
+        QJsonDocument(
+            QJsonObject{{"phase", phase},
+                        {"timestamp", QDateTime::currentMSecsSinceEpoch()}})
+            .toJson());
+    output.commit();
+  }
+}
+void UiAutomation::runWorkload(QObject *item, int durationMs) {
+  mWorkItem = qobject_cast<QQuickItem *>(item);
+  if (!mWorkItem) {
+    finish("Workload target is not a visual item");
+    return;
+  }
+  mWorkDuration = durationMs;
+  mWorkTicks = 0;
+  mLastWorkTick = 0;
+  mTimerLags.clear();
+  mWorkClock.start();
+  mark("interaction");
+  mWorkTimer.start();
 }
 QObject *UiAutomation::find(QObject *root, const QString &name) const {
   if (!root)

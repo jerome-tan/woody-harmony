@@ -59,6 +59,28 @@ and `~/.woody/reports`, including its historical report JSON/JSONL format.
 Qt remains dynamically linked. This application does not use Qt WebEngine,
 Qt Charts, or Qt Graphs. See `licenses/` for redistribution notices.
 
-The separate `qt.yml` workflow builds this branch on Windows x64, macOS arm64,
-and macOS Intel. It uploads installers, ZIPs, exact package byte counts and test
-evidence. It does not publish or overwrite the existing Electron release.
+The `qt.yml` workflow builds pushes to main and codex/qt-* plus PRs to main on
+Windows x64, macOS arm64, and macOS Intel. Tags matching package.json publish the
+six native packages after every test succeeds. Existing published releases are
+never overwritten. The Electron reference workflow is manual-only.
+
+## Reproduce the performance comparison
+
+```sh
+npm ci && npm run build
+python -m pip install psutil==7.1.3
+python qt/scripts/generate-fixtures.py dist/qt-fixtures --benchmark
+python qt/scripts/benchmark.py \
+  --qt-exe dist/qt-package/staging/Woody.app/Contents/MacOS/Woody \
+  --electron-exe node_modules/electron/dist/Electron.app/Contents/MacOS/Electron \
+  --fixtures dist/qt-fixtures --output dist/qt-performance --runs 3
+```
+
+Use the corresponding .exe paths on Windows. Run on an otherwise idle host.
+The same 3,600-point report, 13 categories, 40 Hz hover and 10 Hz wheel workload
+is sent to both applications. Measurements include every process in each tree.
+The JSON contains raw samples and per-run results; startup is a warm process
+launch (filesystem caches are not cleared). RSS can count shared pages more
+than once; USS is included only where the OS permits it. Timer delay is a
+harness diagnostic, not FPS or input-to-photon latency.
+

@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QMutex>
 #include <QSaveFile>
 #include <algorithm>
 #include <stdexcept>
@@ -109,12 +110,21 @@ QString ReportStore::rawFileName(const QString &bundle, qint64 timestamp) {
          bundle + ".txt";
 }
 
+void ReportStore::updateMetadata(const QString &directory,
+                                 const QJsonObject &changes) {
+  // Stop/finalize and rename can finish on different worker threads; merge
+  // their fields atomically.
+  static QMutex mutex;
+  const QMutexLocker lock(&mutex);
+  auto meta = readObject(QDir(directory).filePath("meta.json"));
+  for (auto it = changes.begin(); it != changes.end(); ++it)
+    meta[it.key()] = it.value();
+  writeObject(QDir(directory).filePath("meta.json"), meta);
+}
 void ReportStore::rename(const QString &directory, const QString &name) {
   if (name.trimmed().isEmpty())
     fail(QStringLiteral("任务名称不能为空"));
-  auto meta = readObject(QDir(directory).filePath("meta.json"));
-  meta["taskName"] = name.trimmed();
-  writeObject(QDir(directory).filePath("meta.json"), meta);
+  updateMetadata(directory, {{"taskName", name.trimmed()}});
 }
 
 void ReportStore::remove(const QString &directory,

@@ -149,7 +149,7 @@ ApplicationWindow {
                 font.pixelSize: 14
             }
             WText {
-                visible: win.captionNote.length > 0
+                visible: win.captionNote.length > 0 && win.width >= 900
                 Layout.maximumWidth: parent.width * .46
                 text: win.captionNote
                 font.pixelSize: 12

@@ -25,6 +25,12 @@ def main():
     add('trend layout',delay=200,eval='var report=root.childWindows[0];var plot=qa.find(report,"memoryPlot");qa.hover(plot,0,0);',assert_='plot.width>300 && plot.height>200 && qa.find(report,"statCards").height===90',window='report',screenshot='trend.png')
     add('zoom native chart',eval='qa.wheel(plot,plot.width/2,plot.height/2,400)',assert_='plot.rangeEnd-plot.rangeStart<plot.totalSpan')
     add('hover sample',eval='qa.hover(plot,plot.width*.6,plot.height*.5)',wait='plot.tooltip.items && plot.tooltip.items.length===14',window='report',screenshot='tooltip.png')
+    add('enter tooltip',eval='var tip=qa.find(report,"chartTip");qa.hover(tip.contentItem,40,30)',delay=300,assert_='tip.visible && tip.retained.items.length===14')
+    add('leave tooltip',eval='qa.hover(report.bodyItem,2,2)')
+    add('tooltip dismissed',delay=350,assert_='!tip.visible')
+    add('expand chart',eval='qa.click(qa.find(report,"maximizeChart"),-1,-1)',wait='qa.find(report,"expandedChart").opened')
+    add('expanded screenshot',delay=200,window='report',screenshot='chart-expanded.png')
+    add('restore expanded chart',eval='qa.key(report,16777216)',wait='!qa.find(report,"expandedChart").opened')
     add('reset chart',eval='plot.resetView();qa.hover(plot,0,0)',assert_='plot.rangeStart===0 && plot.rangeEnd===plot.totalSpan')
     add('rename report',eval='backend.renameReport('+report('Trend-1')+',"Trend-1 重命名");',wait='report.meta.taskName==="Trend-1 重命名"')
     add('restore name',eval='backend.renameReport('+report('Trend-1')+',"Trend-1")',wait='report.meta.taskName==="Trend-1"')
@@ -35,7 +41,7 @@ def main():
     add('overlay layout',delay=250,eval='var compare=root.childWindows[2];var comparisonPlot=qa.find(compare,"memoryPlot");qa.hover(comparisonPlot,0,0)',assert_='comparisonPlot.width>300 && comparisonPlot.height>150',window='compare',screenshot='compare-overlay.png')
     add('peak alignment',eval='compare.alignment="peak";compare.metric="GL";',assert_='comparisonPlot.alignment==="peak" && comparisonPlot.metric==="GL"')
     add('end alignment',eval='compare.alignment="end";',assert_='comparisonPlot.totalSpan>=359')
-    add('change baseline',eval='compare.move(3,0)',assert_='compare.ordered[0].meta.id==="Trend-4"')
+    add('change baseline',eval='compare.move(3,0)',assert_='compare.ordered[0].meta.id==="Trend-4" && compare.ordered[0].compareColor==="#722ed1"')
     add('picked mode',eval='compare.tab=1')
     add('select a sample',delay=200,eval='var mini=qa.find(compare,"memoryPlot");qa.click(mini,mini.width*.35,mini.height*.4)',assert_='compare.selected(compare.ordered[0])!==123',window='compare',screenshot='compare-picked.png')
     add('snapshot comparison',eval='backend.openCompare('+json.dumps([str(fixtures/'Snapshot-1'),str(fixtures/'Snapshot-2')])+')',wait='root.childWindows.length===4')
@@ -59,10 +65,12 @@ def main():
     with (output/'application.log').open('w',encoding='utf-8') as log:
         result=subprocess.run(command,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=120)
     log=(output/'application.log').read_text(encoding='utf-8',errors='replace');print(log)
-    if result.returncode:raise SystemExit(result.returncode)
+    if result.returncode:
+        if (output/'ui-result.json').exists():print((output/'ui-result.json').read_text(encoding='utf-8'))
+        raise SystemExit(result.returncode)
     verification=json.loads((output/'ui-result.json').read_text())
     if not verification['passed']:raise SystemExit(2)
-    if any(marker in log for marker in ['TypeError:','ReferenceError:','Unable to assign','Binding loop','failed to load component']):
+    if any(marker in log for marker in ['TypeError:','ReferenceError:','Unable to assign','Binding loop','failed to load component','Cannot specify','Row will not function']):
         raise RuntimeError('QML runtime diagnostics found; see application.log')
     print('PASS',len(verification['steps']),'native UI checks')
 

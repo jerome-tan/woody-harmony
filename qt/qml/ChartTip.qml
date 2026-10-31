@@ -5,10 +5,26 @@ import "Format.js" as F
 Popup {
     id: tip
     property var data: ({})
+    property var retained: ({})
+    onDataChanged: {
+        if (data.heading) {
+            retained = data;
+            leaveDelay.stop();
+        } else
+            leaveDelay.restart();
+    }
+    Timer {
+        id: leaveDelay
+        interval: 220
+        onTriggered: {
+            if (!tipHover.hovered)
+                tip.retained = ({});
+        }
+    }
     property Item source: null
     property real alpha: .8
     parent: Overlay.overlay
-    visible: !!data.heading && !!source && source.visible
+    visible: !!retained.heading && !!source && source.visible
     closePolicy: Popup.NoAutoClose
     modal: false
     focus: false
@@ -19,13 +35,13 @@ Popup {
     x: {
         if (!source || !parent)
             return 0;
-        var p = source.mapToItem(parent, data.x || 0, data.y || 0);
+        var p = source.mapToItem(parent, retained.x || 0, retained.y || 0);
         return Math.max(6, Math.min(parent.width - width - 6, p.x + 16));
     }
     y: {
         if (!source || !parent)
             return 0;
-        var p = source.mapToItem(parent, data.x || 0, data.y || 0);
+        var p = source.mapToItem(parent, retained.x || 0, retained.y || 0);
         return Math.max(6, Math.min(parent.height - height - 6, p.y - height - 16 > 6 ? p.y - height - 16 : p.y + 20));
     }
     background: Rectangle {
@@ -35,10 +51,19 @@ Popup {
     }
     contentItem: Column {
         spacing: 8
+        HoverHandler {
+            id: tipHover
+            onHoveredChanged: {
+                if (hovered)
+                    leaveDelay.stop();
+                else
+                    leaveDelay.restart();
+            }
+        }
         WText {
             id: head
             width: parent.width
-            text: tip.data.heading || ""
+            text: tip.retained.heading || ""
             font.pixelSize: 12
             color: "#595959"
         }
@@ -51,7 +76,7 @@ Popup {
                 width: parent.width
                 spacing: 6
                 Repeater {
-                    model: tip.data.items || []
+                    model: tip.retained.items || []
                     Row {
                         required property var modelData
                         width: table.width
@@ -69,12 +94,23 @@ Popup {
                             font.pixelSize: 12
                             font.bold: modelData.name === "Total"
                         }
-                        WText {
+                        Column {
                             width: 88
-                            text: modelData.kb === null || modelData.kb === undefined ? "—" : F.mb(modelData.kb) + " MB"
-                            horizontalAlignment: Text.AlignRight
-                            font.pixelSize: 12
-                            font.bold: modelData.name === "Total"
+                            WText {
+                                width: 88
+                                text: modelData.kb === null || modelData.kb === undefined ? "—" : F.mb(modelData.kb) + " MB"
+                                horizontalAlignment: Text.AlignRight
+                                font.pixelSize: 12
+                                font.bold: modelData.name === "Total"
+                            }
+                            WText {
+                                visible: modelData.name === "Total" && modelData.kb >= 1048576
+                                width: 88
+                                text: (Number(modelData.kb) / 1048576).toFixed(2) + " GB"
+                                horizontalAlignment: Text.AlignRight
+                                color: "#8c8c8c"
+                                font.pixelSize: 11
+                            }
                         }
                         Column {
                             width: 56

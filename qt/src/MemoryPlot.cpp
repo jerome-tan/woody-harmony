@@ -111,6 +111,8 @@ void MemoryPlot::rebuild() {
                          : mAlignment == "peak" ? peakTime
                                                 : 0);
     span = std::max(span, report->duration() + offset);
+    if (mHiddenReports.contains(report->metadata["sessionDir"].toString()))
+      continue;
     const auto metrics =
         mReports.size() > 1 ? QStringList{mMetric} : report->categories();
     for (int mi = 0; mi < metrics.size(); ++mi) {
@@ -125,6 +127,20 @@ void MemoryPlot::rebuild() {
                          ? report->metadata["taskName"].toString(
                                report->metadata["bundleName"].toString())
                          : metric;
+      if (mReports.size() > 1) {
+        int duplicates = 0, ordinal = 1;
+        for (const auto &other : mReports) {
+          if (other &&
+              other->metadata["taskName"].toString(
+                  other->metadata["bundleName"].toString()) == series.label) {
+            ++duplicates;
+            if (other->compareOrdinal < report->compareOrdinal)
+              ++ordinal;
+          }
+        }
+        if (duplicates > 1)
+          series.label += QString(" (%1)").arg(ordinal);
+      }
       series.color = mReports.size() > 1 ? QColor(report->compareColor.isEmpty()
                                                       ? compareColors[ri % 4]
                                                       : report->compareColor)
@@ -132,7 +148,8 @@ void MemoryPlot::rebuild() {
       series.peak = report->peakIndex(metric);
       series.points.reserve(report->samples.size());
       for (const auto &sample : report->samples) {
-        const bool missing = metric != "Total" && metric != "Private Dirty" &&
+        const bool missing = mReports.size() > 1 && metric != "Total" &&
+                             metric != "Private Dirty" &&
                              metric != "Swap Pss" && metric != "Heap Alloc" &&
                              !sample["categories"].toObject().contains(metric);
         series.points.append(
@@ -371,13 +388,11 @@ void MemoryPlot::paint(QPainter *painter) {
     mDirty = false;
   }
   painter->drawImage(QPointF(0, 0), mCache);
+}
+double MemoryPlot::hoverX() const {
+  if (mHoverTime < mStart || mHoverTime > mEnd) return -1;
   const auto area = plotRect();
-  if (mHoverTime >= mStart && mHoverTime <= mEnd) {
-    const double x =
-        area.left() + (mHoverTime - mStart) / (mEnd - mStart) * area.width();
-    painter->setPen(QPen(QColor("#8c8c8c"), 1, Qt::DashLine));
-    painter->drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
-  }
+  return area.left() + (mHoverTime - mStart) / (mEnd - mStart) * area.width();
 }
 void MemoryPlot::hoverAt(const QPointF &position) {
   const auto area = plotRect();
@@ -385,7 +400,6 @@ void MemoryPlot::hoverAt(const QPointF &position) {
     mTooltip.clear();
     mHoverTime = -1;
     emit tooltipChanged();
-    update();
     return;
   }
   const double time =
@@ -453,7 +467,6 @@ void MemoryPlot::hoverAt(const QPointF &position) {
               {"heading", heading},
               {"items", items}};
   emit tooltipChanged();
-  update();
 }
 void MemoryPlot::hoverMoveEvent(QHoverEvent *event) {
   if (!mDrag)
@@ -463,7 +476,6 @@ void MemoryPlot::hoverLeaveEvent(QHoverEvent *) {
   mTooltip.clear();
   mHoverTime = -1;
   emit tooltipChanged();
-  update();
 }
 void MemoryPlot::wheelEvent(QWheelEvent *event) {
   if (!plotRect().contains(event->position()) &&

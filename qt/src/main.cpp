@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
                     "milliseconds"});
   parser.addOption(
       {"qa", "Run an explicit local UI validation script.", "file"});
+  parser.addOption(
+      {"ready-file", "Write a marker after the first rendered frame.", "file"});
   parser.process(app);
   qmlRegisterType<MemoryPlot>("Woody.Native", 1, 0, "MemoryPlot");
   qmlRegisterType<SnapshotPlot>("Woody.Native", 1, 0, "SnapshotPlot");
@@ -76,8 +78,14 @@ int main(int argc, char **argv) {
     QObject::connect(
         window, &QQuickWindow::frameSwapped, &app,
         [&] {
-          if (firstFrame < 0)
+          if (firstFrame < 0) {
             firstFrame = startup.elapsed();
+            if (parser.isSet("ready-file")) {
+              QFile marker(parser.value("ready-file"));
+              if (marker.open(QIODevice::WriteOnly))
+                marker.write("ready\n");
+            }
+          }
           ++frames;
         },
         Qt::QueuedConnection);

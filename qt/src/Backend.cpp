@@ -467,7 +467,9 @@ void Backend::finish(bool automatic) {
   run(
       [meta, directory, persist] {
         if (persist && !directory.isEmpty())
-          ReportStore::writeObject(directory + "/meta.json", meta);
+          ReportStore::updateMetadata(directory,
+                                      {{"endedAt", meta["endedAt"]},
+                                       {"sampleCount", meta["sampleCount"]}});
         return QJsonValue();
       },
       [this, directory, persist, automatic](const QJsonValue &,
@@ -624,9 +626,12 @@ void Backend::openCompare(const QStringList &directories) {
           return;
         }
         QVariantList reports;
+        const QStringList colors{"#1677ff", "#fa8c16", "#52c41a", "#722ed1"};
         for (const auto &data : value.toArray()) {
           auto *report = new Report(this);
           report->load(data.toObject());
+          report->compareOrdinal = reports.size();
+          report->compareColor = colors[reports.size()];
           reports.append(QVariant::fromValue(report));
         }
         emit compareOpened(reports);
@@ -637,7 +642,8 @@ void Backend::releaseReport(Report *report) {
   if (report && report != mLive)
     report->deleteLater();
 }
-void Backend::renameReport(const QString &directory, const QString &name) {
+void Backend::renameReport(const QString &inputDirectory, const QString &name) {
+  const auto directory = QDir(inputDirectory).absolutePath();
   if (name.trimmed().isEmpty()) {
     emit error(QStringLiteral("任务名称不能为空"));
     return;

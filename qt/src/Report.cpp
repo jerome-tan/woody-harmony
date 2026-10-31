@@ -39,6 +39,7 @@ double Report::value(const QJsonObject &sample, const QString &metric) {
 }
 
 void Report::load(const QJsonObject &data) {
+  mCategoriesValid = mStatsValid = false;
   metadata = data["meta"].toObject();
   snapshotData = data["snapshot"].toObject();
   samples.clear();
@@ -47,10 +48,12 @@ void Report::load(const QJsonObject &data) {
   emit changed();
 }
 void Report::append(const QJsonObject &sample) {
+  mCategoriesValid = mStatsValid = false;
   samples.append(sample);
   emit changed();
 }
 void Report::reset() {
+  mCategoriesValid = mStatsValid = false;
   metadata = {};
   snapshotData = {};
   samples.clear();
@@ -58,6 +61,8 @@ void Report::reset() {
 }
 
 QStringList Report::categories() const {
+  if (mCategoriesValid)
+    return mCategories;
   QStringList present;
   for (const auto &sample : samples)
     for (const auto &key : sample["categories"].toObject().keys())
@@ -72,7 +77,9 @@ QStringList Report::categories() const {
   for (const auto &name : present)
     if (!result.contains(name))
       result.append(name);
-  return result;
+  mCategories = result;
+  mCategoriesValid = true;
+  return mCategories;
 }
 
 double Report::duration() const {
@@ -121,6 +128,8 @@ int Report::peakIndex(const QString &metric) const {
 }
 
 QVariantMap Report::stats() const {
+  if (mStatsValid)
+    return mStats;
   double sum = 0, peak = 0;
   for (const auto &sample : samples) {
     const auto v = value(sample, "Total");
@@ -129,7 +138,7 @@ QVariantMap Report::stats() const {
   }
   const double first = samples.isEmpty() ? 0 : value(samples.first(), "Total");
   const double last = samples.isEmpty() ? 0 : value(samples.last(), "Total");
-  return {
+  mStats = {
       {"peak", peak},
       {"avg", samples.isEmpty() ? 0 : std::round(sum / samples.size())},
       {"first", first},
@@ -142,4 +151,6 @@ QVariantMap Report::stats() const {
            : samples.last()["total"].toObject()["privateDirtyKb"].toDouble()},
       {"pid",
        samples.isEmpty() ? QVariant{} : samples.last()["pid"].toVariant()}};
+  mStatsValid = true;
+  return mStats;
 }

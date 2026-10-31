@@ -13,6 +13,8 @@ class MemoryPlot : public QQuickPaintedItem {
   Q_PROPERTY(QString metric MEMBER mMetric NOTIFY optionsChanged)
   Q_PROPERTY(QString alignment MEMBER mAlignment NOTIFY optionsChanged)
   Q_PROPERTY(QStringList hiddenCategories MEMBER mHidden NOTIFY optionsChanged)
+  Q_PROPERTY(
+      QStringList hiddenReports MEMBER mHiddenReports NOTIFY optionsChanged)
   Q_PROPERTY(QString highlight MEMBER mHighlight NOTIFY optionsChanged)
   Q_PROPERTY(bool smooth MEMBER mSmooth NOTIFY optionsChanged)
   Q_PROPERTY(bool points MEMBER mPoints NOTIFY optionsChanged)
@@ -24,6 +26,7 @@ class MemoryPlot : public QQuickPaintedItem {
   Q_PROPERTY(double rangeEnd READ rangeEnd NOTIFY rangeChanged)
   Q_PROPERTY(double totalSpan READ totalSpan NOTIFY rangeChanged)
   Q_PROPERTY(QVariantMap tooltip READ tooltip NOTIFY tooltipChanged)
+  Q_PROPERTY(double hoverX READ hoverX NOTIFY tooltipChanged)
 public:
   explicit MemoryPlot(QQuickItem *parent = nullptr);
   QVariantList reports() const;
@@ -33,6 +36,7 @@ public:
   double rangeEnd() const { return mEnd; }
   double totalSpan() const { return mSpan; }
   QVariantMap tooltip() const { return mTooltip; }
+  double hoverX() const;
   Q_INVOKABLE void resetView();
   Q_INVOKABLE void followLatest();
   Q_INVOKABLE void setRange(double start, double end);
@@ -70,7 +74,7 @@ private:
   QList<QPointer<Report>> mReports;
   QList<Series> mSeries;
   QString mMetric = "Total", mAlignment = "start", mHighlight;
-  QStringList mHidden;
+  QStringList mHidden, mHiddenReports;
   bool mSmooth = false, mPoints = true, mLive = false, mCompact = false,
        mFollowing = true;
   int mSelected = -1, mDrag = 0;

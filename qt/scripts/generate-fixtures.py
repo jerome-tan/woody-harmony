@@ -37,8 +37,7 @@ def write_report(root, name, count, variant=0, snapshot=False):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('directory',type=Path);parser.add_argument('--benchmark',action='store_true');args=parser.parse_args();root=args.directory.resolve();root.mkdir(parents=True,exist_ok=True)
     if args.benchmark: write_report(root,'benchmark-3600',3600)
-    else:
-        for i,count in enumerate([180,240,300,360]):write_report(root,f'Trend-{i+1}',count,i)
-        for i in range(2):write_report(root,f'Snapshot-{i+1}',1,i,True)
+    for i,count in enumerate([180,240,300,360]):write_report(root,f'Trend-{i+1}',count,i)
+    for i in range(2):write_report(root,f'Snapshot-{i+1}',1,i,True)
     print(root)
 if __name__=='__main__':main()

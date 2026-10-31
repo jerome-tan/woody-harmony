@@ -113,6 +113,10 @@ Item {
                 width: visible ? 48 : 0
                 height: 38
                 color: "#fafafa"
+                z: 2
+                transform: Translate {
+                    x: horizontal.contentX
+                }
                 WCheck {
                     anchors.centerIn: parent
                     checked: table.rows.length > 0 && table.rows.every(function (r) {
@@ -127,6 +131,10 @@ Item {
                 model: table.layoutColumns
                 Rectangle {
                     id: headerCell
+                    z: modelData.locked ? 1 : 0
+                    transform: Translate {
+                        x: headerCell.modelData.locked ? horizontal.contentX : 0
+                    }
                     required property var modelData
                     required property int index
                     width: modelData.width || 150
@@ -225,7 +233,12 @@ Item {
                 }
                 Row {
                     height: parent.height
-                    Item {
+                    Rectangle {
+                        color: rowItem.color
+                        z: 2
+                        transform: Translate {
+                            x: horizontal.contentX
+                        }
                         visible: table.selectable
                         width: visible ? 48 : 0
                         height: 42
@@ -237,8 +250,13 @@ Item {
                     }
                     Repeater {
                         model: table.layoutColumns
-                        Item {
+                        Rectangle {
                             id: cell
+                            color: rowItem.color
+                            z: modelData.locked ? 1 : 0
+                            transform: Translate {
+                                x: cell.modelData.locked ? horizontal.contentX : 0
+                            }
                             required property var modelData
                             width: modelData.width || 150
                             height: 42
@@ -247,6 +265,7 @@ Item {
                             WText {
                                 anchors.fill: parent
                                 anchors.margins: 10
+                                anchors.rightMargin: cell.modelData.rename ? 38 : 10
                                 visible: cell.modelData.key !== "actions"
                                 text: cell.display
                                 font.pixelSize: 13

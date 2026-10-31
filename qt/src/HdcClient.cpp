@@ -285,10 +285,10 @@ void HdcClient::validateBundle(const QString &bundle) {
 qint64 HdcClient::pid(const QString &bundle) const {
   validateBundle(bundle);
   try {
-    const auto match =
-        QRegularExpression("\\d+").match(shell("pidof " + bundle));
+    const auto match = QRegularExpression("^(\\d+)(?:\\s+\\d+)*$")
+                           .match(shell("pidof " + bundle).trimmed());
     if (match.hasMatch())
-      return match.captured(0).toLongLong();
+      return match.captured(1).toLongLong();
   } catch (const std::exception &) {
   }
   try {

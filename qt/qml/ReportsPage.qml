@@ -20,6 +20,15 @@ ColumnLayout {
         return (root.filter === "all" || (r.type || "trend") === root.filter) && [r.bundleName, r.taskName, (r.device || {}).marketName, (r.device || {}).serialNumber].some(function (s) {
             return String(s || "").toLowerCase().indexOf(q) >= 0;
         });
+    }).map(function (r) {
+        var d = r.device || {};
+        return Object.assign({}, r, {
+            taskName: F.title(r),
+            duration: r.type === "snapshot" ? 0 : (r.endedAt || Date.now()) - r.startedAt,
+            device_name: d.marketName || d.model || "",
+            device_ver: (d.softwareVersion || "") + " " + (d.apiVersion || ""),
+            device_sn: d.serialNumber || d.targetId || ""
+        });
     })
     spacing: 14
     function confirmDelete(dirs) {

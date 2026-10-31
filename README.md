@@ -1,24 +1,26 @@
 # Woody
 
-[![Build and Release](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml/badge.svg)](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml)
+[![Native Qt build](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml/badge.svg?branch=codex%2Fqt-6.12.0)](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml)
 [![Release](https://img.shields.io/github/v/release/jerome-tan/woody-harmony)](https://github.com/jerome-tan/woody-harmony/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 鸿蒙开发调试桌面工具，支持 macOS / Windows。通过 hdc 执行 `hidumper`，提供实时内存趋势、单次快照、持续采样和多报告对比。
 
+本分支为 **Qt 6.12.0 原生版**，使用 C++20 / Qt Quick。保留原 Electron 源码用于功能与性能对照；Qt 安装包不包含 Electron、Chromium、Node.js 或 WebEngine。
+
 ## 下载
 
-正式版本在 [Releases](https://github.com/jerome-tan/woody-harmony/releases/latest) 下载；最新开发构建可在 [Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/build.yml) 的 Artifacts 中下载。构建同时提供安装包和免安装包，免安装包会随后续正式版本发布：
+Qt 分支构建在 [Native Qt Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml) 的 Artifacts 下载。已发布的 [v0.1.0 Release](https://github.com/jerome-tan/woody-harmony/releases/tag/v0.1.0) 仍是 Electron 版；本次迁移不覆盖它。
 
-Actions 中以 `-portable` 结尾的 Artifact 单独包含免安装包，可按需下载。
+`woody-qt-package-<平台>-<架构>` 包含安装包和免安装 ZIP；`woody-qt-evidence-*` 包含截图、测试结果、体积明细和性能原始数据。
 
 | 平台 | 安装包 | 免安装包 |
 | --- | --- | --- |
-| macOS Apple Silicon（M 系列） | `Woody-<版本>-mac-arm64.dmg` | `Woody-<版本>-mac-arm64-portable.zip` |
-| macOS Intel | `Woody-<版本>-mac-x64.dmg` | `Woody-<版本>-mac-x64-portable.zip` |
-| Windows x64 | `Woody-<版本>-win-x64-setup.exe` | `Woody-<版本>-win-x64-portable.zip` |
+| macOS Apple Silicon（M 系列） | `Woody-<版本>-qt-mac-arm64.dmg` | `Woody-<版本>-qt-mac-arm64-portable.zip` |
+| macOS Intel | `Woody-<版本>-qt-mac-x64.dmg` | `Woody-<版本>-qt-mac-x64-portable.zip` |
+| Windows x64 | `Woody-<版本>-qt-win-x64-setup.exe` | `Woody-<版本>-qt-win-x64-portable.zip` |
 
-Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立文件夹，再双击其中的 `Woody.exe`，无需安装或管理员权限，也无需每次启动时临时解压。请保留同目录的 `resources/`、`locales/`、DLL 等文件，不能只复制 `Woody.exe`。macOS 免安装版解压 ZIP 后直接打开 `Woody.app`，也可自行移动到常用目录。
+Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立文件夹，再双击其中的 `Woody.exe`，无需安装或管理员权限，也无需每次启动时临时解压。请保留同目录的 `qml/`、插件、DLL 等文件，不能只复制 `Woody.exe`。macOS 免安装版解压 ZIP 后直接打开 `Woody.app`，也可自行移动到常用目录。
 
 从 Actions 下载时，Artifact 的外层 ZIP 内还包含上述免安装 ZIP，需要继续解压；从 Release 下载则直接获得程序 ZIP。
 
@@ -36,6 +38,8 @@ Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立
 - **报告对比**：选择 2～4 份同类型报告，按开始、峰值或结束对齐趋势，也可比较选定采样点和快照分类差异。
 
 ## 使用要求
+
+- Windows 10 1809+ / Windows 11（x64），或 macOS 14.4+（Apple Silicon / Intel）。这是所选 Qt 6.12 SDK 的系统基线。
 
 - 本机有可用的 hdc（DevEco Studio 或 HarmonyOS / OpenHarmony SDK 自带）。Woody 会在常见 SDK 目录、`HDC_PATH` 和 PATH 中查找，也可在「设置」中手动指定路径。
 - 鸿蒙设备已开启开发者模式 / USB 调试，并完成连接授权。
@@ -64,52 +68,31 @@ Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立
 
 ## 开发
 
-技术栈：Electron 44 · electron-vite · React 18 · TypeScript · Ant Design 5 · ECharts 5。
-
-需要 Node.js **22.12.0 或更高版本**，推荐 Node.js 24（与 GitHub Actions 一致）。
+使用 Qt **6.12.0**、CMake 3.24+、C++20 编译器；macOS 使用 Apple Clang，Windows 使用 MSVC 2022。
 
 ```bash
-npm ci
-npm run dev
+python qt/scripts/install-qt.py --output dist/qt-sdk
+cmake -S . -B dist/qt-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$PWD/dist/qt-sdk/6.12.0/macos" \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=14.4
+cmake --build dist/qt-build --parallel
+ctest --test-dir dist/qt-build --output-on-failure
 ```
 
-```text
-src/
-├── main/            # hdc、hidumper 解析、采样引擎、存储、IPC、窗口管理
-├── preload/         # contextBridge 暴露类型化 window.api
-├── shared/          # 主进程与界面的共享类型
-└── renderer/src/
-    ├── pages/       # 首页、工具流程、报告列表、设置
-    ├── components/  # 选择器、趋势图、快照与报告组件
-    ├── App.tsx      # 主窗口状态与流程
-    ├── ReportApp.tsx
-    └── CompareApp.tsx
-```
+Windows 构建器使用 `-G "Visual Studio 17 2022" -A x64`，Qt 路径指向 `6.12.0/msvc2022_64`，构建加 `--config Release`，测试加 `-C Release`。
 
-| 命令 | 用途 |
-| --- | --- |
-| `npm run typecheck` | 主进程与界面的 TypeScript 检查 |
-| `npm run build` | 编译到 `out/` |
-| `npm run test:window-chrome` | 在当前桌面系统检查三种窗口的顶栏与菜单（先运行 build，无需连接设备） |
-| `npm run build:unpack` | 生成未压缩应用目录 |
-| `npm run build:mac -- --arm64` | macOS Apple Silicon DMG + 免安装 ZIP |
-| `npm run build:mac -- --x64` | macOS Intel DMG + 免安装 ZIP |
-| `npm run build:win -- --x64` | Windows x64 NSIS 安装包 + 目录式免安装 ZIP |
+原生代码位于 `qt/src/`，界面位于 `qt/qml/`，测试位于 `qt/tests/`。打包、交互回归和性能测试步骤见 [Qt 构建说明](qt/README.md)。应用、安装程序与发布标签统一读取根目录 `package.json` 的版本号。
 
-安装包输出到 `dist/`。macOS 包在 macOS 上构建，Windows 包在 Windows 上构建。打包命令默认不上传任何文件。
-
-前端的 React、Ant Design、ECharts 等依赖由 Vite 打包，放在 `devDependencies`，避免再把完整 `node_modules` 重复装入安装包。以后若主进程或 preload 使用未被打包的运行时依赖，仍需放入 `dependencies`。生产前端启用代码压缩，并自动附带 `THIRD_PARTY_LICENSES.txt`；Electron 运行时、语言资源与功能组件保持完整。DMG 使用 UDBZ 压缩以减少下载体积，挂载和复制时会比默认格式稍慢。
+原 Electron 代码仍位于 `src/`，使用 `npm ci && npm run dev` 运行，`npm run build` 生成性能对照所用的生产构建。其工作流仅支持手动运行，不参与本分支的自动发布。
 
 ## GitHub Actions 与版本发布
 
-[Build and Release](.github/workflows/build.yml) 在以下场景自动执行三平台构建：
+[Native Qt build and validation](.github/workflows/qt.yml) 自动构建 Windows x64、macOS arm64 和 macOS Intel：
 
-- 推送到 `main`、提交面向 `main` 的 Pull Request，或手动运行工作流：检查类型、编译、打包，验证每个平台的安装包与免安装包均已生成，并在构建摘要显示文件大小；产物保存在 Actions Artifacts 中 14 天。
-- 推送 `v*` 标签：额外校验标签与 `package.json` 版本一致；全部构建成功后，汇总 6 个包、生成 SHA-256 校验文件并发布 GitHub Release。
-
-Windows 构建还会启动 Electron 检查顶栏、原生按钮避让、窄窗口、菜单和窗口快捷键；截图与结果保存在独立的 `window-chrome-win-x64` Artifact 中。
-
-Windows 打包后还会解压免安装 ZIP，对照未压缩应用核对运行文件的 SHA-256，并从包含空格和中文的路径启动、关闭程序。
+- 推送 `main`、`codex/qt-*`，或提交面向 `main` 的 PR：编译、后端测试、原生界面回归、打包、部署后回归，以及三轮 Electron / Qt 性能对照。
+- Windows 额外验证中文路径下 ZIP 解压启动、安装版启动和卸载保留用户文件。
+- 推送 `v*` 标签：必须与 `package.json` 版本一致；三平台全部成功后，发布六个 Qt 包和 `SHA256SUMS.txt`。
+- 普通分支推送只产生 Actions Artifacts，不发布 Release。Artifacts 保留 14 天。
 
 发布任务使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需额外配置个人访问令牌。普通构建只有仓库读取权限，发布任务单独申请 `contents: write`。
 
@@ -126,20 +109,6 @@ Windows 打包后还会解压免安装 ZIP，对照未压缩应用核对运行�
 
 如果构建或上传失败，修复后可重跑工作流；未完成的 Release 保持草稿状态。已正式发布的版本不会被工作流覆盖，应使用新版本号发布后续改动。
 
-## macOS 开发环境故障
-
-开发脚本会修改本地 `node_modules/electron/dist/Electron.app` 的名称和图标。如开发运行遭系统拦截，可重新下载并对本机开发副本签名：
-
-```bash
-node node_modules/electron/install.js
-node scripts/patchElectronName.js
-codesign --force --deep --sign - node_modules/electron/dist/Electron.app
-xattr -cr node_modules/electron/dist/Electron.app
-npm run dev
-```
-
-此操作针对本地开发副本；发布包的 ad-hoc 签名由 `scripts/afterPack.js` 完成。
-
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE)。Qt 动态库及其第三方组件的许可说明随包附带，见 [qt/licenses](qt/licenses)。

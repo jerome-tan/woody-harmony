@@ -92,6 +92,10 @@ private slots:
                meta = loaded["meta"].toObject();
     QCOMPARE(meta["taskName"].toString(), QString("重命名中文报告"));
     QCOMPARE(meta["sampleCount"].toInt(), loaded["samples"].toArray().size());
+    auto *openedReport = qvariant_cast<Report *>(opened.first().first());
+    QVERIFY(openedReport);
+    backend->renameReport(QDir::toNativeSeparators(session), "窗口同步重命名");
+    QTRY_COMPARE(openedReport->meta()["taskName"].toString(), QString("窗口同步重命名"));
     QVERIFY(meta["endedAt"].toDouble() >= meta["startedAt"].toDouble());
     QVERIFY(
         !QDir(session + "/raw").entryList({"*.txt"}, QDir::Files).isEmpty());
