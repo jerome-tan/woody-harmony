@@ -12,6 +12,7 @@ class QQuickItem;
 class UiAutomation : public QObject {
   Q_OBJECT
   Q_PROPERTY(bool workloadDone READ workloadDone NOTIFY workloadFinished)
+  Q_PROPERTY(bool nativePointer MEMBER mNativePointer)
 public:
   UiAutomation(QQmlApplicationEngine *engine, QObject *root, QObject *backend,
                const QString &file);
@@ -47,4 +48,5 @@ private:
   int mWorkDuration = 0, mWorkTicks = 0;
   int mIndex = 0;
   bool mExecuted = false;
+  bool mNativePointer = false;
 };

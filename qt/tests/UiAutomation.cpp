@@ -1,4 +1,5 @@
 #include "UiAutomation.h"
+#include <QCursor>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
@@ -128,30 +129,40 @@ QObject *UiAutomation::find(QObject *root, const QString &name) const {
 }
 namespace {
 bool mouse(QObject *object, QEvent::Type type, double x, double y,
-           Qt::MouseButton button, Qt::MouseButtons held) {
+           Qt::MouseButton button, Qt::MouseButtons held, bool nativePointer) {
   auto *item = qobject_cast<QQuickItem *>(object);
   if (!item || !item->window())
     return false;
   const auto point = item->mapToScene(
       QPointF(x < 0 ? item->width() / 2 : x, y < 0 ? item->height() / 2 : y));
-  QMouseEvent event(type, point, item->window()->mapToGlobal(point.toPoint()),
-                    button, held, Qt::NoModifier);
+  const auto global = item->window()->mapToGlobal(point.toPoint());
+  // Popup geometry changes can cause Qt to query the OS cursor again. Keep it
+  // consistent with UI test input instead of mixing real and synthetic
+  // positions. Performance workloads leave this disabled to match Electron's
+  // injected input.
+  if (nativePointer)
+    QCursor::setPos(global);
+  QMouseEvent event(type, point, global, button, held, Qt::NoModifier);
   return QCoreApplication::sendEvent(item->window(), &event);
 }
 } // namespace
 bool UiAutomation::click(QObject *item, double x, double y) {
-  mouse(item, QEvent::MouseButtonPress, x, y, Qt::LeftButton, Qt::LeftButton);
+  mouse(item, QEvent::MouseButtonPress, x, y, Qt::LeftButton, Qt::LeftButton,
+        mNativePointer);
   return mouse(item, QEvent::MouseButtonRelease, x, y, Qt::LeftButton,
-               Qt::NoButton);
+               Qt::NoButton, mNativePointer);
 }
 bool UiAutomation::hover(QObject *item, double x, double y) {
-  return mouse(item, QEvent::MouseMove, x, y, Qt::NoButton, Qt::NoButton);
+  return mouse(item, QEvent::MouseMove, x, y, Qt::NoButton, Qt::NoButton,
+               mNativePointer);
 }
 bool UiAutomation::wheel(QObject *object, double x, double y, int delta) {
   auto *item = qobject_cast<QQuickItem *>(object);
   if (!item || !item->window())
     return false;
   const auto point = item->mapToScene(QPointF(x, y));
+  if (mNativePointer)
+    QCursor::setPos(item->window()->mapToGlobal(point.toPoint()));
   QWheelEvent event(point, item->window()->mapToGlobal(point.toPoint()), {},
                     QPoint(0, delta), Qt::NoButton, Qt::NoModifier,
                     Qt::NoScrollPhase, false);
@@ -159,12 +170,14 @@ bool UiAutomation::wheel(QObject *object, double x, double y, int delta) {
 }
 bool UiAutomation::drag(QObject *item, double x1, double y1, double x2,
                         double y2) {
-  mouse(item, QEvent::MouseButtonPress, x1, y1, Qt::LeftButton, Qt::LeftButton);
+  mouse(item, QEvent::MouseButtonPress, x1, y1, Qt::LeftButton, Qt::LeftButton,
+        mNativePointer);
   for (int i = 1; i <= 12; ++i)
     mouse(item, QEvent::MouseMove, x1 + (x2 - x1) * i / 12,
-          y1 + (y2 - y1) * i / 12, Qt::NoButton, Qt::LeftButton);
+          y1 + (y2 - y1) * i / 12, Qt::NoButton, Qt::LeftButton,
+          mNativePointer);
   return mouse(item, QEvent::MouseButtonRelease, x2, y2, Qt::LeftButton,
-               Qt::NoButton);
+               Qt::NoButton, mNativePointer);
 }
 bool UiAutomation::key(QObject *object, int code, int modifiers) {
   auto *window = qobject_cast<QQuickWindow *>(object);

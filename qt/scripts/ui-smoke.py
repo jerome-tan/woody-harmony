@@ -17,7 +17,7 @@ def main():
     report=lambda name:json.dumps(str(fixtures/name))
     steps=[]
     def add(name,**kwargs):steps.append(dict(name=name,**kwargs))
-    add('main window',delay=700,screenshot='main.png')
+    add('main window',delay=700,eval='qa.nativePointer=true;qa.hover(root.bodyItem,2,2)',screenshot='main.png')
     for page in ['tools','watch','peak','snap','reports','settings']:
         add('navigate '+page,eval=f'root.go({json.dumps(page)})')
         add('render '+page,delay=160,screenshot=page+'.png')
