@@ -22,7 +22,11 @@ ApplicationWindow {
     bottomPadding: 0
     leftPadding: 0
     rightPadding: 0
+    // Qt's Windows titlebar overlay must explicitly omit WindowTitleHint while
+    // retaining its platform caption buttons. The QML header supplies the title.
     flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
+           | (Qt.platform.os === "windows" ? Qt.CustomizeWindowHint | Qt.WindowSystemMenuHint
+              | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : 0)
     Component.onCompleted: backend.prepareWindow(win)
     onVisibleChanged: if (visible)
         Qt.callLater(function () {
