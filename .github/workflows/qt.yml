@@ -101,9 +101,11 @@ jobs:
           npm run build
           python -m pip install psutil==7.1.3
       - name: Compare macOS startup, memory and interaction CPU
+        timeout-minutes: 8
         if: matrix.platform == 'mac'
         run: python qt/scripts/benchmark.py --qt-exe dist/qt-package/staging/Woody.app/Contents/MacOS/Woody --electron-exe node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --fixtures dist/qt-fixtures --output dist/qt-evidence/performance --runs 3
       - name: Compare Windows startup, memory and interaction CPU
+        timeout-minutes: 8
         if: matrix.platform == 'win'
         run: python qt/scripts/benchmark.py --qt-exe "dist/Qt 免安装测试/Woody/Woody.exe" --electron-exe node_modules/electron/dist/electron.exe --fixtures dist/qt-fixtures --output dist/qt-evidence/performance --runs 3
       - name: Upload packages

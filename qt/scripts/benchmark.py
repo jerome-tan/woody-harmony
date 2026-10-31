@@ -57,8 +57,9 @@ def measure(label,command,output,environment):
                         times=item.cpu_times();cpu_totals[item.pid]=times.user+times.system
                 except psutil.Error:pass
             phases[last_phase].append({'time':now-started,'rss':rss,'cpu':sum(cpu_totals.values()),'processes':len(tree)})
-            # USS is more expensive to query; take one settled sample rather than perturbing every frame.
-            if last_phase in ['idle','report-idle','interaction'] and last_phase not in uss_done and len(phases[last_phase])>=30:
+            # Windows exposes a cheap private working-set query. Avoid unbounded Mach VM page walks
+            # on macOS, which can block monitoring and perturb the workload itself.
+            if os.name == 'nt' and last_phase in ['idle','report-idle','interaction'] and last_phase not in uss_done and len(phases[last_phase])>=30:
                 uss_done.add(last_phase)
                 try:uss[last_phase]=sum(p.memory_full_info().uss for p in tree)
                 except (psutil.Error,AttributeError):uss[last_phase]=None
@@ -96,9 +97,13 @@ def main():
                 if label=='qt':command=qt_command(executable,folder,fixtures,mode)
                 else:
                     config=folder/'config.json';config.write_text(json.dumps({'output':str(folder),'fixtures':str(fixtures),'mode':mode}));env['WOODY_PERF_CONFIG']=str(config);command=[str(executable),str(ROOT/'qt/scripts/electron-perf.cjs')]
-                result=measure(label,command,folder,env);result.update(mode=mode,repetition=repetition+1);rows.append(result)
+                result=measure(label,command,folder,env)
+                expected=['idle']+(['report-idle','interaction'] if mode=='report' else [])
+                if result['startupMs'] is None or any(p not in result['phases'] or result['phases'][p]['durationSeconds'] < (8 if p=='interaction' else 2) for p in expected):
+                    raise RuntimeError('Measurement did not cover every phase: '+str(folder))
+                result.update(mode=mode,repetition=repetition+1);rows.append(result)
                 time.sleep(1)
-    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','electron':json.loads((ROOT/'node_modules/electron/package.json').read_text(encoding='utf-8'))['version'],'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; USS is separately sampled where available.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.','Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable.'],'runs':rows}
+    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','electron':json.loads((ROOT/'node_modules/electron/package.json').read_text(encoding='utf-8'))['version'],'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; private working set (USS) is separately sampled on Windows. macOS VM page walking is excluded from the timing run.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.','Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable.'],'runs':rows}
     (output/'benchmark.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
 
 
