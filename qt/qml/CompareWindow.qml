@@ -21,6 +21,68 @@ WindowBase {
     property var hiddenReports: []
     property real split: Number(backend.uiPreference("compare.split.v2", 50))
     readonly property bool snapshots: ordered.length > 0 && ordered[0].meta.type === "snapshot"
+    readonly property bool snapshotPair: snapshots && ordered.length === 2
+    readonly property int otherSnapshotIndex: baselineIndex === 0 ? 1 : 0
+    property int snapshotFilter: 0
+    readonly property var snapshotRows: differenceRows.map(function (r) {
+        return Object.assign({}, r, {
+            delta: r["d" + otherSnapshotIndex],
+            ratio: r.base && r["d" + otherSnapshotIndex] !== null ? r["d" + otherSnapshotIndex] / r.base : null
+        });
+    }).filter(function (r) {
+        return r.fixed || snapshotFilter === 0 || (snapshotFilter === 1 ? r.delta > 0 : snapshotFilter === 2 ? r.delta < 0 : r.delta !== null && r.delta !== 0);
+    })
+    readonly property var snapshotColumns: {
+        var result = [
+            {
+                key: "name",
+                title: "内存分类",
+                format: F.categoryName,
+                width: 180,
+                locked: true
+            }
+        ];
+        ordered.forEach(function (r, i) {
+            result.push({
+                key: "v" + i,
+                title: win.label(r) + (i === baselineIndex ? "（基准）" : ""),
+                width: 210,
+                align: "right",
+                format: function (v) {
+                    return v === null ? "—" : F.bytes(v);
+                }
+            });
+        });
+        var maximum = differenceRows.reduce(function (m, r) {
+            return Math.max(m, Math.abs(r["d" + otherSnapshotIndex] || 0));
+        }, 1);
+        result.push({
+            key: "delta",
+            title: "差值",
+            width: 280,
+            align: "right",
+            format: function (v) {
+                return v === null ? "—" : F.delta(v);
+            },
+            color: win.deltaColor,
+            bar: function (v) {
+                return Math.abs(v || 0) / maximum;
+            }
+        });
+        result.push({
+            key: "ratio",
+            title: "变化比例",
+            width: 140,
+            align: "right",
+            format: function (v, r) {
+                return win.percent(r.delta, r.base);
+            },
+            color: function (v, r) {
+                return win.deltaColor(r.delta);
+            }
+        });
+        return result;
+    }
     readonly property var metricOptions: {
         var a = ["Total", "Private Dirty", "Swap Pss", "Heap Alloc"];
         ordered.forEach(function (r) {
@@ -568,23 +630,87 @@ WindowBase {
     }
     Component {
         id: snapshotCompare
-        WCard {
-            title: "分类差异"
-            padding: 0
-            extras: WText {
-                width: Math.min(450, win.width - 220)
-                height: 26
-                text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
-                color: T.muted
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignRight
+        ColumnLayout {
+            spacing: 16
+            Rectangle {
+                objectName: "snapshotSummary"
+                visible: win.snapshotPair
+                Layout.fillWidth: true
+                Layout.preferredHeight: 64
+                color: T.selected
+                radius: 6
+                property var total: win.differenceRows.length ? win.differenceRows[0] : ({})
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 16
+                    WText {
+                        text: "Total PSS"
+                        font.weight: Font.DemiBold
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    WText {
+                        text: parent.parent.total.base === null ? "—" : F.bytes(parent.parent.total.base)
+                        font.pixelSize: win.width < 900 ? 16 : 20
+                        font.weight: Font.DemiBold
+                    }
+                    WIcon {
+                        name: "RightOutlined"
+                        tone: "muted"
+                    }
+                    WText {
+                        text: parent.parent.total["v" + win.otherSnapshotIndex] === null ? "—" : F.bytes(parent.parent.total["v" + win.otherSnapshotIndex])
+                        font.pixelSize: win.width < 900 ? 16 : 20
+                        font.weight: Font.DemiBold
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    WText {
+                        property var total: parent.parent.total
+                        text: total["d" + win.otherSnapshotIndex] === null ? "—" : F.delta(total["d" + win.otherSnapshotIndex]) + " (" + win.percent(total["d" + win.otherSnapshotIndex], total.base) + ")"
+                        font.pixelSize: win.width < 900 ? 14 : 20
+                        font.weight: Font.DemiBold
+                        color: win.deltaColor(total["d" + win.otherSnapshotIndex])
+                    }
+                }
             }
-            DataTable {
-                objectName: "differenceTable"
-                anchors.fill: parent
-                rows: win.differenceRows
-                columns: win.differenceColumns
-                rowHeight: 58
+            WCard {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                title: "分类差异"
+                padding: 0
+                extras: Row {
+                    spacing: 16
+                    WText {
+                        visible: win.width >= 900
+                        width: Math.min(350, win.width * .25)
+                        height: 28
+                        text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
+                        color: T.muted
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignRight
+                    }
+                    WCombo {
+                        objectName: "snapshotDifferenceFilter"
+                        visible: win.snapshotPair
+                        width: 160
+                        implicitHeight: 28
+                        model: ["显示：全部分类", "显示：仅增长", "显示：仅下降", "显示：有变化"]
+                        currentIndex: win.snapshotFilter
+                        onActivated: win.snapshotFilter = currentIndex
+                    }
+                }
+                DataTable {
+                    objectName: "differenceTable"
+                    anchors.fill: parent
+                    rows: win.snapshotPair ? win.snapshotRows : win.differenceRows
+                    columns: win.snapshotPair ? win.snapshotColumns : win.differenceColumns
+                    fillColumns: true
+                    rowHeight: win.snapshotPair ? 40 : 58
+                }
             }
         }
     }

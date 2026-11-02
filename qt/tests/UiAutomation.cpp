@@ -205,6 +205,14 @@ bool UiAutomation::screenshot(QObject *object, const QString &name) {
       ->grabWindow(0, frame.x(), frame.y(), frame.width(), frame.height())
       .save(QDir(mDirectory).filePath("native-" + name));
 #endif
+#ifdef Q_OS_MACOS
+  if (name == "main.png" && window->isActive()) {
+    const auto screen = window->screen()->geometry();
+    window->screen()
+        ->grabWindow(0, screen.x(), screen.y(), screen.width(), 28)
+        .save(QDir(mDirectory).filePath("system-menu.png"));
+  }
+#endif
   return window->grabWindow().save(file);
 }
 bool UiAutomation::setFakeDeviceState(const QVariantMap &state) {

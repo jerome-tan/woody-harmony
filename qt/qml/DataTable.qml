@@ -123,7 +123,7 @@ Item {
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
         ScrollBar.horizontal: ScrollBar {
-            policy: table.tableWidth > horizontal.width ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+            policy: table.tableWidth > horizontal.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
         }
         Rectangle {
             width: horizontal.contentWidth
@@ -304,8 +304,23 @@ Item {
                                 radius: 4
                                 color: cell.modelData.swatch ? cell.modelData.swatch(cell.raw, rowItem.modelData) : "transparent"
                             }
+                            Rectangle {
+                                visible: !!cell.modelData.bar
+                                x: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Math.max(0, cell.width - 132)
+                                height: 8
+                                radius: 2
+                                color: T.border
+                                Rectangle {
+                                    width: parent.width * (cell.modelData.bar ? Math.max(0, Math.min(1, cell.modelData.bar(cell.raw, rowItem.modelData))) : 0)
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: cell.modelData.color ? cell.modelData.color(cell.raw, rowItem.modelData) : T.accent
+                                }
+                            }
                             Column {
-                                x: cell.modelData.swatch ? 28 : 12
+                                x: cell.modelData.swatch ? 28 : cell.modelData.bar ? Math.max(12, cell.width - 118) : 12
                                 width: cell.width - x - 12
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 3
