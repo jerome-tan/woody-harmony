@@ -25,7 +25,7 @@ def main():
     add('prepare trend capture',eval='var report=root.childWindows[0];report.raise();report.requestActivate();var plot=qa.find(report,"memoryPlot");qa.hover(report.bodyItem,2,2);')
     add('trend layout',delay=300,wait='report.active',assert_='plot.width>300 && plot.height>200 && qa.find(report,"statCards").height===86',window='report',screenshot='trend.png')
     add('zoom native chart',eval='qa.wheel(plot,plot.width/2,plot.height/2,400)',assert_='plot.rangeEnd-plot.rangeStart<plot.totalSpan')
-    add('hover sample',eval='qa.hover(plot,plot.width*.6,plot.height*.5)',wait='plot.tooltip.items && plot.tooltip.items.length===14',window='report',screenshot='tooltip.png')
+    add('hover sample',eval='qa.hover(plot,plot.width*.6,plot.height*.5)',wait='qa.find(report,"chartTip").visible && qa.find(report,"chartTip").retained.items.length===14',window='report',screenshot='tooltip.png')
     add('enter tooltip',eval='var tip=qa.find(report,"chartTip");qa.hover(tip.contentItem,40,30)')
     add('tooltip remains enterable',delay=500,assert_='tip.visible && tip.retained.items.length===14 && tip.y>=plot.mapToItem(tip.parent,0,0).y')
     add('leave tooltip',eval='qa.hover(report.bodyItem,2,2)')
