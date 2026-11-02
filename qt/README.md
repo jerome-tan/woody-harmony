@@ -4,6 +4,11 @@ This branch replaces the Electron runtime with C++20, Qt 6.12.0, and Qt Quick.
 The original Electron sources remain available as the reference implementation.
 See [measured results and validation boundaries](VALIDATION.md).
 
+The R2.1 UI uses the lavender theme, independent live/snapshot/recording entries,
+platform-aware titlebars, and explicit comparison baselines that preserve report
+order, colors and selected samples. See the [design QA report](../design-qa.md)
+for native screenshots, fixes, responsive states and validation boundaries.
+
 ## Build
 
 Install Qt **6.12.0 exactly**, with Qt Base, Declarative, SVG, Tools, Shader Tools,
