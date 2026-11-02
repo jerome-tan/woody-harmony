@@ -276,7 +276,7 @@ WCard {
     ChartTip {
         objectName: "chartTip"
         data: plot.tooltip
-        source: expanded.opened ? null : plot
+        source: expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
         alpha: chart.tooltipAlpha
     }
     Popup {

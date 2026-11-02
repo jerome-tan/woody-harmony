@@ -8,7 +8,14 @@ Popup {
     popupType: Popup.Item
     property var data: ({})
     property var retained: ({})
+    onSourceChanged: if (!source)
+        retained = ({})
     onDataChanged: {
+        if (!source) {
+            retained = ({});
+            leaveDelay.stop();
+            return;
+        }
         // The pointer may still generate plot hover events beneath this popup.
         // Keep the current rows and position stable while it is being read.
         if (tipHover.hovered) {

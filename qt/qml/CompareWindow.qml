@@ -132,101 +132,112 @@ WindowBase {
     Component.onDestruction: reports.forEach(function (r) {
         backend.releaseReport(r);
     })
-    ColumnLayout {
+    ScrollView {
+        id: compareScroll
         anchors.fill: parent
-        anchors.margins: win.width < 900 ? 12 : 24
-        spacing: 12
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 16
-            WText {
-                text: "基准报告"
-                font.weight: Font.DemiBold
-            }
-            WCombo {
-                objectName: "baselinePicker"
+        clip: true
+        property int pageMargin: win.width < 900 ? 12 : 24
+        contentWidth: availableWidth
+        contentHeight: comparisonContent.height + pageMargin * 2
+        ColumnLayout {
+            id: comparisonContent
+            x: compareScroll.pageMargin
+            y: compareScroll.pageMargin
+            width: compareScroll.availableWidth - compareScroll.pageMargin * 2
+            height: Math.max(540, compareScroll.availableHeight - compareScroll.pageMargin * 2)
+            spacing: 12
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.maximumWidth: 460
-                model: win.ordered.map(function (r) {
-                    return win.label(r);
-                })
-                currentIndex: win.baselineIndex
-                onActivated: win.baselineIndex = currentIndex
+                spacing: 16
+                WText {
+                    text: "基准报告"
+                    font.weight: Font.DemiBold
+                }
+                WCombo {
+                    objectName: "baselinePicker"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 460
+                    model: win.ordered.map(function (r) {
+                        return win.label(r);
+                    })
+                    currentIndex: win.baselineIndex
+                    onActivated: win.baselineIndex = currentIndex
+                }
+                WText {
+                    visible: win.width >= 850
+                    text: win.ordered.length + (win.snapshots ? " 份内存快照" : " 份持续采样报告")
+                    color: T.muted
+                    font.pixelSize: 12
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
             }
-            WText {
-                visible: win.width >= 850
-                text: win.ordered.length + (win.snapshots ? " 份内存快照" : " 份持续采样报告")
-                color: T.muted
-                font.pixelSize: 12
-            }
-            Item {
+            Flow {
                 Layout.fillWidth: true
-            }
-        }
-        Flow {
-            Layout.fillWidth: true
-            Layout.preferredHeight: implicitHeight
-            spacing: 16
-            Repeater {
-                model: win.ordered
-                Row {
-                    required property var modelData
-                    required property int index
-                    spacing: 7
-                    WCheck {
-                        objectName: "reportVisible-" + index
-                        visible: !win.snapshots
-                        checked: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
-                        Accessible.name: "显示 " + win.label(modelData)
-                        onClicked: {
-                            var a = win.hiddenReports.slice(), i = a.indexOf(modelData.meta.sessionDir);
-                            if (i < 0)
-                                a.push(modelData.meta.sessionDir);
-                            else
-                                a.splice(i, 1);
-                            win.hiddenReports = a;
+                Layout.preferredHeight: implicitHeight
+                spacing: 16
+                Repeater {
+                    model: win.ordered
+                    Row {
+                        required property var modelData
+                        required property int index
+                        spacing: 7
+                        WCheck {
+                            objectName: "reportVisible-" + index
+                            visible: !win.snapshots
+                            checked: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
+                            Accessible.name: "显示 " + win.label(modelData)
+                            onClicked: {
+                                var a = win.hiddenReports.slice(), i = a.indexOf(modelData.meta.sessionDir);
+                                if (i < 0)
+                                    a.push(modelData.meta.sessionDir);
+                                else
+                                    a.splice(i, 1);
+                                win.hiddenReports = a;
+                            }
                         }
-                    }
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: win.color(modelData)
-                    }
-                    WText {
-                        height: 26
-                        width: Math.min(250, implicitWidth)
-                        text: win.label(modelData)
-                        font.pixelSize: 12
-                    }
-                    WTag {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: index === win.baselineIndex
-                        text: "基准"
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 8
+                            height: 8
+                            radius: 4
+                            color: win.color(modelData)
+                        }
+                        WText {
+                            height: 26
+                            width: Math.min(250, implicitWidth)
+                            text: win.label(modelData)
+                            font.pixelSize: 12
+                        }
+                        WTag {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: index === win.baselineIndex
+                            text: "基准"
+                        }
                     }
                 }
             }
-        }
-        Row {
-            visible: !win.snapshots
-            spacing: 24
-            WTab {
-                text: "趋势叠加"
-                selected: win.tab === 0
-                onClicked: win.tab = 0
+            Row {
+                visible: !win.snapshots
+                spacing: 24
+                WTab {
+                    text: "趋势叠加"
+                    selected: win.tab === 0
+                    onClicked: win.tab = 0
+                }
+                WTab {
+                    objectName: "pickedTab"
+                    text: "采样点对比"
+                    selected: win.tab === 1
+                    onClicked: win.tab = 1
+                }
             }
-            WTab {
-                objectName: "pickedTab"
-                text: "采样点对比"
-                selected: win.tab === 1
-                onClicked: win.tab = 1
+            Loader {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                sourceComponent: win.snapshots ? snapshotCompare : win.tab === 0 ? overlayCompare : pickedCompare
             }
-        }
-        Loader {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            sourceComponent: win.snapshots ? snapshotCompare : win.tab === 0 ? overlayCompare : pickedCompare
         }
     }
     Component {
@@ -316,7 +327,7 @@ WindowBase {
                     points: false
                 }
                 WCard {
-                    SplitView.preferredHeight: 288
+                    SplitView.preferredHeight: Math.min(288, Math.max(150, win.height - 580))
                     SplitView.minimumHeight: 110
                     title: "指标差异"
                     padding: 0
