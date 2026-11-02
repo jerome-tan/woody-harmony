@@ -1,7 +1,8 @@
+import "Theme.js" as T
 import QtQuick
 
 Text {
-    color: "#262626"
+    color: T.text
     font.pixelSize: 14
     renderType: Text.QtRendering
     elide: Text.ElideRight

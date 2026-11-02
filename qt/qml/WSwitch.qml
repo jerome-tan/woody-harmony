@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -11,7 +12,7 @@ Switch {
         height: 16
         y: (control.height - height) / 2
         radius: 8
-        color: control.checked ? "#1677ff" : "#bfbfbf"
+        color: control.checked ? T.accent : T.disabled
         Rectangle {
             x: control.checked ? 14 : 2
             y: 2
@@ -24,7 +25,7 @@ Switch {
     contentItem: WText {
         text: control.text
         font.pixelSize: 12
-        color: "#595959"
+        color: T.muted
         leftPadding: control.indicator.width + control.spacing
     }
 }

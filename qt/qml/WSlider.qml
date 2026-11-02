@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -12,12 +13,12 @@ Slider {
         width: control.availableWidth
         height: 4
         radius: 2
-        color: "#e8e8e8"
+        color: T.border
         Rectangle {
             width: control.visualPosition * parent.width
             height: 4
             radius: 2
-            color: "#91caff"
+            color: T.primary
         }
     }
     handle: Rectangle {
@@ -28,6 +29,6 @@ Slider {
         radius: 6
         color: "white"
         border.width: 2
-        border.color: control.pressed ? "#1677ff" : "#91caff"
+        border.color: control.pressed ? T.accent : T.primary
     }
 }

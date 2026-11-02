@@ -33,6 +33,7 @@ public:
   Q_INVOKABLE QVariantMap sampleAt(int index) const;
   Q_INVOKABLE int nearest(double seconds) const;
   Q_INVOKABLE int peakIndex(const QString &metric = "Total") const;
+  static bool isMeasurement(const QJsonObject &sample);
   static double value(const QJsonObject &sample, const QString &metric);
   static QColor color(const QString &category, int index = 0);
 signals:

@@ -1,21 +1,22 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 
 TextField {
     id: control
-    implicitHeight: 32
+    implicitHeight: 36
     padding: 7
     leftPadding: 11
     rightPadding: 11
     font.pixelSize: 14
-    color: enabled ? "#262626" : "#8c8c8c"
-    placeholderTextColor: "#bfbfbf"
+    color: enabled ? T.text : T.muted
+    placeholderTextColor: T.disabled
     selectByMouse: true
-    selectionColor: "#bae0ff"
-    selectedTextColor: "#262626"
+    selectionColor: T.selected
+    selectedTextColor: T.text
     background: Rectangle {
         radius: 6
-        color: control.enabled ? "white" : "#f5f5f5"
-        border.color: control.activeFocus ? "#1677ff" : control.hovered ? "#4096ff" : "#d9d9d9"
+        color: control.enabled ? "white" : T.chrome
+        border.color: control.activeFocus ? T.accent : control.hovered ? T.accent : T.border
     }
 }

@@ -131,6 +131,24 @@ private slots:
     QCOMPARE(QDir(session).entryList({"*.smaps.txt"}, QDir::Files).size(), 1);
     QVERIFY(!QFileInfo::exists(session + "/samples.jsonl"));
   }
+  void cancelSnapshotDoesNotPublishPartialReport() {
+    state({{"pid", 2411}, {"delayMs", 3000}});
+    QSignalSpy opened(backend.get(), &Backend::reportOpened);
+    QSignalSpy errors(backend.get(), &Backend::error);
+    QSignalSpy notifications(backend.get(), &Backend::notification);
+    backend->takeSnapshot("com.example.woodyqa", "QA", "取消快照", {{"includeSmaps", true}});
+    QVERIFY(backend->snapshotting());
+    QTest::qWait(100);
+    backend->cancelSnapshot();
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->snapshotting(), 1500);
+    QCOMPARE(opened.size(), 0);
+    QCOMPARE(errors.size(), 0);
+    QCOMPARE(notifications.size(), 1);
+    QVERIFY(ReportStore::list(reports).isEmpty());
+    state({{"pid", 2411}});
+    backend->takeSnapshot("com.example.woodyqa", "QA", "重试快照", {});
+    QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+  }
   void stopCancelsSubprocessAndFinalizesReport() {
     state({{"pid", 2411}, {"delayMs", 3000}});
     start(true);

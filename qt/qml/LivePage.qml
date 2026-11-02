@@ -1,99 +1,99 @@
 import QtQuick
 import QtQuick.Layouts
 import "Format.js" as F
+import "Theme.js" as T
 
 ColumnLayout {
     id: root
+    objectName: "livePage"
     property bool watch: false
     readonly property var report: backend.live
     readonly property var stats: report.stats
-    spacing: 14
-    Rectangle {
+    readonly property bool waiting: backend.sampling && !stats.currentValid
+    readonly property real limit: (report.meta.config || {}).maxDurationMs || 0
+    spacing: 16
+    RowLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 78
-        radius: 8
-        border.color: "#91caff"
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop {
-                position: 0
-                color: "#f0f7ff"
+        spacing: 12
+        Column {
+            Layout.fillWidth: true
+            spacing: 8
+            RowLayout {
+                width: parent.width
+                WText {
+                    Layout.fillWidth: true
+                    text: root.watch ? "实时查看" : F.title(root.report.meta)
+                    font.pixelSize: 20
+                    font.weight: Font.DemiBold
+                }
+                WTag {
+                    text: root.waiting ? "等待应用" : backend.status.state === "stopping" ? "正在结束" : root.watch ? "查看中" : "采样中"
+                }
             }
-            GradientStop {
-                position: 1
-                color: "white"
+            WText {
+                width: parent.width
+                text: (root.report.meta.appLabel || root.report.meta.bundleName || "") + " · " + ((root.report.meta.device || {}).marketName || backend.target) + " · " + ((root.report.meta.config || {}).intervalMs || 1000) + " ms"
+                color: T.muted
+                font.pixelSize: 12
             }
         }
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 14
+        WButton {
+            objectName: "stopButton"
+            text: root.waiting ? "结束等待" : root.watch ? "结束查看" : "结束采样"
+            iconName: "BorderOutlined"
+            enabled: backend.sampling && backend.status.state !== "stopping"
+            onClicked: backend.stopSampling()
+        }
+    }
+    WText {
+        visible: root.waiting
+        text: "在设备上打开应用后开始记录有效数据。"
+        color: T.muted
+        font.pixelSize: 12
+    }
+    RowLayout {
+        visible: !root.watch && root.limit > 0 && !root.waiting
+        Layout.fillWidth: true
+        WText {
+            text: F.duration(root.stats.durationMs) + " / " + F.duration(root.limit)
+            font.pixelSize: 12
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            height: 5
+            radius: 3
+            color: T.border
             Rectangle {
-                width: 38
-                height: 38
-                radius: 10
-                color: root.watch ? "#52c41a" : "#1677ff"
-                WText {
-                    anchors.centerIn: parent
-                    text: root.watch ? "📡" : "📈"
-                    font.pixelSize: 20
-                }
+                width: parent.width * Math.min(1, root.stats.durationMs / Math.max(1, root.limit))
+                height: 5
+                radius: 3
+                color: T.focus
             }
-            Column {
-                Layout.fillWidth: true
-                spacing: 6
-                Row {
-                    spacing: 8
-                    WText {
-                        text: root.report.meta.bundleName || "正在启动…"
-                        font.bold: true
-                    }
-                    WTag {
-                        text: root.watch ? "查看中 · 不落盘" : backend.status.state === "sampling" ? "采样中" : backend.status.state === "starting" ? "启动中" : backend.status.state === "stopping" ? "停止中" : "已结束"
-                    }
-                }
-                WText {
-                    width: parent.width
-                    text: (root.report.meta.startedAt ? Qt.formatDateTime(new Date(root.report.meta.startedAt), "HH:mm:ss") + " 开始 · " : "") + (backend.status.message || "") + (root.watch ? " · 数据仅保留在内存中，结束后不生成报告" : root.report.meta.config && root.report.meta.config.maxDurationMs ? " · 预计 " + Qt.formatDateTime(new Date(root.report.meta.startedAt + root.report.meta.config.maxDurationMs), "HH:mm:ss") + " 自动结束" : "")
-                    font.pixelSize: 12
-                    color: "#8c8c8c"
-                }
-            }
-            WButton {
-                visible: !root.watch
-                text: "↗ 采集目录"
-                enabled: !!root.report.meta.sessionDir
-                onClicked: backend.revealPath(root.report.meta.sessionDir)
-            }
-            WButton {
-                objectName: "stopButton"
-                text: root.watch ? "□ 结束查看" : "□ 结束采样"
-                tone: "danger"
-                enabled: backend.sampling && backend.status.state !== "stopping"
-                onClicked: backend.stopSampling()
-            }
+        }
+        WText {
+            text: Math.min(100, Math.round(root.stats.durationMs / Math.max(1, root.limit) * 100)) + "%"
+            font.pixelSize: 12
+            color: T.muted
         }
     }
     StatCards {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
         values: [
             {
-                label: "当前 Total Pss",
-                value: F.bytes(root.stats.last),
-                color: "#1677ff"
+                label: "当前 PSS",
+                value: root.waiting ? "—" : F.bytes(root.stats.last)
             },
             {
                 label: "Private Dirty",
-                value: F.bytes(root.stats.privateDirty)
+                value: root.waiting ? "—" : F.bytes(root.stats.privateDirty)
             },
             {
-                label: "采样点数",
-                value: root.report.count + (root.stats.pid ? " · PID " + root.stats.pid : "")
+                label: "采样点",
+                value: String(root.stats.validCount || 0)
             },
             {
-                label: "已采样时长",
-                value: F.duration(root.stats.durationMs) + (root.stats.growth ? "  " + F.delta(root.stats.growth) : "")
+                label: "有效时长",
+                value: root.stats.validCount ? F.duration(root.stats.validDurationMs) : "—"
             }
         ]
     }
@@ -102,6 +102,6 @@ ColumnLayout {
         Layout.fillHeight: true
         reports: [root.report]
         live: backend.sampling
-        title: root.watch ? "实时内存" : "实时趋势"
+        title: "内存趋势"
     }
 }

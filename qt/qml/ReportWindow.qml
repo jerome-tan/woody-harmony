@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -12,73 +13,59 @@ WindowBase {
     readonly property bool snapshot: meta.type === "snapshot"
     transientParent: null
     caption: F.title(meta)
-    badge: snapshot ? "📷 内存快照" : "📈 持续采样"
-    captionNote: "独立窗口 · 关闭后不影响原报告"
+
     Component.onDestruction: if (report)
         backend.releaseReport(report)
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 14
+        anchors.margins: win.width < 800 ? 12 : 24
+        spacing: 12
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
-            Rectangle {
-                width: 36
-                height: 36
-                radius: 10
-                color: win.snapshot ? "#fffbe6" : "#e6f4ff"
-                WText {
-                    anchors.centerIn: parent
-                    text: win.snapshot ? "📷" : "📈"
-                    font.pixelSize: 20
-                }
-            }
-            Column {
-                Layout.fillWidth: true
-                spacing: 5
-                RowLayout {
-                    width: parent.width
-                    WText {
-                        Layout.fillWidth: true
-                        text: F.title(win.meta)
-                        font.pixelSize: 20
-                        font.bold: true
-                    }
-                    WButton {
-                        text: "✎"
-                        small: true
-                        hint: "编辑任务名称"
-                        onClicked: win.rename(win.meta.sessionDir, F.title(win.meta))
-                    }
-                }
-                WText {
-                    width: parent.width
-                    text: win.meta.bundleName || ""
-                    font.pixelSize: 12
-                    color: "#8c8c8c"
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
             WTag {
+                visible: win.width >= 800
                 text: win.snapshot ? "内存快照" : "持续采样"
-                ink: win.snapshot ? "#d48806" : "#1677ff"
-                tint: win.snapshot ? "#fffbe6" : "#e6f4ff"
             }
-            Item {
+            WText {
                 Layout.fillWidth: true
+                text: (win.meta.appLabel || win.meta.bundleName || "") + (win.width >= 900 ? "  ·  " + ((win.meta.device || {}).marketName || (win.meta.device || {}).model || "") + "  ·  " + F.date(win.meta.startedAt) : "") + (win.snapshot ? "" : "  ·  " + F.duration(win.stats.durationMs) + " · " + win.report.count + " 点")
+                color: T.muted
+                font.pixelSize: 12
             }
             WButton {
-                text: "ⓘ 环境信息"
+                objectName: "environmentButton"
+                visible: win.width >= 800
+                iconName: "InfoCircleOutlined"
+                text: "环境信息"
+                tone: "quiet"
                 small: true
                 onClicked: environment.open()
             }
             WButton {
-                text: "↗ 打开目录"
+                id: moreButton
+                objectName: "reportMore"
+                iconName: "MoreOutlined"
+                hint: "报告操作"
                 small: true
-                onClicked: backend.revealPath(win.meta.sessionDir)
+                onClicked: reportMenu.open()
+                WMenu {
+                    id: reportMenu
+                    x: moreButton.width - width
+                    y: moreButton.height + 4
+                    Action {
+                        text: "环境信息"
+                        onTriggered: environment.open()
+                    }
+                    Action {
+                        text: "重命名"
+                        onTriggered: win.rename(win.meta.sessionDir, F.title(win.meta))
+                    }
+                    Action {
+                        text: "打开所在文件夹"
+                        onTriggered: backend.revealPath(win.meta.sessionDir)
+                    }
+                }
             }
         }
         Loader {
@@ -91,28 +78,28 @@ WindowBase {
     Component {
         id: trendComponent
         ColumnLayout {
-            spacing: 14
+            spacing: 12
             StatCards {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 90
+                Layout.preferredHeight: implicitHeight
                 values: [
                     {
-                        label: "峰值 Total Pss",
-                        value: F.bytes(win.stats.peak),
-                        color: "#1677ff"
+                        label: "峰值 PSS",
+                        value: win.stats.validCount ? F.bytes(win.stats.peak) : "—",
+                        color: T.accent
                     },
                     {
-                        label: "均值",
-                        value: F.bytes(win.stats.avg)
+                        label: "均值 PSS",
+                        value: win.stats.validCount ? F.bytes(win.stats.avg) : "—"
                     },
                     {
-                        label: "结束值",
-                        value: F.bytes(win.stats.last)
+                        label: "结束 PSS",
+                        value: win.stats.validCount ? F.bytes(win.stats.last) : "—"
                     },
                     {
-                        label: "增长幅度（起始 → 结束）",
-                        value: F.delta(win.stats.growth),
-                        color: win.stats.growth > 0 ? "#ff4d4f" : "#389e0d"
+                        label: "增长量",
+                        value: win.stats.validCount ? F.delta(win.stats.growth) : "—",
+                        color: win.stats.growth > 0 ? T.error : T.negative
                     }
                 ]
             }
@@ -130,16 +117,17 @@ WindowBase {
             clip: true
             SnapshotBody {
                 width: snapshotScroll.availableWidth
+                height: Math.max(width < 800 ? 720 : 660, snapshotScroll.availableHeight)
                 snapshot: win.report.snapshot
             }
         }
     }
-    Dialog {
+    WDialog {
         id: environment
         objectName: "environmentDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 620
+        width: Math.min(620, parent.width - 40)
         modal: true
         title: "环境信息"
         standardButtons: Dialog.Close
@@ -205,7 +193,7 @@ WindowBase {
                         Layout.preferredWidth: 90
                         text: modelData.name
                         font.pixelSize: 13
-                        color: "#8c8c8c"
+                        color: T.muted
                     }
                     WText {
                         Layout.fillWidth: true

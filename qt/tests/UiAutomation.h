@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QTimer>
+#include <QVariantMap>
 class QQmlApplicationEngine;
 class QQuickItem;
 
@@ -24,6 +25,7 @@ public:
                         double y2);
   Q_INVOKABLE bool key(QObject *window, int key, int modifiers = 0);
   Q_INVOKABLE bool screenshot(QObject *window, const QString &name);
+  Q_INVOKABLE bool setFakeDeviceState(const QVariantMap &state);
   Q_INVOKABLE void print(const QString &text);
   Q_INVOKABLE void mark(const QString &phase);
   Q_INVOKABLE void runWorkload(QObject *item, int durationMs);

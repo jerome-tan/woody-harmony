@@ -119,6 +119,11 @@ QObject *UiAutomation::find(QObject *root, const QString &name) const {
     return root;
   if (auto *found = root->findChild<QObject *>(name))
     return found;
+  // Popup contents are reparented to the overlay visually. Follow the public
+  // content/header/footer properties when the search starts at a popup object.
+  for (const char *part : {"contentItem", "header", "footer"})
+    if (auto *item = root->property(part).value<QObject *>(); item && item != root)
+      if (auto *found = find(item, name)) return found;
   if (auto *item = qobject_cast<QQuickItem *>(root))
     for (auto *child : item->childItems())
       if (auto *found = find(child, name))
@@ -194,7 +199,7 @@ bool UiAutomation::screenshot(QObject *object, const QString &name) {
     return false;
   const auto file = QDir(mDirectory).filePath(name);
   QDir().mkpath(QFileInfo(file).absolutePath());
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
   const auto frame = window->frameGeometry();
   window->screen()
       ->grabWindow(0, frame.x(), frame.y(), frame.width(), frame.height())
@@ -202,6 +207,18 @@ bool UiAutomation::screenshot(QObject *object, const QString &name) {
 #endif
   return window->grabWindow().save(file);
 }
+bool UiAutomation::setFakeDeviceState(const QVariantMap &state) {
+  // Only the explicit CLI QA profile may drive the fake device. Never write
+  // outside its evidence directory or let application/report data control this.
+  const QString path = qEnvironmentVariable("WOODY_FAKE_STATE");
+  if (path.isEmpty() || QFileInfo(path).absolutePath() != mDirectory)
+    return false;
+  QSaveFile file(path);
+  return file.open(QIODevice::WriteOnly) &&
+         file.write(QJsonDocument::fromVariant(state).toJson()) >= 0 &&
+         file.commit();
+}
+
 void UiAutomation::print(const QString &message) {
   qInfo().noquote() << message;
 }
@@ -262,6 +279,11 @@ void UiAutomation::finish(const QString &error) {
   mTimer.stop();
   if (!error.isEmpty()) {
     qCritical().noquote() << "FAIL step" << mIndex << error;
+    if (mIndex < mSteps.size()) {
+      const auto step = mSteps[mIndex].toObject();
+      auto window = mEngine->evaluate(step["window"].toString("root"));
+      screenshot(window.toQObject(), "failure.png");
+    }
     mResults.append(QJsonObject{{"name", mIndex < mSteps.size()
                                              ? mSteps[mIndex].toObject()["name"]
                                              : QJsonValue("initialization")},

@@ -2,21 +2,24 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import "Format.js" as F
+import "Theme.js" as T
 
 WindowBase {
     id: win
     objectName: "compareWindow"
     width: 1440
-    height: 873
+    height: 960
     property var reports: []
-    property var ordered: reports.slice()
+    readonly property var ordered: reports
+    property int baselineIndex: 0
+    readonly property var baseline: ordered.length ? ordered[Math.min(baselineIndex, ordered.length - 1)] : null
     property var picked: ({})
     property int tab: 0
     property string metric: "Total"
     property string alignment: "start"
     property real tipAlpha: .8
     property var hiddenReports: []
-    property real split: Number(backend.uiPreference("compare.split.v1", 55))
+    property real split: Number(backend.uiPreference("compare.split.v2", 50))
     readonly property bool snapshots: ordered.length > 0 && ordered[0].meta.type === "snapshot"
     readonly property var metricOptions: {
         var a = ["Total", "Private Dirty", "Swap Pss", "Heap Alloc"];
@@ -32,25 +35,27 @@ WindowBase {
         var result = [
             {
                 key: "name",
-                title: "分类 / 指标",
-                width: 140,
-                bold: true
+                title: "分类",
+                format: F.categoryName,
+                width: 150,
+                bold: true,
+                locked: true
             }
         ];
         ordered.forEach(function (r, i) {
             result.push({
                 key: "v" + i,
-                title: win.label(r) + (i === 0 ? "（基准）" : ""),
-                width: 190,
+                title: win.label(r) + (i === baselineIndex ? "（基准）" : ""),
+                width: 210,
                 align: "right",
-                color: function (v, row) {
-                    if (i === 0)
-                        return "#262626";
-                    var diff = row["d" + i];
-                    return diff > 512 ? "#ff4d4f" : diff < -512 ? "#389e0d" : "#262626";
+                format: function (v) {
+                    return v === null ? "—" : F.bytes(v);
                 },
-                format: function (v, row) {
-                    return v === null ? "—" : F.mb(v) + " MB" + (i > 0 && row["d" + i] !== null ? " (" + F.delta(row["d" + i]) + ")" : "");
+                secondary: function (v, row) {
+                    return i === baselineIndex ? "基准" : row["d" + i] === null ? "—" : F.delta(row["d" + i]) + "  " + win.percent(row["d" + i], row.base);
+                },
+                secondaryColor: function (v, row) {
+                    return win.deltaColor(row["d" + i]);
                 }
             });
         });
@@ -58,17 +63,21 @@ WindowBase {
     }
     readonly property var differenceRows: buildDifferences()
     transientParent: null
-    caption: "对比 " + ordered.length + " 份报告"
-    badge: snapshots ? "📷 内存快照对比" : "📈 持续采样对比"
-    captionNote: "独立窗口 · 关闭后不影响原报告"
+    caption: snapshots ? "快照对比" : "趋势对比"
     function label(r) {
-        var t = F.title(r.meta), dupes = reports.filter(function (o) {
-            return F.title(o.meta) === t;
-        });
-        return dupes.length > 1 ? t + " (" + (dupes.indexOf(r) + 1) + ")" : t;
+        var name = F.title(r.meta), duplicate = reports.filter(function (o) {
+            return F.title(o.meta) === name;
+        }).length > 1;
+        return String.fromCharCode(65 + reports.indexOf(r)) + " · " + name + (duplicate ? " · " + F.date(r.meta.startedAt) : "");
     }
     function color(r) {
         return F.comparisonColors[reports.indexOf(r) % 4];
+    }
+    function deltaColor(v) {
+        return v === null || v === 0 ? T.muted : v > 0 ? T.positive : T.negative;
+    }
+    function percent(delta, base) {
+        return base === null || base === 0 || delta === null ? "—" : (delta >= 0 ? "+" : "−") + (Math.abs(delta / base) * 100).toFixed(1) + "%";
     }
     function selected(r) {
         var key = r.meta.sessionDir;
@@ -76,17 +85,13 @@ WindowBase {
     }
     function selectPoint(r, index) {
         var next = Object.assign({}, picked);
-        next[r.meta.sessionDir] = index;
+        next[r.meta.sessionDir] = Math.max(0, Math.min(r.count - 1, index));
         picked = next;
-    }
-    function move(from, to) {
-        var next = ordered.slice();
-        next.splice(to, 0, next.splice(from, 1)[0]);
-        ordered = next;
     }
     function buildDifferences() {
         var values = ordered.map(function (r) {
-            return snapshots ? r.snapshot : r.sampleAt(selected(r));
+            var sample = snapshots ? r.snapshot : r.sampleAt(selected(r));
+            return snapshots || F.validSample(sample) ? sample : ({});
         });
         var names = ["Total"];
         values.forEach(function (s) {
@@ -95,30 +100,26 @@ WindowBase {
                     names.push(k);
             });
         });
-        var result = names.map(function (name) {
+        return names.map(function (name) {
             var row = {
                 name: name,
                 fixed: name === "Total",
                 maxDiff: 0
             };
-            values.forEach(function (s, i) {
-                var v = name === "Total" ? (s.total ? s.total.pssTotalKb : null) : (s.categories && s.categories[name] ? s.categories[name].pssTotalKb : (snapshots ? 0 : null));
+            var raw = values.map(function (s) {
+                return name === "Total" ? (s.total ? s.total.pssTotalKb : null) : (s.categories && s.categories[name] ? s.categories[name].pssTotalKb : null);
+            });
+            row.base = raw[win.baselineIndex] === undefined ? null : raw[win.baselineIndex];
+            raw.forEach(function (v, i) {
                 row["v" + i] = v;
-                var base = row.v0;
-                row["d" + i] = v === null || base === null ? null : v - base;
-                if (i > 0)
+                row["d" + i] = v === null || row.base === null ? null : v - row.base;
+                if (i !== win.baselineIndex)
                     row.maxDiff = Math.max(row.maxDiff, Math.abs(row["d" + i] || 0));
             });
             return row;
+        }).sort(function (a, b) {
+            return a.fixed ? -1 : b.fixed ? 1 : b.maxDiff - a.maxDiff;
         });
-        result.sort(function (a, b) {
-            if (a.name === "Total")
-                return -1;
-            if (b.name === "Total")
-                return 1;
-            return b.maxDiff - a.maxDiff;
-        });
-        return result;
     }
     Component.onCompleted: {
         var map = {};
@@ -133,89 +134,91 @@ WindowBase {
     })
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.margins: win.width < 900 ? 12 : 24
         spacing: 12
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 16
+            WText {
+                text: "基准报告"
+                font.weight: Font.DemiBold
+            }
+            WCombo {
+                objectName: "baselinePicker"
+                Layout.fillWidth: true
+                Layout.maximumWidth: 460
+                model: win.ordered.map(function (r) {
+                    return win.label(r);
+                })
+                currentIndex: win.baselineIndex
+                onActivated: win.baselineIndex = currentIndex
+            }
+            WText {
+                visible: win.width >= 850
+                text: win.ordered.length + (win.snapshots ? " 份内存快照" : " 份持续采样报告")
+                color: T.muted
+                font.pixelSize: 12
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+        }
         Flow {
-            id: order
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
-            spacing: 8
-            WText {
-                height: 28
-                text: "对比顺序（首个为基准，拖拽调整）："
-                font.pixelSize: 12
-                color: "#8c8c8c"
-            }
+            spacing: 16
             Repeater {
-                id: chips
                 model: win.ordered
-                Rectangle {
-                    id: chip
+                Row {
                     required property var modelData
                     required property int index
-                    width: Math.min(500, chipText.implicitWidth + (index === 0 ? 110 : 60))
-                    height: 28
-                    radius: 6
-                    color: index === 0 ? "#f0f7ff" : "white"
-                    border.color: index === 0 ? "#91caff" : "#e5e5e5"
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        spacing: 6
-                        WText {
-                            text: "⠿"
-                            color: "#bfbfbf"
-                            font.pixelSize: 12
-                        }
-                        Rectangle {
-                            width: 9
-                            height: 9
-                            radius: 2
-                            color: win.color(chip.modelData)
-                        }
-                        WText {
-                            id: chipText
-                            Layout.fillWidth: true
-                            text: win.label(chip.modelData)
-                            font.pixelSize: 12
-                            font.bold: true
-                        }
-                        WTag {
-                            visible: chip.index === 0
-                            text: "基准"
-                            implicitHeight: 20
+                    spacing: 7
+                    WCheck {
+                        objectName: "reportVisible-" + index
+                        visible: !win.snapshots
+                        checked: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
+                        Accessible.name: "显示 " + win.label(modelData)
+                        onClicked: {
+                            var a = win.hiddenReports.slice(), i = a.indexOf(modelData.meta.sessionDir);
+                            if (i < 0)
+                                a.push(modelData.meta.sessionDir);
+                            else
+                                a.splice(i, 1);
+                            win.hiddenReports = a;
                         }
                     }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.OpenHandCursor
-                        onReleased: function (mouse) {
-                            var p = mapToItem(order, mouse.x, mouse.y);
-                            var nearest = chip.index, dist = Infinity;
-                            for (var i = 0; i < chips.count; ++i) {
-                                var item = chips.itemAt(i), center = item.mapToItem(order, item.width / 2, item.height / 2), d = Math.hypot(center.x - p.x, center.y - p.y);
-                                if (d < dist) {
-                                    dist = d;
-                                    nearest = i;
-                                }
-                            }
-                            win.move(chip.index, nearest);
-                        }
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: win.color(modelData)
+                    }
+                    WText {
+                        height: 26
+                        width: Math.min(250, implicitWidth)
+                        text: win.label(modelData)
+                        font.pixelSize: 12
+                    }
+                    WTag {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: index === win.baselineIndex
+                        text: "基准"
                     }
                 }
             }
         }
         Row {
             visible: !win.snapshots
-            spacing: 14
-            height: 38
+            spacing: 24
             WTab {
-                text: "📈 趋势叠加对比"
+                text: "趋势叠加"
                 selected: win.tab === 0
                 onClicked: win.tab = 0
             }
             WTab {
-                text: "🎯 采样点对比"
+                objectName: "pickedTab"
+                text: "采样点对比"
                 selected: win.tab === 1
                 onClicked: win.tab = 1
             }
@@ -227,159 +230,114 @@ WindowBase {
         }
     }
     Component {
-        id: opacityControl
-        Row {
-            spacing: 6
-            WSlider {
-                width: 76
-                height: 26
-                from: .3
-                to: 1
-                value: win.tipAlpha
-                onMoved: win.tipAlpha = value
-            }
-            WText {
-                text: "透明度"
-                height: 26
-                font.pixelSize: 12
-                color: "#8c8c8c"
-            }
-        }
-    }
-    Component {
         id: overlayCompare
-        ScrollView {
-            id: overlayScroll
-            clip: true
-            Column {
-                width: overlayScroll.availableWidth
-                spacing: 14
-                WCard {
-                    width: parent.width
-                    height: 400
-                    title: "指标趋势叠加"
-                    padding: 8
-                    extras: [
-                        Row {
-                            spacing: 10
-                            Loader {
-                                sourceComponent: opacityControl
-                            }
-                            WText {
-                                text: "对比指标"
-                                height: 26
-                                font.pixelSize: 12
-                                color: "#8c8c8c"
-                            }
-                            WCombo {
-                                width: 170
-                                height: 26
-                                model: win.metricOptions.map(function (m) {
-                                    return m === "Total" ? "Total Pss" : m;
-                                })
-                                currentIndex: win.metricOptions.indexOf(win.metric)
-                                onActivated: win.metric = win.metricOptions[currentIndex]
-                            }
-                            WText {
-                                text: "时间对齐"
-                                height: 26
-                                font.pixelSize: 12
-                                color: "#8c8c8c"
-                            }
-                            Repeater {
-                                model: [
-                                    {
-                                        key: "start",
-                                        label: "开始"
-                                    },
-                                    {
-                                        key: "peak",
-                                        label: "峰值"
-                                    },
-                                    {
-                                        key: "end",
-                                        label: "结束"
-                                    }
-                                ]
-                                WButton {
-                                    required property var modelData
-                                    text: modelData.label
-                                    small: true
-                                    tone: win.alignment === modelData.key ? "primary" : "default"
-                                    onClicked: win.alignment = modelData.key
-                                }
-                            }
+        ColumnLayout {
+            spacing: 12
+            RowLayout {
+                Layout.fillWidth: true
+                WText {
+                    visible: win.width >= 800
+                    text: "对比指标"
+                    color: T.muted
+                    font.pixelSize: 12
+                }
+                WCombo {
+                    objectName: "metricPicker"
+                    Layout.preferredWidth: win.width < 800 ? 140 : 180
+                    model: win.metricOptions
+                    currentIndex: win.metricOptions.indexOf(win.metric)
+                    onActivated: win.metric = win.metricOptions[currentIndex]
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
+                WText {
+                    visible: win.width >= 900
+                    text: "时间对齐"
+                    color: T.muted
+                    font.pixelSize: 12
+                }
+                Repeater {
+                    model: [
+                        {
+                            key: "start",
+                            label: "开始"
+                        },
+                        {
+                            key: "peak",
+                            label: "峰值"
+                        },
+                        {
+                            key: "end",
+                            label: "结束"
                         }
                     ]
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 4
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: implicitHeight
-                            spacing: 8
-                            Repeater {
-                                model: win.ordered
-                                Row {
-                                    id: reportLegend
-                                    required property var modelData
-                                    opacity: win.hiddenReports.indexOf(modelData.meta.sessionDir) >= 0 ? .35 : 1
-                                    spacing: 5
-                                    Rectangle {
-                                        width: 10
-                                        height: 10
-                                        radius: 5
-                                        color: win.color(modelData)
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                    WText {
-                                        text: win.label(modelData)
-                                        width: Math.min(350, implicitWidth)
-                                        font.pixelSize: 12
-                                    }
-                                    HoverHandler {
-                                        cursorShape: Qt.PointingHandCursor
-                                    }
-                                    TapHandler {
-                                        onTapped: {
-                                            var hidden = win.hiddenReports.slice(), key = reportLegend.modelData.meta.sessionDir, i = hidden.indexOf(key);
-                                            if (i < 0)
-                                                hidden.push(key);
-                                            else
-                                                hidden.splice(i, 1);
-                                            win.hiddenReports = hidden;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        MemoryChart {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            controls: false
-                            legend: false
-                            reports: win.ordered
-                            hiddenReports: win.hiddenReports
-                            metric: win.metric
-                            alignment: win.alignment
-                            tooltipAlpha: win.tipAlpha
-                            points: false
-                        }
+                    WButton {
+                        required property var modelData
+                        text: modelData.label
+                        small: true
+                        tone: win.alignment === modelData.key ? "selected" : "default"
+                        onClicked: win.alignment = modelData.key
                     }
                 }
+                WButton {
+                    objectName: "comparisonDisplayOptions"
+                    text: "显示选项"
+                    small: true
+                    onClicked: overlayChart.openDisplayOptions(this)
+                }
+                WButton {
+                    objectName: "maximizeChart"
+                    iconName: "ExpandOutlined"
+                    hint: "展开图表"
+                    small: true
+                    onClicked: overlayChart.expandChart()
+                }
+            }
+            SplitView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                orientation: Qt.Vertical
+                handle: Rectangle {
+                    implicitHeight: 8
+                    color: SplitHandle.hovered ? T.selected : T.chrome
+                }
+                MemoryChart {
+                    id: overlayChart
+                    SplitView.fillHeight: true
+                    SplitView.minimumHeight: 160
+                    reports: win.ordered
+                    hiddenReports: win.hiddenReports
+                    metric: win.metric
+                    alignment: win.alignment
+                    controls: false
+                    legend: false
+                    tooltipAlpha: win.tipAlpha
+                    points: false
+                }
                 WCard {
-                    width: parent.width
-                    height: 44 + 38 + 42 * win.ordered.length + 12
-                    title: "关键指标差异（Total Pss）"
+                    SplitView.preferredHeight: 288
+                    SplitView.minimumHeight: 110
+                    title: "指标差异"
                     padding: 0
+                    extras: WText {
+                        width: Math.min(400, win.width * .5)
+                        height: 26
+                        text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
+                        color: T.muted
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignRight
+                    }
                     DataTable {
+                        objectName: "summaryTable"
+                        fillColumns: true
                         anchors.fill: parent
                         rows: win.ordered.map(function (r, i) {
                             return Object.assign({
-                                name: win.label(r),
-                                startedAt: r.meta.startedAt,
-                                count: r.count,
-                                peakDiff: r.stats.peak - win.ordered[0].stats.peak,
+                                name: win.label(r) + (i === win.baselineIndex ? "  基准" : ""),
+                                color: win.color(r),
+                                baseline: i === win.baselineIndex,
+                                peakDiff: win.baseline && win.baseline.stats.validCount && r.stats.validCount ? r.stats.peak - win.baseline.stats.peak : null,
                                 index: i
                             }, r.stats);
                         })
@@ -387,70 +345,60 @@ WindowBase {
                             {
                                 key: "name",
                                 title: "报告",
-                                width: 340,
-                                bold: true
-                            },
-                            {
-                                key: "startedAt",
-                                title: "采样时间",
-                                width: 175,
-                                format: F.date
+                                width: Math.max(230, (win.width - 80) * .27),
+                                swatch: function (v, r) {
+                                    return r.color;
+                                }
                             },
                             {
                                 key: "peak",
-                                title: "峰值 Pss",
+                                title: "峰值 PSS",
                                 width: 120,
                                 align: "right",
-                                format: F.bytes,
-                                color: function () {
-                                    return "#ff4d4f";
+                                format: function (v, r) {
+                                    return r.validCount ? F.bytes(v) : "—";
                                 }
                             },
                             {
                                 key: "avg",
                                 title: "均值",
-                                width: 110,
+                                width: 120,
                                 align: "right",
-                                format: F.bytes
+                                format: function (v, r) {
+                                    return r.validCount ? F.bytes(v) : "—";
+                                }
                             },
                             {
                                 key: "last",
                                 title: "结束值",
-                                width: 110,
-                                align: "right",
-                                format: F.bytes
-                            },
-                            {
-                                key: "growth",
-                                title: "增长幅度",
                                 width: 120,
                                 align: "right",
-                                format: F.delta,
-                                color: function (v) {
-                                    return v > 0 ? "#ff4d4f" : "#389e0d";
+                                format: function (v, r) {
+                                    return r.validCount ? F.bytes(v) : "—";
                                 }
                             },
                             {
-                                key: "durationMs",
-                                title: "时长",
-                                width: 100,
-                                format: F.duration
-                            },
-                            {
-                                key: "count",
-                                title: "采样点数",
-                                width: 100
-                            },
-                            {
-                                key: "peakDiff",
-                                title: "峰值差异",
+                                key: "growth",
+                                title: "增长量",
                                 width: 130,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.index === 0 ? "基准" : F.delta(v);
+                                    return r.validCount ? F.delta(v) : "—";
                                 },
                                 color: function (v) {
-                                    return v > 512 ? "#ff4d4f" : v < -512 ? "#389e0d" : "#262626";
+                                    return win.deltaColor(v);
+                                }
+                            },
+                            {
+                                key: "peakDiff",
+                                title: "峰值差值",
+                                width: 200,
+                                align: "right",
+                                format: function (v, r) {
+                                    return r.baseline || v === null ? "—" : F.delta(v) + " (" + win.percent(v, win.baseline.stats.peak) + ")";
+                                },
+                                color: function (v, r) {
+                                    return r.baseline ? T.muted : win.deltaColor(v);
                                 }
                             }
                         ]
@@ -461,66 +409,103 @@ WindowBase {
     }
     Component {
         id: pickedCompare
-        Item {
-            id: splitArea
+        SplitView {
+            id: pickedSplit
+            orientation: Qt.Horizontal
+            handle: Rectangle {
+                implicitWidth: 8
+                color: SplitHandle.hovered ? T.selected : T.chrome
+            }
             WCard {
                 id: miniCard
-                x: 0
-                y: 0
-                width: Math.max(300, (parent.width - 10) * win.split / 100)
-                height: parent.height
-                title: "各报告完整趋势（点击小图选取对比点）"
-                padding: 10
-                extras: Loader {
-                    sourceComponent: opacityControl
+                SplitView.preferredWidth: pickedSplit.width * win.split / 100
+                SplitView.minimumWidth: 290
+                title: "选择采样点"
+                padding: 8
+                onWidthChanged: if (pickedSplit.resizing) {
+                    win.split = width / pickedSplit.width * 100;
+                    backend.setUiPreference("compare.split.v2", win.split);
                 }
                 ScrollView {
                     id: miniScroll
+                    objectName: "miniScroll"
                     anchors.fill: parent
                     clip: true
                     Column {
                         width: miniScroll.availableWidth
-                        spacing: 10
+                        spacing: 12
                         Repeater {
                             model: win.ordered
                             WCard {
+                                id: mini
                                 required property var modelData
                                 required property int index
                                 width: parent.width
-                                height: Math.max(180, (miniCard.body.height - 10 * (win.ordered.length - 1)) / win.ordered.length)
-                                padding: 6
+                                height: 250
+                                padding: 10
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    spacing: 2
+                                    spacing: 8
                                     RowLayout {
                                         Layout.fillWidth: true
                                         Rectangle {
-                                            width: 9
-                                            height: 9
-                                            radius: 2
-                                            color: win.color(modelData)
+                                            width: 8
+                                            height: 8
+                                            radius: 4
+                                            color: win.color(mini.modelData)
                                         }
                                         WText {
                                             Layout.fillWidth: true
-                                            text: win.label(modelData)
+                                            text: win.label(mini.modelData)
                                             font.pixelSize: 12
-                                            font.bold: true
+                                            font.weight: Font.DemiBold
                                         }
                                         WTag {
-                                            visible: index === 0
+                                            visible: mini.index === win.baselineIndex
                                             text: "基准"
                                         }
                                         WButton {
-                                            text: "选峰值"
+                                            text: "定位峰值"
                                             small: true
-                                            onClicked: win.selectPoint(modelData, modelData.peakIndex("Total"))
+                                            onClicked: win.selectPoint(mini.modelData, mini.modelData.peakIndex("Total"))
                                         }
                                     }
-                                    WText {
+                                    RowLayout {
                                         Layout.fillWidth: true
-                                        text: "选中 #" + (win.selected(modelData) + 1) + " · " + F.date(modelData.sampleAt(win.selected(modelData)).timestamp) + " · " + F.bytes((modelData.sampleAt(win.selected(modelData)).total || {}).pssTotalKb)
-                                        font.pixelSize: 11
-                                        color: "#8c8c8c"
+                                        WText {
+                                            text: "采样点"
+                                            font.pixelSize: 12
+                                            color: T.muted
+                                        }
+                                        WField {
+                                            objectName: "sampleIndex-" + mini.index
+                                            Layout.preferredWidth: 62
+                                            implicitHeight: 28
+                                            font.pixelSize: 12
+                                            enabled: mini.modelData.stats.validCount > 0
+                                            text: win.selected(mini.modelData) < 0 ? "—" : String(win.selected(mini.modelData) + 1)
+                                            validator: IntValidator {
+                                                bottom: 1
+                                                top: Math.max(1, mini.modelData.count)
+                                            }
+                                            onEditingFinished: {
+                                                win.selectPoint(mini.modelData, Number(text) - 1);
+                                                text = Qt.binding(function () {
+                                                    return String(win.selected(mini.modelData) + 1);
+                                                });
+                                            }
+                                        }
+                                        WText {
+                                            Layout.fillWidth: true
+                                            text: F.duration(Number(mini.modelData.sampleAt(win.selected(mini.modelData)).timestamp || 0) - Number(mini.modelData.meta.startedAt || 0))
+                                            font.pixelSize: 12
+                                            color: T.muted
+                                        }
+                                        WText {
+                                            text: F.validSample(mini.modelData.sampleAt(win.selected(mini.modelData))) ? F.bytes(mini.modelData.sampleAt(win.selected(mini.modelData)).total.pssTotalKb) : "—"
+                                            font.pixelSize: 14
+                                            font.weight: Font.DemiBold
+                                        }
                                     }
                                     MemoryChart {
                                         Layout.fillWidth: true
@@ -528,12 +513,12 @@ WindowBase {
                                         controls: false
                                         legend: false
                                         compact: true
-                                        reports: [modelData]
-                                        selectedIndex: win.selected(modelData)
+                                        reports: [mini.modelData]
+                                        selectedIndex: win.selected(mini.modelData)
                                         tooltipAlpha: win.tipAlpha
                                         points: false
                                         onPointSelected: function (point) {
-                                            win.selectPoint(modelData, point);
+                                            win.selectPoint(mini.modelData, point);
                                         }
                                     }
                                 }
@@ -542,40 +527,25 @@ WindowBase {
                     }
                 }
             }
-            Rectangle {
-                x: miniCard.width + 2
-                y: 0
-                width: 6
-                height: parent.height
-                radius: 3
-                color: resizeHover.hovered ? "#91caff" : "#e5e5e5"
-                HoverHandler {
-                    id: resizeHover
-                    cursorShape: Qt.SplitHCursor
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.SplitHCursor
-                    onPositionChanged: function (mouse) {
-                        if (pressed) {
-                            var p = mapToItem(splitArea, mouse.x, 0);
-                            win.split = Math.max(30, Math.min(75, p.x / (splitArea.width - 10) * 100));
-                        }
-                    }
-                    onReleased: backend.setUiPreference("compare.split.v1", win.split)
-                }
-            }
             WCard {
-                x: miniCard.width + 10
-                y: 0
-                width: parent.width - x
-                height: parent.height
-                title: "选中采样点 · 分类差异（MB）"
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 260
+                title: "分类差异"
                 padding: 0
+                extras: WText {
+                    width: Math.max(80, parent.parent.width - 150)
+                    text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
+                    height: 26
+                    color: T.muted
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignRight
+                }
                 DataTable {
+                    objectName: "differenceTable"
                     anchors.fill: parent
                     rows: win.differenceRows
                     columns: win.differenceColumns
+                    rowHeight: 58
                 }
             }
         }
@@ -583,12 +553,22 @@ WindowBase {
     Component {
         id: snapshotCompare
         WCard {
-            title: "内存快照分类差异（MB）"
+            title: "分类差异"
             padding: 0
+            extras: WText {
+                width: Math.min(450, win.width - 220)
+                height: 26
+                text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
+                color: T.muted
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignRight
+            }
             DataTable {
+                objectName: "differenceTable"
                 anchors.fill: parent
                 rows: win.differenceRows
                 columns: win.differenceColumns
+                rowHeight: 58
             }
         }
     }

@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -8,25 +9,31 @@ ApplicationWindow {
     property string badge: ""
     property string captionNote: ""
     property bool mainWindow: false
+    property bool windowsChrome: Qt.platform.os === "windows"
     default property alias contents: body.data
     property alias bodyItem: body
     property string renameDirectory: ""
     property string messageText: ""
-    title: caption.length && caption !== "Woody" ? caption + " · Woody" : "Woody"
+    title: mainWindow ? "Woody" : caption
     width: 1280
     height: 840
     minimumWidth: 640
     minimumHeight: 480
-    color: "#f4f5fa"
+    color: "white"
+    palette.highlight: T.accent
+    palette.highlightedText: "white"
+    palette.text: T.text
+    palette.buttonText: T.text
+    palette.button: T.chrome
+    palette.base: "white"
+    palette.window: "white"
     topPadding: 0
     bottomPadding: 0
     leftPadding: 0
     rightPadding: 0
     // Qt's Windows titlebar overlay must explicitly omit WindowTitleHint while
     // retaining its platform caption buttons. The QML header supplies the title.
-    flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
-           | (Qt.platform.os === "windows" ? Qt.CustomizeWindowHint | Qt.WindowSystemMenuHint
-              | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : 0)
+    flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint | (Qt.platform.os === "windows" ? Qt.CustomizeWindowHint | Qt.WindowSystemMenuHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : 0)
     Component.onCompleted: backend.prepareWindow(win)
     onVisibleChanged: if (visible)
         Qt.callLater(function () {
@@ -55,213 +62,133 @@ ApplicationWindow {
     menuBar: MenuBar {
         visible: Qt.platform.os === "osx"
         Menu {
-            title: "Woody"
+            title: "Help"
             Action {
                 text: "关于 Woody"
                 onTriggered: about.open()
-            }
-            MenuSeparator {}
-            Action {
-                text: "退出 Woody"
-                shortcut: Qt.platform.os === "osx" ? StandardKey.Quit : ""
-                onTriggered: backend.requestQuit()
-            }
-        }
-        Menu {
-            title: "编辑"
-            Action {
-                text: "撤销"
-                shortcut: StandardKey.Undo
-                onTriggered: win.edit("undo")
-            }
-            Action {
-                text: "重做"
-                shortcut: StandardKey.Redo
-                onTriggered: win.edit("redo")
-            }
-            MenuSeparator {}
-            Action {
-                text: "剪切"
-                shortcut: StandardKey.Cut
-                onTriggered: win.edit("cut")
-            }
-            Action {
-                text: "拷贝"
-                shortcut: StandardKey.Copy
-                onTriggered: win.edit("copy")
-            }
-            Action {
-                text: "粘贴"
-                shortcut: StandardKey.Paste
-                onTriggered: win.edit("paste")
-            }
-            Action {
-                text: "全选"
-                shortcut: StandardKey.SelectAll
-                onTriggered: win.edit("selectAll")
-            }
-        }
-        Menu {
-            title: "窗口"
-            Action {
-                text: "最小化"
-                shortcut: Qt.platform.os === "osx" ? "Ctrl+M" : ""
-                onTriggered: win.showMinimized()
-            }
-            Action {
-                text: "最大化 / 还原"
-                onTriggered: win.toggleMaximize()
-            }
-            MenuSeparator {}
-            Action {
-                text: "关闭窗口"
-                shortcut: Qt.platform.os === "osx" ? StandardKey.Close : ""
-                onTriggered: win.close()
             }
         }
     }
     Rectangle {
         id: titlebar
-        x: 0
-        y: 0
+        objectName: "titlebar"
         width: win.width
-        height: 46
-        color: "white"
+        height: 40
+        color: T.chrome
         MouseArea {
             anchors.fill: parent
             onPressed: win.startSystemMove()
             onDoubleClicked: win.toggleMaximize()
         }
-        WButton {
-            id: menuButton
-            x: 10
-            y: 8
-            visible: Qt.platform.os !== "osx"
-            text: "☰"
-            hint: "菜单"
-            implicitWidth: 32
-            onClicked: compactMenu.open()
+        Row {
+            id: brand
+            visible: win.windowsChrome
+            x: 12
+            height: parent.height
+            spacing: 10
+            Image {
+                anchors.verticalCenter: parent.verticalCenter
+                source: "qrc:/assets/icon-win.png"
+                width: 22
+                height: 22
+                sourceSize.width: 44
+                sourceSize.height: 44
+            }
+            WText {
+                text: "Woody"
+                height: parent.height
+                font.weight: Font.DemiBold
+            }
+            WButton {
+                id: helpButton
+                objectName: "helpButton"
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Help"
+                small: true
+                tone: helpMenu.opened ? "selected" : "quiet"
+                onClicked: helpMenu.open()
+                WMenu {
+                    id: helpMenu
+                    objectName: "helpMenu"
+                    y: helpButton.height + 3
+                    Action {
+                        text: "关于 Woody"
+                        onTriggered: about.open()
+                    }
+                }
+            }
         }
-        RowLayout {
-            x: Qt.platform.os === "osx" ? 100 : 52
-            height: 46
-            width: parent.width - x - (Qt.platform.os === "windows" ? 146 : 18)
-            spacing: 12
-            WTag {
-                visible: win.badge.length > 0
-                text: win.badge
-            }
-            WText {
-                Layout.fillWidth: true
-                text: win.caption
-                font.bold: true
-                font.pixelSize: 14
-            }
-            WText {
-                visible: win.captionNote.length > 0 && win.width >= 900
-                Layout.maximumWidth: parent.width * .46
-                text: win.captionNote
-                font.pixelSize: 12
-                color: "#8c8c8c"
-            }
+        WText {
+            objectName: "windowCaption"
+            x: win.windowsChrome ? brand.x + brand.width + 18 : 96
+            width: Math.max(0, win.width - x - (win.windowsChrome ? 154 : 96))
+            height: parent.height
+            visible: !win.mainWindow
+            text: win.caption
+            horizontalAlignment: Text.AlignHCenter
+            font.weight: Font.DemiBold
         }
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: "#f0f0f0"
-        }
-        Menu {
-            id: compactMenu
-            x: 10
-            y: 42
-            Menu {
-                title: "编辑"
-                Action {
-                    text: "撤销"
-                    onTriggered: win.edit("undo")
-                }
-                Action {
-                    text: "重做"
-                    onTriggered: win.edit("redo")
-                }
-                MenuSeparator {}
-                Action {
-                    text: "剪切"
-                    onTriggered: win.edit("cut")
-                }
-                Action {
-                    text: "拷贝"
-                    onTriggered: win.edit("copy")
-                }
-                Action {
-                    text: "粘贴"
-                    onTriggered: win.edit("paste")
-                }
-                Action {
-                    text: "全选"
-                    onTriggered: win.edit("selectAll")
-                }
-            }
-            Menu {
-                title: "窗口"
-                Action {
-                    text: "最小化"
-                    onTriggered: win.showMinimized()
-                }
-                Action {
-                    text: "最大化 / 还原"
-                    onTriggered: win.toggleMaximize()
-                }
-                Action {
-                    text: "关闭窗口"
-                    onTriggered: win.close()
-                }
-            }
-            MenuSeparator {}
-            Action {
-                text: "关于 Woody"
-                onTriggered: about.open()
-            }
-            Action {
-                text: "退出 Woody"
-                onTriggered: backend.requestQuit()
-            }
+            color: T.border
         }
     }
     Shortcut {
-        sequence: "Ctrl+W"
-        enabled: Qt.platform.os !== "osx"
+        sequences: [StandardKey.Close]
         onActivated: win.close()
     }
     Shortcut {
         sequence: "Ctrl+M"
-        enabled: Qt.platform.os !== "osx"
         onActivated: win.showMinimized()
     }
     Shortcut {
-        sequence: "Ctrl+Q"
-        enabled: Qt.platform.os !== "osx"
-        onActivated: backend.requestQuit()
+        sequences: [StandardKey.Quit]
+        onActivated: backend.requestInteractiveQuit()
     }
     Shortcut {
-        sequence: "Alt"
-        enabled: Qt.platform.os !== "osx"
-        onActivated: compactMenu.open()
+        sequence: "Alt+H"
+        enabled: win.windowsChrome
+        onActivated: helpMenu.open()
     }
     Shortcut {
         sequence: "F10"
-        enabled: Qt.platform.os !== "osx"
-        onActivated: compactMenu.open()
+        enabled: win.windowsChrome
+        onActivated: helpMenu.open()
+    }
+    Shortcut {
+        sequences: [StandardKey.Copy]
+        onActivated: win.edit("copy")
+    }
+    Shortcut {
+        sequences: [StandardKey.Cut]
+        onActivated: win.edit("cut")
+    }
+    Shortcut {
+        sequences: [StandardKey.Paste]
+        onActivated: win.edit("paste")
+    }
+    Shortcut {
+        sequences: [StandardKey.SelectAll]
+        onActivated: win.edit("selectAll")
+    }
+    Shortcut {
+        sequences: [StandardKey.Undo]
+        onActivated: win.edit("undo")
+    }
+    Shortcut {
+        sequences: [StandardKey.Redo]
+        onActivated: win.edit("redo")
     }
     Item {
         id: body
         x: 0
-        y: 46
+        y: 40
         width: win.width
-        height: win.height - 46
+        height: win.height - 40
     }
-    Dialog {
+    WDialog {
         id: about
         objectName: "aboutDialog"
         parent: Overlay.overlay
@@ -273,26 +200,9 @@ ApplicationWindow {
         Column {
             width: parent.width
             spacing: 16
-            Row {
-                spacing: 14
-                Image {
-                    source: "qrc:/assets/icon.png"
-                    width: 54
-                    height: 54
-                }
-                Column {
-                    spacing: 6
-                    WText {
-                        text: "Woody"
-                        font.pixelSize: 24
-                        font.bold: true
-                    }
-                    WText {
-                        text: "HarmonyOS 设备内存分析工具"
-                        color: "#8c8c8c"
-                        font.pixelSize: 12
-                    }
-                }
+            WText {
+                text: "HarmonyOS 内存分析工具"
+                font.pixelSize: 14
             }
             WText {
                 width: parent.width
@@ -304,13 +214,16 @@ ApplicationWindow {
             }
         }
     }
-    Dialog {
+    WDialog {
         id: renameDialog
+        objectName: "renameDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 460
         modal: true
-        title: "编辑任务名称"
+        title: "重命名报告"
+        acceptText: "保存"
+        acceptEnabled: renameField.text.trim().length > 0
         standardButtons: Dialog.Ok | Dialog.Cancel
         WField {
             id: renameField
@@ -324,13 +237,15 @@ ApplicationWindow {
         }
         onAccepted: backend.renameReport(win.renameDirectory, renameField.text)
     }
-    Dialog {
+    WDialog {
         id: errorDialog
+        objectName: "errorDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(540, parent.width - 48)
         modal: true
-        title: "操作失败"
+        title: "操作未完成"
+        acceptText: "知道了"
         standardButtons: Dialog.Ok
         WText {
             width: parent.width
@@ -351,7 +266,7 @@ ApplicationWindow {
         height: toastLabel.implicitHeight + 20
         radius: 6
         color: "white"
-        border.color: "#e5e5e5"
+        border.color: T.border
         WText {
             id: toastLabel
             anchors.centerIn: parent

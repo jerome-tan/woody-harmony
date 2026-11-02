@@ -43,7 +43,10 @@ public:
   QVariantList records() const { return mRecords.toVariantList(); }
 
   Q_INVOKABLE void initialize();
+  Q_INVOKABLE bool toolPathExists(const QString &path) const;
   Q_INVOKABLE void requestQuit();
+  Q_INVOKABLE void requestInteractiveQuit() { emit quitRequested(); }
+  Q_INVOKABLE void cancelSnapshot();
   Q_INVOKABLE void prepareWindow(QObject *window);
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
@@ -88,6 +91,7 @@ signals:
   void samplingFinished(bool persist, const QString &directory,
                         bool autoStopped);
   void quitReady();
+  void quitRequested();
 
 private:
   using Completion = std::function<void(const QJsonValue &, const QString &)>;
@@ -106,6 +110,7 @@ private:
   QTimer mTimer;
   std::shared_ptr<std::atomic_bool> mQuit;
   std::shared_ptr<std::atomic_bool> mCancel;
+  std::shared_ptr<std::atomic_bool> mSnapshotCancel;
   QJsonObject mConfig;
   QString mBundle, mLabel, mDirectory;
   HdcClient mSamplingClient;

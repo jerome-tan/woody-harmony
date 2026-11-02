@@ -8,4 +8,8 @@ function title(meta) {return meta.taskName||meta.appLabel||meta.bundleName||"报
 function taskName(){return "Task-"+Qt.formatDateTime(new Date(),"yyyyMMdd-HHmmss")}
 function mb(kb){return (Number(kb||0)/1024).toFixed(2)}
 function categoryRows(s) {s=s||{};var rows=[];if(!s.total)return rows;rows.push(Object.assign({name:"Total",fixed:true},s.total));Object.keys(s.categories||{}).forEach(function(k){rows.push(Object.assign({name:k},s.categories[k]))});Object.keys(s.nativeHeapDetail||{}).forEach(function(k){rows.push(Object.assign({name:"↳ "+k},s.nativeHeapDetail[k]))});return rows}
-var comparisonColors=["#1677ff","#fa8c16","#52c41a","#722ed1"]
+var comparisonColors=["#5273AA","#8B5CF6","#B58139","#468C81"]
+
+function categoryName(name) { return {"native heap":"Native heap", "ark ts heap":"ArkTS heap", "stack":"Stack"}[name] || name; }
+
+function validSample(sample) { return !!sample.total && (sample.pid === undefined || Number(sample.pid) > 0); }

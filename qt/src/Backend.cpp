@@ -97,6 +97,11 @@ Backend::Backend(QString profile, QObject *parent)
   connect(this, &Backend::snapshottingChanged, this, checkQuit);
 }
 
+bool Backend::toolPathExists(const QString &path) const {
+  const QFileInfo file(path.trimmed());
+  return file.isFile() && file.isExecutable();
+}
+
 void Backend::requestQuit() {
   mQuitting = true;
   if (mActive)
@@ -111,6 +116,7 @@ void Backend::prepareWindow(QObject *object) {
 
 Backend::~Backend() {
   mQuit->store(true);
+  if (mSnapshotCancel) mSnapshotCancel->store(true);
   if (mCancel)
     mCancel->store(true);
 }
@@ -353,7 +359,7 @@ void Backend::startSampling(const QVariantMap &configuration,
         state("sampling",
               mPid
                   ? QStringLiteral("采样中，pid=%1").arg(mPid)
-                  : QStringLiteral("应用未运行，记录全 0 数据，等待应用启动…"));
+                  : QStringLiteral("等待应用启动"));
         emit samplingStarted(mPersist);
         collect();
       });
@@ -423,7 +429,7 @@ void Backend::collect() {
             state("sampling",
                   mPid ? QStringLiteral("采样中，pid=%1").arg(mPid)
                        : QStringLiteral(
-                             "应用未运行，记录全 0 数据，等待应用启动…"));
+                             "等待应用启动"));
         } else if (result.contains("collectError")) {
           mPid = result["nextPid"].toInteger();
           mFailures = result["samePid"].toBool() ? mFailures + 1 : 0;
@@ -491,6 +497,10 @@ void Backend::finish(bool automatic) {
       });
 }
 
+void Backend::cancelSnapshot() {
+  if (mSnapshotting && mSnapshotCancel) mSnapshotCancel->store(true);
+}
+
 void Backend::takeSnapshot(const QString &bundle, const QString &label,
                            const QString &taskName,
                            const QVariantMap &options) {
@@ -510,7 +520,9 @@ void Backend::takeSnapshot(const QString &bundle, const QString &label,
   }
   mSnapshotting = true;
   emit snapshottingChanged();
-  const auto hdc = client();
+  auto hdc = client();
+  mSnapshotCancel = std::make_shared<std::atomic_bool>(false);
+  hdc.cancelled = mSnapshotCancel;
   const auto device = mDevice;
   const auto output = root();
   const auto opts = QJsonObject::fromVariantMap(options);
@@ -535,6 +547,18 @@ void Backend::takeSnapshot(const QString &bundle, const QString &label,
           snapshot["dmabufDetail"] = details["dmabuf"];
         if (opts["showGpumem"].toBool() && details["gpu"].isObject())
           snapshot["gpuDetail"] = details["gpu"];
+        QString warning, smaps;
+        if (opts["includeSmaps"].toBool()) {
+          try {
+            smaps = hdc.shell(
+                "hidumper --mem-smaps " + QString::number(pid), 60000);
+
+          } catch (const std::exception &problem) {
+            if (hdc.cancelled->load()) throw;
+            warning = failure(problem);
+          }
+        }
+        if (hdc.cancelled->load()) throw std::runtime_error("采集已取消");
         const auto directory = uniqueDirectory(output, bundle, true);
         const auto info = device.isEmpty() ? hdc.deviceInfo() : device;
         const QJsonObject meta{{"id", QFileInfo(directory).fileName()},
@@ -556,22 +580,23 @@ void Backend::takeSnapshot(const QString &bundle, const QString &label,
         const auto file =
             directory + '/' + ReportStore::rawFileName(bundle, captured);
         ReportStore::writeText(file, raw.toUtf8());
-        QString warning;
-        if (opts["includeSmaps"].toBool()) {
-          try {
-            const auto smaps = hdc.shell(
-                "hidumper --mem-smaps " + QString::number(pid), 60000);
-            ReportStore::writeText(file.left(file.size() - 4) + ".smaps.txt",
-                                   smaps.toUtf8());
-          } catch (const std::exception &problem) {
-            warning = failure(problem);
-          }
-        }
+        if (!smaps.isEmpty())
+          ReportStore::writeText(file.left(file.size() - 4) + ".smaps.txt", smaps.toUtf8());
         return QJsonObject{{"directory", directory}, {"warning", warning}};
       },
       [this](const QJsonValue &value, const QString &problem) {
+        const bool cancelled = mSnapshotCancel && mSnapshotCancel->load();
+        mSnapshotCancel.reset();
+        if (cancelled) {
+          const auto directory = value.toObject()["directory"].toString();
+          if (!directory.isEmpty()) QDir(directory).removeRecursively();
+        }
         mSnapshotting = false;
         emit snapshottingChanged();
+        if (cancelled) {
+          emit notification(QStringLiteral("已取消采集"));
+          return;
+        }
         if (!problem.isEmpty()) {
           emit error(problem);
           return;
@@ -632,7 +657,7 @@ void Backend::openCompare(const QStringList &directories) {
           return;
         }
         QVariantList reports;
-        const QStringList colors{"#1677ff", "#fa8c16", "#52c41a", "#722ed1"};
+        const QStringList colors{"#5273AA", "#8B5CF6", "#B58139", "#468C81"};
         for (const auto &data : value.toArray()) {
           auto *report = new Report(this);
           report->load(data.toObject());

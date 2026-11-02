@@ -1,27 +1,48 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import "Theme.js" as T
 
 Button {
     id: control
     property string tone: "default"
+    property string iconName: ""
     property bool small: false
     property string hint: ""
-    implicitHeight: small ? 26 : 32
-    implicitWidth: Math.max(small ? 26 : 32, contentItem.implicitWidth + 24)
+    implicitHeight: small ? 28 : 36
+    implicitWidth: Math.max(implicitHeight, contentItem.implicitWidth + 24)
+    padding: 8
     leftPadding: 12
     rightPadding: 12
     font.pixelSize: small ? 12 : 14
+    font.weight: tone === "primary" || tone === "selected" ? Font.DemiBold : Font.Normal
     hoverEnabled: true
-    contentItem: WText {
-        text: control.text
-        font: control.font
-        horizontalAlignment: Text.AlignHCenter
-        color: !control.enabled ? "#bfbfbf" : control.tone === "primary" || control.tone === "green" ? "white" : control.tone === "danger" ? "#ff4d4f" : control.hovered ? "#4096ff" : "#262626"
+    Accessible.name: text || hint
+    contentItem: RowLayout {
+        spacing: control.iconName && control.text ? 8 : 0
+        WIcon {
+            visible: control.iconName.length > 0
+            name: control.iconName
+            tone: control.tone === "primary" || control.tone === "selected" ? "accent" : "text"
+            opacity: control.enabled ? 1 : .4
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: control.small ? 14 : 18
+            Layout.preferredHeight: control.small ? 14 : 18
+        }
+        WText {
+            visible: control.text.length > 0
+            Layout.fillWidth: true
+            text: control.text
+            font: control.font
+            horizontalAlignment: Text.AlignHCenter
+            color: !control.enabled ? T.disabled : control.tone === "danger" ? T.error : control.tone === "primary" ? T.primaryText : control.tone === "selected" ? T.accent : T.text
+        }
     }
     background: Rectangle {
-        radius: 6
-        color: !control.enabled ? "#f5f5f5" : control.tone === "primary" ? (control.down ? "#0958d9" : control.hovered ? "#4096ff" : "#1677ff") : control.tone === "green" ? (control.hovered ? "#73d13d" : "#52c41a") : control.down ? "#fafafa" : "white"
-        border.color: !control.enabled ? "#d9d9d9" : control.tone === "primary" || control.tone === "green" ? color : control.tone === "danger" ? "#ff4d4f" : control.hovered || control.activeFocus ? "#4096ff" : "#d9d9d9"
+        radius: 5
+        color: !control.enabled ? T.chrome : control.tone === "primary" ? (control.down ? T.focus : T.primary) : control.tone === "selected" || control.down || control.hovered ? T.selected : control.tone === "quiet" ? "transparent" : "white"
+        border.width: control.activeFocus ? 2 : 1
+        border.color: control.activeFocus ? T.accent : control.tone === "selected" ? "transparent" : control.tone === "primary" ? T.primary : control.tone === "quiet" ? "transparent" : T.border
     }
     ToolTip.visible: hovered && hint.length > 0
     ToolTip.text: hint

@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -14,11 +15,15 @@ WindowBase {
     mainWindow: true
     caption: "Woody"
     captionNote: backend.target ? F.device(backend.deviceInfo, backend.target) : "未连接设备"
-    property string page: "home"
+    property string page: "watch"
     property bool watching: false
     property bool quitting: false
     property var childWindows: []
     function go(next) {
+        if (next === "home" || next === "tools")
+            next = "watch";
+        if (backend.sampling && next === (watching ? "watch" : "peak"))
+            next = "live";
         page = next;
         if (next === "reports")
             backend.refreshRecords();
@@ -46,148 +51,163 @@ WindowBase {
             return w !== window;
         });
     }
+    function requestQuit() {
+        if (backend.sampling || backend.snapshotting) {
+            quitDialog.open();
+            appWindow.raise();
+            appWindow.requestActivate();
+        } else
+            backend.requestQuit();
+    }
+    WDialog {
+        id: quitDialog
+        objectName: "quitDialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 480
+        title: backend.snapshotting ? "采集尚未结束" : "采样尚未结束"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        acceptText: backend.snapshotting ? "取消采集并退出" : appWindow.watching ? "结束查看并退出" : "结束采样并退出"
+        rejectText: backend.snapshotting ? "继续采集" : appWindow.watching ? "继续查看" : "继续采样"
+        WText {
+            width: parent.width
+            wrapMode: Text.Wrap
+            elide: Text.ElideNone
+            text: backend.snapshotting ? "取消当前快照采集后退出。" : appWindow.watching ? "实时查看的数据不会保存为报告。" : "结束采样并保存报告后再退出。"
+        }
+        onAccepted: {
+            if (backend.snapshotting)
+                backend.cancelSnapshot();
+            backend.requestQuit();
+        }
+    }
     onClosing: function (close) {
         if (quitting) {
             close.accepted = true;
             return;
         }
         close.accepted = false;
-        backend.requestQuit();
+        appWindow.requestQuit();
     }
     Rectangle {
-        width: 172
+        id: sidebar
+        objectName: "sidebar"
+        width: 180
         height: parent.height
-        color: "white"
+        color: T.chrome
         Rectangle {
             anchors.right: parent.right
             width: 1
             height: parent.height
-            color: "#f0f0f0"
+            color: T.border
         }
         Column {
-            x: 10
-            y: 14
-            width: 152
-            spacing: 18
-            Row {
+            x: 12
+            y: 24
+            width: parent.width - 24
+            spacing: 8
+            WText {
                 x: 12
-                spacing: 10
-                height: 46
-                Image {
-                    source: "qrc:/assets/icon.png"
-                    width: 38
-                    height: 38
-                }
-                Column {
-                    spacing: 4
-                    WText {
-                        text: "Woody"
-                        font.pixelSize: 15
-                        font.bold: true
+                height: 28
+                text: "工具"
+                font.pixelSize: 12
+                color: T.muted
+            }
+            Repeater {
+                model: [
+                    {
+                        key: "watch",
+                        icon: "EyeOutlined",
+                        label: "实时查看"
+                    },
+                    {
+                        key: "snap",
+                        icon: "CameraOutlined",
+                        label: "内存快照"
+                    },
+                    {
+                        key: "peak",
+                        icon: "LineChartOutlined",
+                        label: "持续采样"
                     }
-                    WText {
-                        text: "v" + buildInfo.version
-                        font.pixelSize: 10
-                        color: "#8c8c8c"
+                ]
+                WButton {
+                    required property var modelData
+                    objectName: "nav-" + modelData.key
+                    width: 156
+                    height: 42
+                    text: modelData.label
+                    iconName: modelData.icon
+                    readonly property bool selected: appWindow.page === modelData.key || (appWindow.page === "live" && modelData.key === (appWindow.watching ? "watch" : "peak"))
+                    tone: selected ? "selected" : "quiet"
+                    onClicked: appWindow.go(modelData.key)
+                    Rectangle {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 5
+                        height: 5
+                        radius: 3
+                        color: T.accent
+                        visible: backend.sampling && modelData.key === (appWindow.watching ? "watch" : "peak")
                     }
                 }
             }
-            Column {
-                width: parent.width
-                spacing: 6
-                Repeater {
-                    model: [
-                        {
-                            key: "home",
-                            icon: "⌂",
-                            label: "首页"
-                        },
-                        {
-                            key: "tools",
-                            icon: "▦",
-                            label: "工具集"
-                        },
-                        {
-                            key: "reports",
-                            icon: "▤",
-                            label: "查看报告"
-                        },
-                        {
-                            key: "settings",
-                            icon: "⚙",
-                            label: "设置"
-                        }
-                    ]
-                    Rectangle {
-                        required property var modelData
-                        width: 152
-                        height: 40
-                        radius: 8
-                        property bool selected: appWindow.page === modelData.key || (modelData.key === "tools" && ["watch", "peak", "snap", "live"].indexOf(appWindow.page) >= 0)
-                        color: selected ? "#e6f4ff" : navHover.hovered ? "#f5f5f5" : "transparent"
-                        WText {
-                            x: 14
-                            width: 124
-                            height: 40
-                            text: modelData.icon + "   " + modelData.label
-                            color: parent.selected ? "#1677ff" : "#595959"
-                            font.pixelSize: 13
-                        }
-                        HoverHandler {
-                            id: navHover
-                            cursorShape: Qt.PointingHandCursor
-                        }
-                        TapHandler {
-                            onTapped: appWindow.go(modelData.key)
-                        }
-                    }
+            Item {
+                width: 156
+                height: 20
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    height: 1
+                    color: T.border
                 }
-                WButton {
-                    visible: backend.sampling
-                    width: 152
-                    text: appWindow.watching ? "● 返回实时查看" : "● 返回采样"
-                    tone: "primary"
-                    small: true
-                    onClicked: appWindow.go("live")
-                }
+            }
+            WButton {
+                objectName: "nav-reports"
+                width: 156
+                height: 42
+                text: "报告库"
+                iconName: "FolderOutlined"
+                tone: appWindow.page === "reports" ? "selected" : "quiet"
+                onClicked: appWindow.go("reports")
             }
         }
-        WText {
-            x: 20
-            y: parent.height - 45
-            width: 130
-            text: "HarmonyOS 内存工具"
-            font.pixelSize: 10
-            color: "#bfbfbf"
+        WButton {
+            objectName: "nav-settings"
+            x: 12
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 16
+            width: 156
+            height: 42
+            text: "设置"
+            iconName: "SettingOutlined"
+            tone: appWindow.page === "settings" ? "selected" : "quiet"
+            onClicked: appWindow.go("settings")
         }
     }
     Item {
-        x: 196
-        y: 20
-        width: parent.width - 220
-        height: parent.height - 52
-        HomePage {
-            anchors.fill: parent
-            visible: appWindow.page === "home" || appWindow.page === "tools"
-            toolsOnly: appWindow.page === "tools"
-            onNavigate: function (page) {
-                appWindow.go(page);
-            }
-        }
+        x: sidebar.width + (appWindow.width < 1100 ? 16 : 24)
+        y: 24
+        width: parent.width - x - (appWindow.width < 1100 ? 16 : 24)
+        height: parent.height - 40
         Loader {
             anchors.fill: parent
             active: ["watch", "peak", "snap"].indexOf(appWindow.page) >= 0
             sourceComponent: Component {
                 ToolPage {
                     kind: appWindow.page
-                    onBack: appWindow.go("tools")
                 }
             }
         }
-        LivePage {
+        Loader {
             anchors.fill: parent
-            visible: appWindow.page === "live"
-            watch: appWindow.watching
+            active: appWindow.page === "live"
+            sourceComponent: Component {
+                LivePage {
+                    watch: appWindow.watching
+                }
+            }
         }
         Loader {
             anchors.fill: parent
@@ -224,6 +244,9 @@ WindowBase {
     }
     Connections {
         target: backend
+        function onQuitRequested() {
+            appWindow.requestQuit();
+        }
         function onQuitReady() {
             appWindow.quitting = true;
         }

@@ -1,10 +1,11 @@
+import "Theme.js" as T
 import QtQuick
 
 Rectangle {
     id: root
     property string text: ""
-    property color ink: "#1677ff"
-    property color tint: "#e6f4ff"
+    property color ink: T.accent
+    property color tint: T.selected
     implicitWidth: label.implicitWidth + 14
     implicitHeight: 22
     radius: 3

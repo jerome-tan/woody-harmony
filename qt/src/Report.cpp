@@ -9,18 +9,22 @@ const QStringList defaultCategories{
     "Total", "GL",  "Graph", "ark ts heap",    "native heap",
     "stack", ".so", ".hap",  "AnonPage other", "FilePage other",
     "dev",   ".db", ".ttf",  "guard"};
-const QStringList colors{"#e6194b", "#911eb4", "#4363d8", "#f58231", "#3cb44b",
-                         "#46f0f0", "#ffe119", "#9a6324", "#f032e6", "#808080",
-                         "#000000", "#008080", "#bcf60c", "#000075"};
-const QStringList fallback{"#e6194b", "#3cb44b", "#ffe119", "#4363d8",
-                           "#f58231", "#911eb4", "#46f0f0", "#f032e6",
-                           "#bcf60c", "#9a6324", "#008080", "#808080",
-                           "#000075", "#000000"};
+const QStringList colors{"#8B5CF6", "#737FA5", "#B58139", "#AF739A", "#5273AA",
+                         "#43A1B2", "#AB9B54", "#8F829F", "#968A7B", "#9CA3AF",
+                         "#59857C", "#9A796A", "#9D8AA8", "#80888F"};
+const QStringList fallback{"#5273AA", "#B58139", "#AF739A", "#737FA5", "#43A1B2",
+                           "#59857C", "#AB9B54", "#968A7B"};
 } // namespace
 
 QColor Report::color(const QString &category, int index) {
   const int fixed = defaultCategories.indexOf(category);
   return QColor(fixed >= 0 ? colors[fixed] : fallback[index % fallback.size()]);
+}
+
+bool Report::isMeasurement(const QJsonObject &sample) {
+  // Old reports may omit pid. Explicit null/zero PID marks a waiting placeholder.
+  return sample.contains("total") &&
+         (!sample.contains("pid") || sample["pid"].toInteger() > 0);
 }
 
 double Report::value(const QJsonObject &sample, const QString &metric) {
@@ -118,6 +122,8 @@ int Report::peakIndex(const QString &metric) const {
   int index = -1;
   double peak = -std::numeric_limits<double>::infinity();
   for (int i = 0; i < samples.size(); ++i) {
+    if (!isMeasurement(samples[i]))
+      continue;
     const auto v = value(samples[i], metric);
     if (v > peak) {
       peak = v;
@@ -130,27 +136,30 @@ int Report::peakIndex(const QString &metric) const {
 QVariantMap Report::stats() const {
   if (mStatsValid)
     return mStats;
-  double sum = 0, peak = 0;
+  double sum = 0, peak = 0, first = 0, last = 0, validDuration = 0;
+  int validCount = 0;
+  QJsonObject previous, latest;
   for (const auto &sample : samples) {
-    const auto v = value(sample, "Total");
-    sum += v;
-    peak = std::max(peak, v);
+    if (isMeasurement(sample)) {
+      const auto v = value(sample, "Total");
+      if (!validCount) first = v;
+      last = v;
+      sum += v;
+      peak = std::max(peak, v);
+      ++validCount;
+      latest = sample;
+      if (isMeasurement(previous))
+        validDuration += std::max(0.0, sample["timestamp"].toDouble() - previous["timestamp"].toDouble());
+    }
+    previous = sample;
   }
-  const double first = samples.isEmpty() ? 0 : value(samples.first(), "Total");
-  const double last = samples.isEmpty() ? 0 : value(samples.last(), "Total");
-  mStats = {
-      {"peak", peak},
-      {"avg", samples.isEmpty() ? 0 : std::round(sum / samples.size())},
-      {"first", first},
-      {"last", last},
-      {"growth", last - first},
-      {"durationMs", duration() * 1000},
-      {"privateDirty",
-       samples.isEmpty()
-           ? 0
-           : samples.last()["total"].toObject()["privateDirtyKb"].toDouble()},
-      {"pid",
-       samples.isEmpty() ? QVariant{} : samples.last()["pid"].toVariant()}};
+  mStats = {{"peak", peak}, {"avg", validCount ? std::round(sum / validCount) : 0},
+            {"first", first}, {"last", last}, {"growth", last - first},
+            {"durationMs", duration() * 1000}, {"validCount", validCount},
+            {"validDurationMs", validDuration},
+            {"currentValid", !samples.isEmpty() && isMeasurement(samples.last())},
+            {"privateDirty", latest["total"].toObject()["privateDirtyKb"].toDouble()},
+            {"pid", samples.isEmpty() ? QVariant{} : samples.last()["pid"].toVariant()}};
   mStatsValid = true;
   return mStats;
 }

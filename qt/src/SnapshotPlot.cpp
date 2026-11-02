@@ -6,6 +6,15 @@
 #include <cmath>
 #include <numbers>
 
+namespace {
+QString displayCategory(const QString &name) {
+  if (name == "native heap") return "Native heap";
+  if (name == "ark ts heap") return "ArkTS heap";
+  if (name == "stack") return "Stack";
+  return name;
+}
+} // namespace
+
 SnapshotPlot::SnapshotPlot(QQuickItem *parent) : QQuickPaintedItem(parent) {
   setAntialiasing(true);
   setAcceptHoverEvents(true);
@@ -16,47 +25,53 @@ QList<SnapshotPlot::Slice> SnapshotPlot::slices() const {
   const auto cats = mSnapshot["categories"].toMap();
   for (auto it = cats.begin(); it != cats.end(); ++it) {
     const double value = it.value().toMap()["pssTotalKb"].toDouble();
-    if (value > 10.24)
+    if (value > 0)
       result.append({it.key(), value, Report::color(it.key(), result.size())});
   }
   std::stable_sort(
       result.begin(), result.end(),
       [](const auto &a, const auto &b) { return a.value > b.value; });
+  if (result.size() > 6) {
+    double other = 0;
+    for (int i = 5; i < result.size(); ++i) other += result[i].value;
+    result = result.mid(0, 5);
+    result.append({QStringLiteral("其他分类"), other, QColor("#9CA3AF")});
+  }
   return result;
 }
 void SnapshotPlot::paint(QPainter *p) {
   p->setRenderHint(QPainter::Antialiasing);
   QFont font = p->font();
-  font.setPixelSize(11);
+  font.setPixelSize(12);
   p->setFont(font);
   const auto rows = slices();
   double sum = 0;
   for (const auto &r : rows)
     sum += r.value;
   if (sum == 0) {
-    p->setPen(QColor("#8c8c8c"));
+    p->setPen(QColor("#665E73"));
     p->drawText(boundingRect(), Qt::AlignCenter, QStringLiteral("暂无数据"));
     return;
   }
   if (mMode == "bar") {
-    const double left = std::min(135.0, width() * .3), right = width() - 56,
+    const double left = std::min(135.0, width() * .3), right = width() - 146,
                  top = 12, bottom = height() - 24;
     const double line = (bottom - top) / std::max<qsizetype>(1, rows.size()),
-                 maximum = rows.first().value;
+                 maximum = std::max_element(rows.begin(), rows.end(), [](const auto &a, const auto &b) { return a.value < b.value; })->value;
     for (int i = 0; i < rows.size(); ++i) {
       const auto &r = rows[i];
       const double y = top + i * line;
-      p->setPen(QColor("#595959"));
+      p->setPen(QColor("#665E73"));
       p->drawText(QRectF(0, y, left - 10, line),
-                  Qt::AlignRight | Qt::AlignVCenter, r.name);
+                  Qt::AlignRight | Qt::AlignVCenter, displayCategory(r.name));
       p->fillRect(QRectF(left, y + (line - std::min(18.0, line - 4)) / 2,
                          (right - left) * r.value / maximum,
                          std::min(18.0, line - 4)),
                   r.color);
       p->drawText(
-          QRectF(left + (right - left) * r.value / maximum + 5, y, 55, line),
+          QRectF(left + (right - left) * r.value / maximum + 6, y, 140, line),
           Qt::AlignLeft | Qt::AlignVCenter,
-          QString::number(r.value / 1024, 'f', 2));
+          QString::number(r.value / 1024, 'f', 1) + " MB  " + QString::number(r.value / sum * 100, 'f', 1) + "%");
     }
     p->drawText(QRectF(left, bottom + 4, right - left, 18), Qt::AlignCenter,
                 "Pss (MB)");
@@ -121,12 +136,12 @@ void SnapshotPlot::paint(QPainter *p) {
           std::max(20.0, right ? width() - end.x() - 4 : end.x() - 4);
       const QRectF rect(right ? end.x() + 3 : 1, label->y - 14, available, 30);
       const int align = right ? Qt::AlignLeft : Qt::AlignRight;
-      p->setPen(QColor("#262626"));
+      p->setPen(QColor("#241D35"));
       p->drawText(QRectF(rect.x(), rect.y(), rect.width(), 15),
                   align | Qt::AlignVCenter,
-                  p->fontMetrics().elidedText(label->slice.name, Qt::ElideRight,
+                  p->fontMetrics().elidedText(displayCategory(label->slice.name), Qt::ElideRight,
                                               rect.width()));
-      p->setPen(QColor("#8c8c8c"));
+      p->setPen(QColor("#665E73"));
       p->drawText(
           QRectF(rect.x(), rect.y() + 15, rect.width(), 15),
           align | Qt::AlignVCenter,
@@ -137,13 +152,13 @@ void SnapshotPlot::paint(QPainter *p) {
   p->setPen(Qt::NoPen);
   p->setBrush(Qt::white);
   p->drawEllipse(center, inner, inner);
-  p->setPen(QColor("#8c8c8c"));
+  p->setPen(QColor("#665E73"));
   p->drawText(QRectF(center.x() - inner, center.y() - 20, 2 * inner, 18),
               Qt::AlignCenter, "Total Pss");
   font.setPixelSize(13);
   font.setBold(true);
   p->setFont(font);
-  p->setPen(QColor("#262626"));
+  p->setPen(QColor("#241D35"));
   p->drawText(
       QRectF(center.x() - inner, center.y() + 2, 2 * inner, 20),
       Qt::AlignCenter,

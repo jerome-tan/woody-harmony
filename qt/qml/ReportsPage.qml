@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Dialogs
@@ -6,6 +7,7 @@ import "Format.js" as F
 
 ColumnLayout {
     id: root
+    objectName: "reportsPage"
     property string filter: "all"
     property var selected: []
     property var toDelete: []
@@ -38,14 +40,14 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         WText {
-            text: "查看报告"
+            text: "报告库"
             font.pixelSize: 20
             font.bold: true
         }
         WTag {
             text: String(backend.records.length)
-            ink: "#595959"
-            tint: "#fafafa"
+            ink: T.muted
+            tint: T.chrome
         }
         Item {
             Layout.fillWidth: true
@@ -56,19 +58,14 @@ ColumnLayout {
             onClicked: table.resetLayout()
         }
         WButton {
-            text: "导入历史目录"
+            text: "导入报告"
             onClicked: importDialog.open()
         }
         WButton {
-            text: "↻ 刷新"
+            hint: "刷新报告"
+            iconName: "ReloadOutlined"
             onClicked: backend.refreshRecords()
         }
-    }
-    WText {
-        Layout.fillWidth: true
-        text: "点击任务名称打开独立报告窗口；选择 2～4 份同类型报告进行对比。"
-        font.pixelSize: 12
-        color: "#8c8c8c"
     }
     RowLayout {
         Layout.fillWidth: true
@@ -100,29 +97,53 @@ ColumnLayout {
         WField {
             id: search
             Layout.fillWidth: true
-            placeholderText: "搜索任务、应用、设备或序列号"
+            placeholderText: "搜索报告、应用或设备"
         }
         WButton {
-            text: "对比 " + root.selected.length + " 份报告"
-            tone: "primary"
-            enabled: root.selected.length >= 2 && root.selected.length <= 4 && !root.mixed
-            onClicked: backend.openCompare(root.selected)
+            id: columnsButton
+            objectName: "columnsButton"
+            text: "显示列"
+            small: true
+            onClicked: columnsPopup.open()
+            Popup {
+                id: columnsPopup
+                objectName: "columnsPopup"
+                y: columnsButton.height + 4
+                x: columnsButton.width - width
+                width: 200
+                padding: 12
+                focus: true
+                background: Rectangle {
+                    color: "white"
+                    radius: 6
+                    border.color: T.border
+                }
+                Column {
+                    spacing: 8
+                    Repeater {
+                        model: table.layoutColumns
+                        WCheck {
+                            required property var modelData
+                            objectName: "column-" + modelData.key
+                            text: modelData.title
+                            checked: !modelData.hidden
+                            enabled: !modelData.locked
+                            onClicked: table.toggleColumn(modelData.key)
+                        }
+                    }
+                }
+            }
         }
-    }
-    WText {
-        visible: root.mixed || root.selected.length > 4
-        text: root.mixed ? "持续采样与内存快照不可互相对比" : "最多选择 4 份报告"
-        color: "#fa8c16"
-        font.pixelSize: 12
     }
     Rectangle {
         Layout.fillWidth: true
         Layout.fillHeight: true
         color: "white"
         radius: 8
-        border.color: "#f0f0f0"
+        border.color: T.border
         DataTable {
             id: table
+            objectName: "reportsTable"
             anchors.fill: parent
             rows: root.filtered
             selectable: true
@@ -131,26 +152,25 @@ ColumnLayout {
             preferenceKey: "reports.columns.v1"
             sortKey: "startedAt"
             descending: true
-            emptyText: "暂无报告，先开始一次持续采样或拍摄内存快照"
+            emptyText: "暂无报告，完成采集后会显示在这里"
             columns: [
+                {
+                    key: "taskName",
+                    title: "报告名称",
+                    width: 240,
+                    locked: true,
+                    link: true,
+                    format: function (v, r) {
+                        return F.title(r);
+                    }
+                },
                 {
                     key: "type",
                     title: "类型",
                     width: 110,
                     locked: true,
                     format: function (v) {
-                        return v === "snapshot" ? "📷 内存快照" : "📈 持续采样";
-                    }
-                },
-                {
-                    key: "taskName",
-                    title: "任务名称",
-                    width: 240,
-                    locked: true,
-                    link: true,
-                    rename: true,
-                    format: function (v, r) {
-                        return F.title(r);
+                        return v === "snapshot" ? "内存快照" : "持续采样";
                     }
                 },
                 {
@@ -182,6 +202,7 @@ ColumnLayout {
                 },
                 {
                     key: "device_ver",
+                    hidden: true,
                     title: "版本 (API)",
                     width: 140,
                     format: function (v, r) {
@@ -191,6 +212,7 @@ ColumnLayout {
                 },
                 {
                     key: "device_sn",
+                    hidden: true,
                     title: "序列号",
                     width: 190,
                     format: function (v, r) {
@@ -200,7 +222,9 @@ ColumnLayout {
                 {
                     key: "actions",
                     title: "操作",
-                    width: 90,
+                    lockedRight: true,
+                    locked: true,
+                    width: 64,
                     sortable: false
                 }
             ]
@@ -220,34 +244,45 @@ ColumnLayout {
             }
         }
     }
-    RowLayout {
+    Rectangle {
+        visible: root.selected.length > 0
         Layout.fillWidth: true
-        WText {
-            text: "已选 " + root.selected.length + " 项"
-            font.pixelSize: 12
-            color: "#8c8c8c"
-        }
-        WButton {
-            text: "全选"
-            small: true
-            onClicked: root.selected = root.filtered.map(function (r) {
-                return r.sessionDir;
-            })
-        }
-        WButton {
-            text: "清空选择"
-            small: true
-            enabled: root.selected.length > 0
-            onClicked: root.selected = []
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-        WButton {
-            text: "删除所选报告"
-            tone: "danger"
-            enabled: root.selected.length > 0
-            onClicked: root.confirmDelete(root.selected)
+        implicitHeight: 64
+        radius: 6
+        color: T.chrome
+        border.color: T.border
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 12
+            WText {
+                text: "已选 " + root.selected.length + " 份报告"
+                font.weight: Font.DemiBold
+            }
+            WText {
+                Layout.fillWidth: true
+                text: root.mixed ? "请选择同类型报告进行对比" : root.selected.length > 4 ? "最多对比 4 份报告" : root.selected.length < 2 ? "至少选择 2 份报告" : ""
+                color: T.positive
+                font.pixelSize: 12
+            }
+            WButton {
+                text: "清除选择"
+                small: true
+                onClicked: root.selected = []
+            }
+            WButton {
+                text: "删除"
+                small: true
+                tone: "danger"
+                onClicked: root.confirmDelete(root.selected)
+            }
+            WButton {
+                objectName: "compareReportsButton"
+                text: "对比报告"
+                tone: "primary"
+                enabled: root.selected.length >= 2 && root.selected.length <= 4 && !root.mixed
+                onClicked: backend.openCompare(root.selected)
+            }
         }
     }
     FolderDialog {
@@ -255,13 +290,16 @@ ColumnLayout {
         title: "选择历史报告目录（包含 meta.json）"
         onAccepted: backend.openReport(backend.fromFileUrl(selectedFolder))
     }
-    Dialog {
+    WDialog {
         id: removeDialog
+        objectName: "removeDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 440
         modal: true
         title: "删除报告"
+        acceptText: "删除报告"
+        acceptTone: "danger"
         standardButtons: Dialog.Ok | Dialog.Cancel
         WText {
             width: parent.width

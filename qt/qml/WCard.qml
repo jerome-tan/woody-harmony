@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 
 Rectangle {
@@ -7,22 +8,23 @@ Rectangle {
     property alias body: body
     property alias extras: extras.data
     default property alias content: body.data
-    radius: 8
+    radius: 6
     color: "white"
-    border.color: "#f0f0f0"
+    border.color: T.border
     WText {
-        x: root.padding
+        x: Math.max(16, root.padding)
         y: 0
         height: 44
         width: Math.max(0, parent.width - root.padding * 2 - extras.width - 10)
         visible: root.title.length > 0
         text: root.title
-        font.bold: true
+        font.weight: Font.DemiBold
+        font.pixelSize: 16
     }
     Row {
         id: extras
         anchors.right: parent.right
-        anchors.rightMargin: root.padding
+        anchors.rightMargin: Math.max(16, root.padding)
         y: 9
         spacing: 10
     }
@@ -31,7 +33,7 @@ Rectangle {
         y: 43
         width: parent.width - 2
         height: 1
-        color: "#f0f0f0"
+        color: T.border
         visible: root.title.length > 0
     }
     Item {

@@ -1,4 +1,5 @@
 #include "MemoryParser.h"
+#include "Report.h"
 #include "ReportStore.h"
 #include <QTemporaryDir>
 #include <QtTest>
@@ -55,6 +56,33 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(std::runtime_error, ReportStore::remove(dir, dir));
     ReportStore::remove(dir, "");
     QVERIFY(!QDir(dir).exists());
+  }
+  void waitingSamplesAreNotMeasurements() {
+    Report report;
+    const auto sample = [](int time, QJsonValue pid, int value) {
+      return QJsonObject{{"timestamp", time}, {"pid", pid},
+                         {"total", QJsonObject{{"pssTotalKb", value}}}};
+    };
+    report.append(sample(1000, QJsonValue::Null, 0));
+    QCOMPARE(report.stats()["validCount"].toInt(), 0);
+    QVERIFY(!report.stats()["currentValid"].toBool());
+    QCOMPARE(report.peakIndex(), -1);
+    report.append(sample(2000, 42, 100));
+    report.append(sample(3000, 42, 200));
+    report.append(sample(4000, QJsonValue::Null, 0));
+    QCOMPARE(report.stats()["avg"].toInt(), 150);
+    QCOMPARE(report.stats()["validCount"].toInt(), 2);
+    QCOMPARE(report.stats()["validDurationMs"].toInt(), 1000);
+    QCOMPARE(report.stats()["last"].toInt(), 200);
+    QVERIFY(!report.stats()["currentValid"].toBool());
+    QCOMPARE(report.peakIndex(), 2);
+    auto legacy = sample(5000, 42, 0);
+    legacy.remove("pid");
+    QVERIFY(Report::isMeasurement(legacy));
+    report.append(legacy);
+    QCOMPARE(report.stats()["validCount"].toInt(), 3);
+    QCOMPARE(report.stats()["last"].toInt(), 0);
+    QVERIFY(report.stats()["currentValid"].toBool());
   }
   void procMeminfo() {
     const auto info = MemoryParser::procMeminfo(

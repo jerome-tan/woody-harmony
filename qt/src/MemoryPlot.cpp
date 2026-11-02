@@ -8,9 +8,10 @@
 #include <QWheelEvent>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
-const QStringList compareColors{"#1677ff", "#fa8c16", "#52c41a", "#722ed1"};
+const QStringList compareColors{"#5273AA", "#8B5CF6", "#B58139", "#468C81"};
 QString bytes(double kb) {
   if (std::abs(kb) >= 1048576)
     return QString::number(kb / 1048576, 'f', 2) + " GB";
@@ -89,7 +90,7 @@ void MemoryPlot::rebuild() {
   for (auto report : mReports)
     if (report && !report->samples.isEmpty()) {
       const auto peak = report->peakIndex(mMetric);
-      const auto peakTime = (report->samples[peak]["timestamp"].toDouble() -
+      const auto peakTime = peak < 0 ? 0.0 : (report->samples[peak]["timestamp"].toDouble() -
                              report->samples.first()["timestamp"].toDouble()) /
                             1000;
       alignedAnchor =
@@ -105,7 +106,7 @@ void MemoryPlot::rebuild() {
     const auto first = report->samples.first()["timestamp"].toDouble();
     const auto peak = report->peakIndex(mMetric);
     const double peakTime =
-        (report->samples[peak]["timestamp"].toDouble() - first) / 1000;
+        peak < 0 ? 0.0 : (report->samples[peak]["timestamp"].toDouble() - first) / 1000;
     const double offset =
         alignedAnchor - (mAlignment == "end"    ? report->duration()
                          : mAlignment == "peak" ? peakTime
@@ -114,7 +115,7 @@ void MemoryPlot::rebuild() {
     if (mHiddenReports.contains(report->metadata["sessionDir"].toString()))
       continue;
     const auto metrics =
-        mReports.size() > 1 ? QStringList{mMetric} : report->categories();
+        (mReports.size() > 1 || mCompact) ? QStringList{mMetric} : report->categories();
     for (int mi = 0; mi < metrics.size(); ++mi) {
       const auto &metric = metrics[mi];
       if (mHidden.contains(metric))
@@ -141,7 +142,7 @@ void MemoryPlot::rebuild() {
         if (duplicates > 1)
           series.label += QString(" (%1)").arg(ordinal);
       }
-      series.color = mReports.size() > 1 ? QColor(report->compareColor.isEmpty()
+      series.color = (mReports.size() > 1 || (mCompact && !report->compareColor.isEmpty())) ? QColor(report->compareColor.isEmpty()
                                                       ? compareColors[ri % 4]
                                                       : report->compareColor)
                                          : Report::color(metric, mi);
@@ -154,7 +155,7 @@ void MemoryPlot::rebuild() {
                              !sample["categories"].toObject().contains(metric);
         series.points.append(
             {(sample["timestamp"].toDouble() - first) / 1000 + offset,
-             missing ? std::numeric_limits<double>::quiet_NaN()
+             (missing || !Report::isMeasurement(sample)) ? std::numeric_limits<double>::quiet_NaN()
                      : Report::value(sample, metric)});
       }
       mSeries.append(std::move(series));
@@ -192,7 +193,7 @@ void MemoryPlot::setRange(double start, double end) {
 void MemoryPlot::draw(QPainter &p) {
   p.setRenderHint(QPainter::Antialiasing);
   QFont font = p.font();
-  font.setPixelSize(mCompact ? 10 : 11);
+  font.setPixelSize(mCompact ? 11 : 12);
   p.setFont(font);
   const auto area = plotRect();
   double maximum = 0, minimum = std::numeric_limits<double>::infinity();
@@ -204,7 +205,8 @@ void MemoryPlot::draw(QPainter &p) {
         minimum = std::min(minimum, point.y());
       }
   }
-  if (!std::isfinite(minimum))
+  const bool hasMeasurements = std::isfinite(minimum);
+  if (!hasMeasurements)
     minimum = 0;
   // ECharts-compatible padded value scale, including non-zero lower bounds for
   // a flat series.
@@ -214,7 +216,7 @@ void MemoryPlot::draw(QPainter &p) {
     step = std::max(
         step,
         std::pow(10.0, std::floor(std::log10(std::max(1.0, maximum * .2)))));
-  const double lower =
+  const double lower = mCompact ? 0.0 :
       std::max(0.0, std::floor((minimum - step) / step) * step);
   double upper = std::ceil((maximum + step) / step) * step;
   if (upper <= lower)
@@ -224,34 +226,41 @@ void MemoryPlot::draw(QPainter &p) {
         area.left() + (v.x() - mStart) / (mEnd - mStart) * area.width(),
         area.bottom() - (v.y() - lower) / (upper - lower) * area.height());
   };
-  p.setPen(QColor("#6e7079"));
+  p.setPen(QColor("#665E73"));
   p.drawText(QRectF(0, 0, area.left() + 30, 24), Qt::AlignCenter,
              mReports.size() > 1 ? (mMetric == "Total" ? "Total Pss" : mMetric)
                                  : QStringLiteral("内存"));
-  for (int i = 0; i <= 5; ++i) {
-    const double y = area.bottom() - area.height() * i / 5;
-    p.setPen(QPen(QColor("#e8e8e8"), 1, Qt::DashLine));
+  const int ticks = area.height() < 150 ? 3 : 5;
+  for (int i = 0; i <= ticks; ++i) {
+    const double y = area.bottom() - area.height() * i / ticks;
+    p.setPen(QPen(QColor("#E7E2EF"), 1, Qt::DashLine));
     p.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
-    p.setPen(QColor("#6e7079"));
-    p.drawText(QRectF(0, y - 8, area.left() - 8, 16),
-               Qt::AlignRight | Qt::AlignVCenter,
-               bytes(lower + (upper - lower) * i / 5));
+    p.setPen(QColor("#665E73"));
+    if (hasMeasurements)
+      p.drawText(QRectF(0, y - 8, area.left() - 8, 16),
+                 Qt::AlignRight | Qt::AlignVCenter,
+                 bytes(lower + (upper - lower) * i / ticks));
   }
-  for (int i = 0; i <= 4; ++i) {
-    const double x = area.left() + area.width() * i / 4;
-    p.setPen(QPen(QColor("#dbe4f5"), 1));
+  const int timeTicks = mEnd - mStart < 4 ? 2 : 4;
+  for (int i = 0; i <= timeTicks; ++i) {
+    const double x = area.left() + area.width() * i / timeTicks;
+    p.setPen(QPen(QColor("#E7E2EF"), 1));
     p.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
-    p.setPen(QColor("#6e7079"));
-    p.drawText(QRectF(x - 28, area.bottom() + 4, 56, 18), Qt::AlignCenter,
-               QString::number(mStart + (mEnd - mStart) * i / 4, 'f',
-                               mEnd - mStart < 10 ? 1 : 0));
+    p.setPen(QColor("#665E73"));
+    if (hasMeasurements)
+      p.drawText(QRectF(x - 28, area.bottom() + 4, 56, 18), Qt::AlignCenter,
+                 QTime(0, 0).addMSecs(qRound((mStart + (mEnd - mStart) * i / timeTicks) * 1000)).toString(mSpan >= 3600 ? "HH:mm:ss" : "mm:ss"));
   }
-  p.setPen(QColor("#6e7079"));
+  p.setPen(QColor("#665E73"));
   p.drawLine(area.bottomLeft(), area.bottomRight());
   p.drawLine(area.topLeft(), area.bottomLeft());
+  if (!hasMeasurements) {
+    p.drawText(area, Qt::AlignCenter, QStringLiteral("尚无有效采样点"));
+    return;
+  }
   if (!mCompact)
     p.drawText(QRectF(area.left(), area.bottom() + 22, area.width(), 18),
-               Qt::AlignCenter, QStringLiteral("相对时间 (s)"));
+               Qt::AlignCenter, QStringLiteral("相对时间 (mm:ss)"));
   p.save();
   p.setClipRect(area.adjusted(-1, -1, 1, 1));
   for (const auto &series : mSeries) {
@@ -277,7 +286,8 @@ void MemoryPlot::draw(QPainter &p) {
         p.fillPath(areaPath, fill);
       }
       p.setPen(QPen(
-          color, series.metric == "Total" || mReports.size() > 1 ? 2.5 : 1.5));
+          color, series.metric == "Total" || mReports.size() > 1 ? 2.5 : 1.5,
+          Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
       p.setBrush(Qt::NoBrush);
       p.drawPath(path);
       if (mPoints && series.metric == "Total" && mReports.size() == 1) {
@@ -304,6 +314,18 @@ void MemoryPlot::draw(QPainter &p) {
     flush();
   }
   p.restore();
+  // Keep every peak marker, but label only the highest visible peak. Adjacent
+  // reports often peak at the same time; stacked labels obscure both values.
+  const Series *labelSeries = nullptr;
+  for (const auto &series : mSeries) {
+    if (series.peak < 0 || series.peak >= series.points.size() ||
+        (mReports.size() == 1 && series.metric != "Total"))
+      continue;
+    const auto point = series.points[series.peak];
+    if (area.contains(map(point)) &&
+        (!labelSeries || point.y() > labelSeries->points[labelSeries->peak].y()))
+      labelSeries = &series;
+  }
   for (const auto &series : mSeries) {
     if (mLive || (mReports.size() == 1 && series.metric != "Total") ||
         series.peak < 0 || series.peak >= series.points.size())
@@ -315,15 +337,17 @@ void MemoryPlot::draw(QPainter &p) {
     p.setPen(QPen(Qt::white, 1.5));
     p.setBrush(series.color);
     p.drawEllipse(at, 4.5, 4.5);
+    if (&series != labelSeries)
+      continue;
     const auto text = QStringLiteral("峰值 ") + bytes(value.y());
     const double labelWidth = p.fontMetrics().horizontalAdvance(text) + 12;
     QRectF label(std::clamp(at.x() - labelWidth / 2, area.left(),
                             area.right() - labelWidth),
                  std::max(2.0, at.y() - 29), labelWidth, 20);
-    p.setPen(QColor("#d9d9d9"));
+    p.setPen(QColor("#E7E2EF"));
     p.setBrush(QColor(255, 255, 255, 217));
     p.drawRoundedRect(label, 3, 3);
-    p.setPen(QColor("#262626"));
+    p.setPen(QColor("#241D35"));
     p.drawText(label, Qt::AlignCenter, text);
   }
   if (mSelected >= 0 && !mReports.isEmpty() && mReports.first() &&
@@ -334,13 +358,13 @@ void MemoryPlot::draw(QPainter &p) {
                            1000;
     const double x = map({seconds, 0}).x();
     if (x >= area.left() && x <= area.right()) {
-      p.setPen(QPen(QColor("#ff4d4f"), 1.5, Qt::DashLine));
+      p.setPen(QPen(QColor("#8B5CF6"), 1.5, Qt::DashLine));
       p.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
     }
   }
   const auto overview = overviewRect();
-  p.setPen(QColor("#dbe4f5"));
-  p.setBrush(QColor("#f4f6fb"));
+  p.setPen(QColor("#E7E2EF"));
+  p.setBrush(QColor("#F8F7FC"));
   p.drawRoundedRect(overview, 2, 2);
   if (!mSeries.isEmpty()) {
     const auto &series = mSeries.first();
@@ -356,22 +380,18 @@ void MemoryPlot::draw(QPainter &p) {
                     overview.bottom() - v.y() / peak * (overview.height() - 3));
     path.lineTo(overview.bottomRight());
     path.closeSubpath();
-    p.fillPath(path, QColor("#dfe6f3"));
+    p.fillPath(path, QColor("#EDE9FE"));
   }
   QRectF selection(overview.left() + mStart / mSpan * overview.width(),
                    overview.top(), (mEnd - mStart) / mSpan * overview.width(),
                    overview.height());
-  p.setPen(QColor("#a9c2ef"));
-  p.setBrush(QColor(91, 143, 249, 40));
+  p.setPen(QColor("#A78BFA"));
+  p.setBrush(QColor(196, 181, 253, 55));
   p.drawRect(selection);
   p.setBrush(Qt::white);
   for (double x : {selection.left(), selection.right()})
     p.drawRoundedRect(
         QRectF(x - 3, overview.top() + 2, 6, overview.height() - 4), 2, 2);
-  if (mSeries.isEmpty()) {
-    p.setPen(QColor("#8c8c8c"));
-    p.drawText(area, Qt::AlignCenter, QStringLiteral("暂无采样数据"));
-  }
 }
 
 void MemoryPlot::paint(QPainter *painter) {
@@ -412,6 +432,9 @@ void MemoryPlot::hoverAt(const QPointF &position) {
     if (index < 0)
       return;
     const auto &sample = report->samples[index];
+    if (!Report::isMeasurement(sample)) {
+      mTooltip.clear(); mHoverTime = -1; emit tooltipChanged(); return;
+    }
     mHoverTime = (sample["timestamp"].toDouble() -
                   report->samples.first()["timestamp"].toDouble()) /
                  1000;
@@ -456,7 +479,7 @@ void MemoryPlot::hoverAt(const QPointF &position) {
                           sample["categories"].toObject().contains(mMetric);
       items.append(
           QVariantMap{{"name", series.label},
-                      {"kb", exists ? QVariant(Report::value(sample, mMetric))
+                      {"kb", (exists && Report::isMeasurement(sample)) ? QVariant(Report::value(sample, mMetric))
                                     : QVariant()},
                       {"color", series.color.name()},
                       {"percent", -1}});

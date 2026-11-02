@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -12,14 +13,14 @@ Button {
         text: control.text
         font.pixelSize: 14
         font.bold: control.selected
-        color: control.selected || control.hovered ? "#1677ff" : "#262626"
+        color: control.selected || control.hovered ? T.accent : T.text
     }
     background: Item {
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 2
-            color: "#1677ff"
+            color: T.accent
             visible: control.selected
         }
     }

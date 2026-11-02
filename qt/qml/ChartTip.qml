@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import "Format.js" as F
@@ -8,6 +9,12 @@ Popup {
     property var data: ({})
     property var retained: ({})
     onDataChanged: {
+        // The pointer may still generate plot hover events beneath this popup.
+        // Keep the current rows and position stable while it is being read.
+        if (tipHover.hovered) {
+            leaveDelay.stop();
+            return;
+        }
         if (data.heading) {
             retained = data;
             leaveDelay.stop();
@@ -37,7 +44,8 @@ Popup {
         if (!source || !parent)
             return 0;
         var p = source.mapToItem(parent, retained.x || 0, retained.y || 0);
-        return Math.max(6, Math.min(parent.width - width - 6, p.x + 16));
+        var preferred = p.x + width + 22 <= parent.width ? p.x + 16 : p.x - width - 16;
+        return Math.max(6, Math.min(parent.width - width - 6, preferred));
     }
     y: {
         if (!source || !parent)
@@ -48,12 +56,14 @@ Popup {
     background: Rectangle {
         color: Qt.rgba(1, 1, 1, tip.alpha)
         radius: 6
-        border.color: "#d9d9d9"
+        border.color: T.border
     }
     contentItem: Column {
         spacing: 8
         HoverHandler {
             id: tipHover
+            objectName: "tooltipHover"
+            blocking: true
             onHoveredChanged: {
                 if (hovered)
                     leaveDelay.stop();
@@ -66,7 +76,7 @@ Popup {
             width: parent.width
             text: tip.retained.heading || ""
             font.pixelSize: 12
-            color: "#595959"
+            color: T.muted
         }
         ScrollView {
             width: parent.width
@@ -91,7 +101,7 @@ Popup {
                         }
                         WText {
                             width: Math.max(80, table.width - 178)
-                            text: modelData.name
+                            text: F.categoryName(modelData.name)
                             font.pixelSize: 12
                             font.bold: modelData.name === "Total"
                         }
@@ -109,7 +119,7 @@ Popup {
                                 width: 88
                                 text: (Number(modelData.kb) / 1048576).toFixed(2) + " GB"
                                 horizontalAlignment: Text.AlignRight
-                                color: "#8c8c8c"
+                                color: T.muted
                                 font.pixelSize: 11
                             }
                         }
@@ -127,7 +137,7 @@ Popup {
                                 width: 48
                                 height: 4
                                 radius: 2
-                                color: "#f0f0f0"
+                                color: T.border
                                 anchors.right: parent.right
                                 Rectangle {
                                     width: parent.width * Math.max(0, Math.min(1, modelData.percent / 100))

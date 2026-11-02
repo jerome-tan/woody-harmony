@@ -1,3 +1,4 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -12,21 +13,23 @@ CheckBox {
         width: 16
         height: 16
         radius: 3
-        color: control.checked ? "#1677ff" : "white"
-        border.color: !control.enabled ? "#d9d9d9" : control.checked || control.hovered ? "#1677ff" : "#d9d9d9"
+        color: control.checked ? T.accent : "white"
+        border.width: control.activeFocus ? 2 : 1
+        border.color: !control.enabled ? T.border : control.checked || control.hovered ? T.accent : T.border
         opacity: control.enabled ? 1 : .5
-        Text {
+        WIcon {
             anchors.centerIn: parent
-            text: control.checked ? "✓" : ""
-            color: "white"
-            font.pixelSize: 14
-            font.bold: true
+            name: "CheckOutlined"
+            tone: "white"
+            width: 12
+            height: 12
+            visible: control.checked
         }
     }
     contentItem: WText {
         text: control.text
         font.pixelSize: 13
         leftPadding: control.indicator.width + control.spacing
-        color: control.enabled ? "#262626" : "#bfbfbf"
+        color: control.enabled ? T.text : T.disabled
     }
 }

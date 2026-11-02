@@ -1,11 +1,13 @@
+import "Theme.js" as T
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Woody.Native
 import "Format.js" as F
 
-Column {
+ColumnLayout {
     id: root
+    objectName: "snapshotBody"
     property var snapshot: ({})
     readonly property var total: snapshot.total || {}
     readonly property var rows: F.categoryRows(snapshot)
@@ -33,15 +35,17 @@ Column {
         return tabs;
     }
     property int detailIndex: 0
+    property string chartMode: "bar"
     spacing: 14
     StatCards {
         width: parent.width
-        height: 90
+        Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
         values: [
             {
                 label: "Total Pss",
                 value: F.bytes(root.total.pssTotalKb),
-                color: "#1677ff"
+                color: T.accent
             },
             {
                 label: "Private Dirty",
@@ -58,84 +62,153 @@ Column {
         ]
     }
     WCard {
-        width: parent.width
-        height: Math.min(340, Math.max(180, Object.keys(root.snapshot.categories || {}).length * 22 + 40)) + 96
-        title: "分类占用（Pss）"
-        Row {
-            width: parent.width
-            height: parent.height - 26
-            spacing: 8
-            SnapshotPlot {
-                id: pie
-                width: Math.min(440, parent.width * .46)
-                height: parent.height
-                snapshot: root.snapshot
-                mode: "pie"
+        Layout.fillWidth: true
+        Layout.preferredHeight: 280
+        Layout.minimumHeight: 260
+        title: "内存构成"
+        extras: Row {
+            spacing: 4
+            WButton {
+                objectName: "barChartButton"
+                text: "条形图"
+                small: true
+                tone: root.chartMode === "bar" ? "selected" : "default"
+                onClicked: root.chartMode = "bar"
             }
-            SnapshotPlot {
-                id: bar
-                width: parent.width - pie.width - 8
-                height: parent.height
-                snapshot: root.snapshot
-                mode: "bar"
+            WButton {
+                objectName: "pieChartButton"
+                text: "环形图"
+                small: true
+                tone: root.chartMode === "pie" ? "selected" : "default"
+                onClicked: root.chartMode = "pie"
             }
         }
-        Row {
-            anchors.bottom: parent.bottom
-            spacing: 6
-            Repeater {
-                model: [
-                    {
-                        name: "PurgSum",
-                        value: root.snapshot.purgSumKb
-                    },
-                    {
-                        name: "PurgPin",
-                        value: root.snapshot.purgPinKb
-                    },
-                    {
-                        name: "Dma",
-                        value: root.snapshot.dmaKb
-                    },
-                    {
-                        name: "Total Ashmem",
-                        value: root.snapshot.ashmemTotalKb
+        RowLayout {
+            anchors.fill: parent
+            spacing: 24
+            SnapshotPlot {
+                id: composition
+                objectName: "snapshotPlot"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                snapshot: root.snapshot
+                mode: root.chartMode
+            }
+            Column {
+                visible: root.width >= 800
+                Layout.preferredWidth: 200
+                spacing: 18
+                Repeater {
+                    model: [
+                        {
+                            name: "Dma",
+                            value: root.snapshot.dmaKb
+                        },
+                        {
+                            name: "Ashmem",
+                            value: root.snapshot.ashmemTotalKb
+                        },
+                        {
+                            name: "PurgSum",
+                            value: root.snapshot.purgSumKb
+                        },
+                        {
+                            name: "PurgPin",
+                            value: root.snapshot.purgPinKb
+                        }
+                    ]
+                    RowLayout {
+                        required property var modelData
+                        width: parent.width
+                        WText {
+                            text: modelData.name
+                            color: T.muted
+                            Layout.fillWidth: true
+                        }
+                        WText {
+                            text: modelData.value === undefined ? "—" : F.bytes(modelData.value)
+                        }
                     }
-                ]
-                WTag {
-                    required property var modelData
-                    visible: modelData.value > 0
-                    text: modelData.name + ": " + F.bytes(modelData.value)
-                    ink: "#595959"
-                    tint: "#fafafa"
                 }
             }
         }
         ChartTip {
-            source: pie
-            data: pie.tooltip
+            source: composition
+            data: composition.tooltip
             alpha: 1
         }
-        ChartTip {
-            source: bar
-            data: bar.tooltip
-            alpha: 1
+    }
+    Flow {
+        Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
+        spacing: 8
+        visible: root.width < 800
+        Repeater {
+            model: [
+                {
+                    name: "Dma",
+                    value: root.snapshot.dmaKb
+                },
+                {
+                    name: "Ashmem",
+                    value: root.snapshot.ashmemTotalKb
+                },
+                {
+                    name: "PurgSum",
+                    value: root.snapshot.purgSumKb
+                },
+                {
+                    name: "PurgPin",
+                    value: root.snapshot.purgPinKb
+                }
+            ]
+            WTag {
+                required property var modelData
+                text: modelData.name + "  " + (modelData.value === undefined ? "—" : F.bytes(modelData.value))
+            }
+        }
+    }
+    Row {
+        Layout.fillWidth: true
+        spacing: 20
+        WTab {
+            text: "分类明细"
+            selected: root.detailIndex === 0
+            onClicked: root.detailIndex = 0
+        }
+        Repeater {
+            model: root.detailTabs
+            WTab {
+                required property var modelData
+                required property int index
+                objectName: "detailTab-" + modelData.key
+                text: modelData.label
+                selected: root.detailIndex === index + 1
+                onClicked: root.detailIndex = index + 1
+            }
         }
     }
     WCard {
         width: parent.width
-        height: 44 + Math.min(720, 38 + root.rows.length * 42 + 12)
-        title: "分类明细表"
+        visible: root.detailIndex === 0
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.minimumHeight: 180
+        title: ""
         padding: 0
         DataTable {
             anchors.fill: parent
             rows: root.rows
+            rowHeight: 36
+            fillColumns: true
             sortKey: "pssTotalKb"
             descending: true
             columns: [
                 {
                     key: "name",
+                    locked: true,
                     title: "分类",
+                    format: F.categoryName,
                     width: 170
                 },
                 {
@@ -193,31 +266,20 @@ Column {
         }
     }
     WCard {
-        visible: root.detailTabs.length > 0
+        visible: root.detailIndex > 0 && root.detailTabs.length > 0
         width: parent.width
-        height: 420
-        title: "段明细"
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.minimumHeight: 180
+        title: ""
         padding: 10
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
-            Row {
-                spacing: 4
-                Repeater {
-                    model: root.detailTabs
-                    WButton {
-                        required property var modelData
-                        required property int index
-                        text: modelData.label
-                        tone: root.detailIndex === index ? "primary" : "default"
-                        onClicked: root.detailIndex = index
-                    }
-                }
-            }
             DataTable {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                property string kind: root.detailTabs.length ? root.detailTabs[Math.min(root.detailIndex, root.detailTabs.length - 1)].key : ""
+                property string kind: root.detailTabs.length ? root.detailTabs[Math.max(0, Math.min(root.detailIndex - 1, root.detailTabs.length - 1))].key : ""
                 rows: kind === "ashmem" ? root.snapshot.ashmemDetail || [] : kind === "dmabuf" ? root.snapshot.dmabufDetail || [] : root.snapshot.gpuDetail ? root.snapshot.gpuDetail.channels || [] : []
                 emptyText: "该进程无相关内存块"
                 columns: kind === "ashmem" ? [
@@ -295,7 +357,7 @@ Column {
                 visible: !!root.snapshot.gpuDetail
                 text: root.snapshot.gpuDetail ? "GPU 已用：" + F.bytes(root.snapshot.gpuDetail.totalUsedBytes / 1024) + " · 已分配：" + F.bytes(root.snapshot.gpuDetail.totalAllocatedBytes / 1024) : ""
                 font.pixelSize: 12
-                color: "#8c8c8c"
+                color: T.muted
             }
         }
     }

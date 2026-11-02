@@ -2,244 +2,300 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import "Format.js" as F
+import "Theme.js" as T
 
-ScrollView {
+Item {
     id: root
+    objectName: "toolPage"
     property string kind: "peak"
-    signal back
+    property bool advanced: false
     readonly property bool locked: backend.sampling || backend.snapshotting
-    clip: true
-    Column {
-        width: root.availableWidth
-        spacing: 14
-        WButton {
-            text: "‹ 返回工具集"
-            small: true
-            onClicked: root.back()
+    readonly property string pageTitle: kind === "watch" ? "实时查看" : kind === "snap" ? "内存快照" : "持续采样"
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 16
+        WText {
+            text: root.pageTitle
+            font.pixelSize: 20
+            font.weight: Font.DemiBold
         }
-        Row {
-            visible: root.kind === "peak"
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 60
-            height: 34
-            WText {
-                text: "① 配置参数"
-                color: "#1677ff"
-            }
-            WText {
-                text: "② 实时采样"
-                color: "#8c8c8c"
-            }
-            WText {
-                text: "③ 采样报告"
-                color: "#8c8c8c"
-            }
+        WText {
+            text: root.kind === "watch" ? "即时观察内存，不保存报告。" : root.kind === "snap" ? "记录当前时刻的内存构成。" : "按间隔记录，结束后生成报告。"
+            color: T.muted
+            font.pixelSize: 12
         }
-        WCard {
-            width: Math.min(720, parent.width)
-            anchors.horizontalCenter: parent.horizontalCenter
-            height: form.implicitHeight + 76
+        ScrollView {
+            id: formScroll
+            objectName: "formScroll"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             visible: !backend.snapshotting
-            title: root.kind === "watch" ? "📡 实时内存" : root.kind === "snap" ? "📷 内存快照" : "📈 持续内存采样"
-            padding: 24
+            clip: true
             Column {
-                id: form
-                width: parent.width
-                spacing: 14
-                WText {
-                    visible: root.kind === "watch"
+                width: formScroll.availableWidth
+                spacing: 16
+                WCard {
                     width: parent.width
-                    text: "仅用于查看实时内存：数据不落盘、不写入本地文件、不产生测试报告"
-                    font.pixelSize: 12
-                    color: "#8c8c8c"
-                }
-                RowLayout {
-                    visible: root.kind !== "watch"
-                    width: parent.width
-                    spacing: 12
-                    WText {
-                        text: "* 任务名称"
-                        Layout.preferredWidth: 84
-                        font.pixelSize: 13
-                    }
-                    WField {
-                        id: taskName
-                        objectName: "taskNameField"
-                        Layout.fillWidth: true
-                        text: F.taskName()
-                        maximumLength: 80
-                        enabled: !root.locked
-                        placeholderText: "Task-YYYYMMDD-HHmmss"
+                    height: target.implicitHeight + 76
+                    title: "设备与应用"
+                    TargetPicker {
+                        id: target
+                        width: parent.width
+                        locked: root.locked
+                        notRunningHint: root.kind === "snap" ? "请先在设备上启动该应用。" : "开始后将等待应用启动。"
                     }
                 }
-                TargetPicker {
-                    id: target
+                WCard {
                     width: parent.width
-                    locked: root.locked
-                    notRunningHint: root.kind === "snap" ? "应用未运行，请先在设备上启动该应用。" : root.kind === "watch" ? "应用未运行，您可以开始查看后，再手动运行该应用。" : "应用未运行，您可以开始采样后，再手动运行该应用。"
-                }
-                RowLayout {
-                    visible: root.kind !== "snap"
-                    width: parent.width
-                    spacing: 12
-                    WText {
-                        text: "* 采样间隔"
-                        Layout.preferredWidth: 84
-                        font.pixelSize: 13
-                    }
-                    WField {
-                        id: interval
-                        objectName: "intervalField"
-                        Layout.preferredWidth: 92
-                        text: "1000"
-                        validator: IntValidator {
-                            bottom: 0
-                            top: 3600000
+                    height: settings.implicitHeight + 76
+                    title: root.kind === "watch" ? "查看设置" : "采集设置"
+                    Column {
+                        id: settings
+                        width: parent.width
+                        spacing: 16
+                        RowLayout {
+                            visible: root.kind !== "watch"
+                            width: parent.width
+                            spacing: 16
+                            WText {
+                                text: "报告名称"
+                                Layout.preferredWidth: 80
+                            }
+                            WField {
+                                id: taskName
+                                objectName: "taskNameField"
+                                Layout.fillWidth: true
+                                text: F.taskName()
+                                maximumLength: 80
+                                enabled: !root.locked
+                            }
                         }
-                        enabled: !root.locked
-                    }
-                    WText {
-                        text: "毫秒"
-                        font.pixelSize: 12
-                        color: "#8c8c8c"
-                    }
-                    Repeater {
-                        model: [200, 500, 1000, 2000]
+                        RowLayout {
+                            visible: root.kind !== "snap"
+                            width: parent.width
+                            spacing: 10
+                            WText {
+                                text: root.kind === "watch" ? "刷新间隔" : "采样间隔"
+                                Layout.preferredWidth: 86
+                            }
+                            WField {
+                                id: interval
+                                objectName: "intervalField"
+                                Layout.preferredWidth: 100
+                                text: "1000"
+                                validator: IntValidator {
+                                    bottom: 0
+                                    top: 3600000
+                                }
+                                enabled: !root.locked
+                                Accessible.name: "采样间隔（毫秒）"
+                            }
+                            WText {
+                                text: "ms"
+                                color: T.muted
+                            }
+                            Repeater {
+                                model: [200, 500, 1000, 2000]
+                                WButton {
+                                    required property int modelData
+                                    text: String(modelData)
+                                    Layout.fillWidth: true
+                                    tone: Number(interval.text) === modelData ? "selected" : "default"
+                                    enabled: !root.locked
+                                    onClicked: interval.text = String(modelData)
+                                }
+                            }
+                        }
+                        WText {
+                            visible: root.kind !== "snap" && Number(interval.text) < 200
+                            text: "间隔需大于或等于 200 ms"
+                            color: T.error
+                            font.pixelSize: 12
+                        }
+                        RowLayout {
+                            visible: root.kind === "peak"
+                            width: parent.width
+                            spacing: 16
+                            WText {
+                                text: "采样时长"
+                                Layout.preferredWidth: 80
+                            }
+                            WCombo {
+                                id: duration
+                                objectName: "durationPicker"
+                                Layout.preferredWidth: 240
+                                model: ["5 分钟", "10 分钟", "30 分钟", "1 小时", "2 小时", "不限时"]
+                                currentIndex: 1
+                                enabled: !root.locked
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
                         WButton {
-                            required property int modelData
-                            text: modelData + "ms"
+                            objectName: "advancedOptions"
+                            visible: root.kind !== "watch"
+                            text: "高级采集选项"
+                            iconName: root.advanced ? "DownOutlined" : "RightOutlined"
+                            tone: "quiet"
                             small: true
-                            tone: Number(interval.text) === modelData ? "primary" : "default"
-                            enabled: !root.locked
-                            onClicked: interval.text = String(modelData)
+                            onClicked: root.advanced = !root.advanced
                         }
-                    }
-                    Item {
-                        Layout.fillWidth: true
-                    }
-                }
-                WText {
-                    visible: root.kind !== "snap" && Number(interval.text) < 200
-                    width: parent.width
-                    text: "采样间隔不能低于 200ms（hidumper 单次执行约 100ms，过小会导致采样堆积）"
-                    font.pixelSize: 12
-                    color: "#ff4d4f"
-                }
-                RowLayout {
-                    visible: root.kind === "peak"
-                    width: parent.width
-                    spacing: 12
-                    WText {
-                        text: "* 采样时长"
-                        Layout.preferredWidth: 84
-                        font.pixelSize: 13
-                    }
-                    WCombo {
-                        id: duration
-                        objectName: "durationPicker"
-                        Layout.preferredWidth: 290
-                        enabled: !root.locked
-                        model: ["5 分钟", "10 分钟（默认）", "30 分钟", "1 小时", "2 小时", "不限（不推荐，文件会持续增大）"]
-                        currentIndex: 1
-                    }
-                    Item {
-                        Layout.fillWidth: true
-                    }
-                }
-                RowLayout {
-                    visible: root.kind !== "watch"
-                    width: parent.width
-                    spacing: 12
-                    WText {
-                        text: "高级选项"
-                        Layout.preferredWidth: 84
-                        Layout.alignment: Qt.AlignTop
-                        font.pixelSize: 13
-                        height: 26
-                    }
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 16
-                        rowSpacing: 6
-                        WCheck {
-                            id: ashmem
-                            text: "ashmem 明细"
-                            enabled: !root.locked
+                        GridLayout {
+                            visible: root.kind !== "watch" && root.advanced
+                            width: parent.width
+                            columns: 2
+                            columnSpacing: 36
+                            rowSpacing: 12
+                            WCheck {
+                                id: ashmem
+                                text: "ashmem 明细"
+                                enabled: !root.locked
+                            }
+                            WCheck {
+                                id: dmabuf
+                                text: "dmabuf 明细"
+                                enabled: !root.locked
+                            }
+                            WCheck {
+                                id: gpumem
+                                text: "gpumem 明细"
+                                enabled: !root.locked
+                            }
+                            WCheck {
+                                id: smaps
+                                visible: root.kind === "snap"
+                                text: "smaps 明细"
+                                enabled: !root.locked
+                            }
                         }
-                        WCheck {
-                            id: dmabuf
-                            text: "dmabuf 明细"
-                            enabled: !root.locked
-                        }
-                        WCheck {
-                            id: gpumem
-                            text: "gpumem 明细"
-                            enabled: !root.locked
-                        }
-                        WCheck {
-                            id: smaps
-                            visible: root.kind === "snap"
-                            text: "含 smaps 明细（逐 VMA，较慢）"
-                            enabled: !root.locked
+                        WText {
+                            visible: smaps.checked && root.advanced && root.kind === "snap"
+                            text: "采集 smaps 耗时较长。"
+                            color: T.muted
+                            font.pixelSize: 12
                         }
                     }
                 }
                 WText {
                     visible: backend.sampling
-                    width: parent.width
-                    text: "已有采样任务进行中，请先在实时页结束当前采样"
-                    color: "#d48806"
+                    text: "已有采样任务进行中，请先结束当前采样。"
+                    color: T.positive
                     font.pixelSize: 12
-                }
-                WButton {
-                    objectName: "startButton"
-                    width: parent.width
-                    height: 40
-                    text: root.kind === "watch" ? "◉ 开始查看" : root.kind === "snap" ? "📷 拍摄快照" : "▷ 开始采样"
-                    tone: root.kind === "watch" ? "green" : "primary"
-                    enabled: !root.locked && !!target.selectedApp && (root.kind === "watch" || taskName.text.trim().length > 0) && (root.kind === "snap" ? !!target.selectedApp.pid : Number(interval.text) >= 200)
-                    onClicked: {
-                        var a = target.selectedApp, options = {
-                            showAshmem: ashmem.checked,
-                            showDmabuf: dmabuf.checked,
-                            showGpumem: gpumem.checked,
-                            includeSmaps: smaps.checked
-                        };
-                        if (root.kind === "snap")
-                            backend.takeSnapshot(a.bundleName, a.label || a.bundleName, taskName.text, options);
-                        else
-                            backend.startSampling({
-                                intervalMs: Number(interval.text),
-                                maxDurationMs: root.kind === "peak" ? [300000, 600000, 1800000, 3600000, 7200000, 0][duration.currentIndex] : 0,
-                                showAshmem: root.kind === "peak" && ashmem.checked,
-                                showDmabuf: root.kind === "peak" && dmabuf.checked,
-                                showGpumem: root.kind === "peak" && gpumem.checked
-                            }, a.bundleName, a.label || a.bundleName, root.kind === "peak", root.kind === "peak" ? taskName.text : "");
-                    }
                 }
             }
         }
-        WCard {
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             visible: backend.snapshotting
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(720, parent.width)
-            height: 280
-            title: "📷 正在采集内存快照"
-            Column {
-                anchors.centerIn: parent
-                spacing: 18
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: T.border
+        }
+        RowLayout {
+            objectName: "captureFooter"
+            Layout.fillWidth: true
+            spacing: 16
+            WButton {
+                visible: root.kind !== "watch"
+                iconName: "FolderOutlined"
+                tone: "quiet"
+                text: "保存至"
+                onClicked: backend.revealPath(backend.sessionsDir || backend.defaultSessionsDir)
+            }
+            WText {
+                visible: root.kind !== "watch"
+                Layout.fillWidth: true
+                text: backend.sessionsDir || backend.defaultSessionsDir
+                font.pixelSize: 12
+                color: T.muted
+            }
+            Item {
+                visible: root.kind === "watch"
+                Layout.fillWidth: true
+            }
+            WButton {
+                objectName: "startButton"
+                text: root.kind === "watch" ? "开始查看" : root.kind === "snap" ? "采集快照" : "开始采样"
+                iconName: root.kind === "snap" ? "CameraOutlined" : "PlayCircleOutlined"
+                tone: "primary"
+                enabled: !root.locked && !!target.selectedApp && (root.kind === "watch" || taskName.text.trim().length > 0) && (root.kind === "snap" ? !!target.selectedApp.pid : Number(interval.text) >= 200)
+                onClicked: {
+                    var a = target.selectedApp, options = {
+                        showAshmem: ashmem.checked,
+                        showDmabuf: dmabuf.checked,
+                        showGpumem: gpumem.checked,
+                        includeSmaps: smaps.checked
+                    };
+                    if (root.kind === "snap")
+                        backend.takeSnapshot(a.bundleName, a.label || a.bundleName, taskName.text, options);
+                    else
+                        backend.startSampling({
+                            intervalMs: Number(interval.text),
+                            maxDurationMs: root.kind === "peak" ? [300000, 600000, 1800000, 3600000, 7200000, 0][duration.currentIndex] : 0,
+                            showAshmem: root.kind === "peak" && ashmem.checked,
+                            showDmabuf: root.kind === "peak" && dmabuf.checked,
+                            showGpumem: root.kind === "peak" && gpumem.checked
+                        }, a.bundleName, a.label || a.bundleName, root.kind === "peak", root.kind === "peak" ? taskName.text : "");
+                }
+            }
+        }
+    }
+    WDialog {
+        id: snapshotProgress
+        objectName: "snapshotProgress"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 460
+        title: "正在采集快照"
+        visible: backend.snapshotting
+        closePolicy: Popup.NoAutoClose
+        property int seconds: 0
+        property bool cancelling: false
+        onVisibleChanged: if (visible) {
+            seconds = 0;
+            cancelling = false;
+        }
+        Timer {
+            interval: 1000
+            repeat: true
+            running: backend.snapshotting
+            onTriggered: snapshotProgress.seconds++
+        }
+        Column {
+            width: parent.width
+            spacing: 16
+            RowLayout {
+                width: parent.width
                 BusyIndicator {
-                    anchors.horizontalCenter: parent.horizontalCenter
                     running: backend.snapshotting
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 48
                 }
-                WText {
-                    text: "正在执行 hidumper --mem，请稍候…"
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    WText {
+                        text: snapshotProgress.cancelling ? "正在取消…" : "正在读取内存数据…"
+                    }
+                    WText {
+                        text: "已用时 " + snapshotProgress.seconds + " 秒"
+                        color: T.muted
+                        font.pixelSize: 12
+                    }
                 }
-                WText {
-                    text: "采集完成后将自动打开快照报告"
-                    font.pixelSize: 12
-                    color: "#8c8c8c"
+            }
+            WButton {
+                objectName: "cancelSnapshotButton"
+                anchors.right: parent.right
+                text: "取消采集"
+                enabled: !snapshotProgress.cancelling
+                onClicked: {
+                    snapshotProgress.cancelling = true;
+                    backend.cancelSnapshot();
                 }
             }
         }

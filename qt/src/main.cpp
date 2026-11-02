@@ -5,6 +5,7 @@
 #include <QCommandLineParser>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QEvent>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QJsonDocument>
@@ -14,6 +15,20 @@
 #include <QQuickWindow>
 #include <QSysInfo>
 #include <QThreadPool>
+
+// Route native Cmd+Q / system Quit through the same capture-aware confirmation.
+class QuitGuard final : public QObject {
+public:
+  Backend *backend = nullptr;
+  bool allowed = false;
+  bool eventFilter(QObject *, QEvent *event) override {
+    if (event->type() == QEvent::Quit && !allowed && backend) {
+      backend->requestInteractiveQuit();
+      return true;
+    }
+    return false;
+  }
+};
 
 int main(int argc, char **argv) {
   QElapsedTimer startup;
@@ -56,8 +71,13 @@ int main(int argc, char **argv) {
                                      "Reports are loaded by Woody");
   Backend backend(parser.value("profile"));
   QQmlEngine::setObjectOwnership(&backend, QQmlEngine::CppOwnership);
-  QObject::connect(&backend, &Backend::quitReady, &app, &QCoreApplication::quit,
-                   Qt::QueuedConnection);
+  QuitGuard quitGuard;
+  quitGuard.backend = &backend;
+  app.installEventFilter(&quitGuard);
+  QObject::connect(&backend, &Backend::quitReady, &app, [&] {
+    quitGuard.allowed = true;
+    QTimer::singleShot(0, &app, &QCoreApplication::quit);
+  });
   QQmlApplicationEngine engine;
   engine.rootContext()->setContextProperty("backend", &backend);
   engine.rootContext()->setContextProperty(
