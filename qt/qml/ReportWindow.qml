@@ -13,6 +13,7 @@ WindowBase {
     readonly property bool snapshot: meta.type === "snapshot"
     transientParent: null
     caption: F.title(meta)
+    extraModalOpen: environment.opened
 
     Component.onDestruction: if (report)
         backend.releaseReport(report)
@@ -128,79 +129,138 @@ WindowBase {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(620, parent.width - 40)
+        height: Math.min(650, parent.height - 32)
         modal: true
         title: "环境信息"
         standardButtons: Dialog.Close
-        Column {
-            width: parent.width
-            spacing: 10
-            Repeater {
-                model: [
-                    {
-                        name: "任务名称",
-                        value: F.title(win.meta)
-                    },
-                    {
-                        name: "采样时间",
-                        value: F.date(win.meta.startedAt)
-                    },
-                    {
-                        name: "目标应用",
-                        value: win.meta.bundleName
-                    },
-                    {
-                        name: "设备",
-                        value: F.device(win.meta.device)
-                    },
-                    {
-                        name: "系统版本",
-                        value: (win.meta.device || {}).softwareVersion
-                    },
-                    {
-                        name: "API 版本",
-                        value: (win.meta.device || {}).apiVersion
-                    },
-                    {
-                        name: "设备内存",
-                        value: F.bytes((win.meta.device || {}).ramTotalKb)
-                    },
-                    {
-                        name: "屏幕分辨率",
-                        value: (win.meta.device || {}).screenResolution
-                    },
-                    {
-                        name: "采集命令",
-                        value: "hidumper --mem <pid>"
-                    },
-                    {
-                        name: win.snapshot ? "进程 PID" : "采样时长",
-                        value: win.snapshot ? (win.report.snapshot.pid || "—") : F.duration(win.stats.durationMs)
-                    },
-                    {
-                        name: "采样点数",
-                        value: win.snapshot ? 1 : win.report.count
-                    },
-                    {
-                        name: "采样间隔",
-                        value: win.meta.config ? (win.meta.config.intervalMs + " ms") : "—"
-                    }
-                ]
-                RowLayout {
-                    required property var modelData
-                    width: parent.width
-                    spacing: 12
-                    WText {
-                        Layout.preferredWidth: 90
-                        text: modelData.name
-                        font.pixelSize: 13
-                        color: T.muted
-                    }
-                    WText {
-                        Layout.fillWidth: true
-                        text: modelData.value === undefined ? "—" : String(modelData.value)
-                        wrapMode: Text.Wrap
-                        elide: Text.ElideNone
-                        font.pixelSize: 13
+        ScrollView {
+            id: environmentScroll
+            anchors.fill: parent
+            clip: true
+            Column {
+                width: environmentScroll.availableWidth
+                spacing: 16
+                Repeater {
+                    model: [
+                        {
+                            title: "设备",
+                            rows: [
+                                {
+                                    key: "model",
+                                    name: "型号",
+                                    value: (win.meta.device || {}).marketName || (win.meta.device || {}).model
+                                },
+                                {
+                                    key: "system",
+                                    name: "系统",
+                                    value: (win.meta.device || {}).softwareVersion
+                                },
+                                {
+                                    key: "api",
+                                    name: "API",
+                                    value: (win.meta.device || {}).apiVersion
+                                },
+                                {
+                                    key: "serial",
+                                    name: "序列号",
+                                    value: (win.meta.device || {}).serialNumber || (win.meta.device || {}).targetId
+                                },
+                                {
+                                    key: "ram",
+                                    name: "设备内存",
+                                    value: (win.meta.device || {}).ramTotalKb ? F.bytes(win.meta.device.ramTotalKb) : "—"
+                                },
+                                {
+                                    key: "resolution",
+                                    name: "屏幕分辨率",
+                                    value: (win.meta.device || {}).screenResolution
+                                }
+                            ]
+                        },
+                        {
+                            title: "采集",
+                            rows: [
+                                {
+                                    key: "task",
+                                    name: "报告名称",
+                                    value: F.title(win.meta)
+                                },
+                                {
+                                    key: "bundle",
+                                    name: "应用",
+                                    value: win.meta.bundleName
+                                },
+                                {
+                                    key: "time",
+                                    name: "开始时间",
+                                    value: F.date(win.meta.startedAt)
+                                },
+                                {
+                                    key: "duration",
+                                    name: win.snapshot ? "进程 PID" : "采样时长",
+                                    value: win.snapshot ? (win.report.snapshot.pid || "—") : F.duration(win.stats.durationMs)
+                                },
+                                {
+                                    key: "count",
+                                    name: "采样点数",
+                                    value: win.snapshot ? 1 : win.report.count
+                                },
+                                {
+                                    key: "interval",
+                                    name: "采样间隔",
+                                    value: win.snapshot ? "—" : win.meta.config ? win.meta.config.intervalMs + " ms" : "—"
+                                },
+                                {
+                                    key: "command",
+                                    name: "采集命令",
+                                    value: "hidumper --mem <pid>"
+                                }
+                            ]
+                        }
+                    ]
+                    Column {
+                        required property var modelData
+                        width: parent.width
+                        spacing: 8
+                        WText {
+                            text: modelData.title
+                            font.weight: Font.DemiBold
+                        }
+                        Repeater {
+                            model: modelData.rows
+                            RowLayout {
+                                id: environmentRow
+                                required property var modelData
+                                readonly property string value: modelData.value === undefined || modelData.value === "" ? "—" : String(modelData.value)
+                                width: parent.width
+                                spacing: 12
+                                WText {
+                                    Layout.preferredWidth: 96
+                                    text: environmentRow.modelData.name
+                                    color: T.muted
+                                }
+                                WText {
+                                    Layout.fillWidth: true
+                                    text: environmentRow.value
+                                    wrapMode: Text.Wrap
+                                    elide: Text.ElideNone
+                                }
+                                WButton {
+                                    objectName: "environment-copy-" + environmentRow.modelData.key
+                                    small: true
+                                    tone: "quiet"
+                                    iconName: "CopyOutlined"
+                                    hint: "复制" + environmentRow.modelData.name
+                                    enabled: environmentRow.value !== "—"
+                                    onClicked: backend.copyText(environmentRow.value)
+                                }
+                            }
+                        }
+                        Rectangle {
+                            width: parent.width
+                            height: 1
+                            color: T.border
+                        }
                     }
                 }
             }

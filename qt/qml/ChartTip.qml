@@ -38,6 +38,17 @@ Popup {
     }
     property Item source: null
     property real alpha: .8
+    function topBoundary() {
+        if (!source || !parent)
+            return 6;
+        var top = Math.max(6, source.mapToItem(parent, 0, 0).y);
+        // A scrollable miniature chart may be partly clipped. Keep its tooltip
+        // below both the chart controls and the visible scroll region.
+        for (var item = source.parent; item; item = item.parent)
+            if (item.clip)
+                top = Math.max(top, item.mapToItem(parent, 0, 0).y);
+        return top;
+    }
     parent: Overlay.overlay
     visible: !!retained.heading && !!source && source.visible
     closePolicy: Popup.NoAutoClose
@@ -45,7 +56,7 @@ Popup {
     focus: false
     padding: 12
     width: Math.min(500, Math.max(300, table.implicitWidth + 24))
-    height: Math.min(implicitHeight, parent ? parent.height * .6 : 500)
+    height: Math.min(implicitHeight, parent ? parent.height * .6 : 500, parent && source ? Math.max(60, parent.height - topBoundary() - 6) : 500)
     implicitHeight: head.implicitHeight + table.implicitHeight + 38
     x: {
         if (!source || !parent)
@@ -58,7 +69,8 @@ Popup {
         if (!source || !parent)
             return 0;
         var p = source.mapToItem(parent, retained.x || 0, retained.y || 0);
-        return Math.max(6, Math.min(parent.height - height - 6, p.y - height - 16 > 6 ? p.y - height - 16 : p.y + 20));
+        var top = topBoundary();
+        return Math.max(top, Math.min(parent.height - height - 6, p.y - height - 16 > top ? p.y - height - 16 : p.y + 20));
     }
     background: Rectangle {
         color: Qt.rgba(1, 1, 1, tip.alpha)

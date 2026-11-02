@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantMap>
 class QQmlApplicationEngine;
@@ -26,6 +27,9 @@ public:
   Q_INVOKABLE bool key(QObject *window, int key, int modifiers = 0);
   Q_INVOKABLE bool screenshot(QObject *window, const QString &name);
   Q_INVOKABLE bool setFakeDeviceState(const QVariantMap &state);
+  Q_INVOKABLE QStringList nativeMenuEntries() const;
+  Q_INVOKABLE void activateApp();
+  Q_INVOKABLE bool triggerNativeMenu(const QString &path);
   Q_INVOKABLE void print(const QString &text);
   Q_INVOKABLE void mark(const QString &phase);
   Q_INVOKABLE void runWorkload(QObject *item, int durationMs);

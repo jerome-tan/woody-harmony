@@ -6,6 +6,7 @@ import "Format.js" as F
 
 WindowBase {
     id: appWindow
+    extraModalOpen: quitDialog.opened
     objectName: "mainWindow"
     visible: true
     width: 1280

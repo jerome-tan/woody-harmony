@@ -48,6 +48,7 @@ public:
   Q_INVOKABLE void requestInteractiveQuit() { emit quitRequested(); }
   Q_INVOKABLE void cancelSnapshot();
   Q_INVOKABLE void prepareWindow(QObject *window);
+  Q_INVOKABLE void copyText(const QString &text);
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
   Q_INVOKABLE void refreshApps();

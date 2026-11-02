@@ -2,11 +2,13 @@
 #include "MemoryParser.h"
 #include "PlatformWindow.h"
 #include "ReportStore.h"
+#include <QClipboard>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <QGuiApplication>
 #include <QJsonDocument>
 #include <QStandardPaths>
 #include <QUrl>
@@ -112,6 +114,10 @@ void Backend::requestQuit() {
 void Backend::prepareWindow(QObject *object) {
   if (auto *window = qobject_cast<QWindow *>(object))
     configurePlatformWindow(window);
+}
+
+void Backend::copyText(const QString &text) {
+  QGuiApplication::clipboard()->setText(text);
 }
 
 Backend::~Backend() {

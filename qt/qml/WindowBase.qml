@@ -14,6 +14,8 @@ ApplicationWindow {
     property alias bodyItem: body
     property string renameDirectory: ""
     property string messageText: ""
+    property bool extraModalOpen: false
+    readonly property bool modalDialogOpen: extraModalOpen || about.opened || renameDialog.opened || errorDialog.opened
     title: mainWindow ? "Woody" : caption
     width: 1280
     height: 840
@@ -225,14 +227,22 @@ ApplicationWindow {
         acceptText: "保存"
         acceptEnabled: renameField.text.trim().length > 0
         standardButtons: Dialog.Ok | Dialog.Cancel
-        WField {
-            id: renameField
-            objectName: "renameField"
+        RowLayout {
             width: parent.width
-            maximumLength: 80
-            onAccepted: if (text.trim()) {
-                backend.renameReport(win.renameDirectory, text);
-                renameDialog.close();
+            spacing: 16
+            WText {
+                text: "报告名称"
+                color: T.muted
+            }
+            WField {
+                id: renameField
+                objectName: "renameField"
+                Layout.fillWidth: true
+                maximumLength: 80
+                onAccepted: if (text.trim()) {
+                    backend.renameReport(win.renameDirectory, text);
+                    renameDialog.close();
+                }
             }
         }
         onAccepted: backend.renameReport(win.renameDirectory, renameField.text)

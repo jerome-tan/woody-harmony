@@ -22,6 +22,7 @@ WCard {
     property var hiddenReports: []
     property bool smooth: false
     property bool points: false
+    readonly property bool blockedByDialog: Window.window ? !!Window.window.modalDialogOpen : false
     readonly property bool narrow: width < 820
     readonly property bool hasCategories: legend && reports.length === 1
     property alias plotItem: plot
@@ -276,7 +277,7 @@ WCard {
     ChartTip {
         objectName: "chartTip"
         data: plot.tooltip
-        source: expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
+        source: chart.blockedByDialog || expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
         alpha: chart.tooltipAlpha
     }
     Popup {

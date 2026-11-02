@@ -17,7 +17,7 @@ def main():
     report=lambda name:json.dumps(str(fixtures/name))
     steps=[]
     def add(name,**kwargs):steps.append(dict(name=name,**kwargs))
-    add('main window',delay=700,eval='qa.nativePointer=true;root.raise();root.requestActivate();qa.hover(root.bodyItem,2,2)',wait='root.active',screenshot='main.png')
+    add('main window',delay=700,eval='qa.activateApp();qa.nativePointer=true;root.raise();root.requestActivate();qa.hover(root.bodyItem,2,2)',wait='root.active',screenshot='main.png')
     for page in ['watch','peak','snap','reports','settings']:
         add('navigate '+page,eval=f'root.go({json.dumps(page)})')
         add('render '+page,delay=160,screenshot=page+'.png')
@@ -27,7 +27,7 @@ def main():
     add('zoom native chart',eval='qa.wheel(plot,plot.width/2,plot.height/2,400)',assert_='plot.rangeEnd-plot.rangeStart<plot.totalSpan')
     add('hover sample',eval='qa.hover(plot,plot.width*.6,plot.height*.5)',wait='plot.tooltip.items && plot.tooltip.items.length===14',window='report',screenshot='tooltip.png')
     add('enter tooltip',eval='var tip=qa.find(report,"chartTip");qa.hover(tip.contentItem,40,30)')
-    add('tooltip remains enterable',delay=500,assert_='tip.visible && tip.retained.items.length===14')
+    add('tooltip remains enterable',delay=500,assert_='tip.visible && tip.retained.items.length===14 && tip.y>=plot.mapToItem(tip.parent,0,0).y')
     add('leave tooltip',eval='qa.hover(report.bodyItem,2,2)')
     add('tooltip dismissed',wait='!tip.visible',timeout=2500)
     add('expand chart',eval='qa.click(qa.find(report,"maximizeChart"),-1,-1)',wait='qa.find(report,"expandedChart").opened')
@@ -83,8 +83,10 @@ def main():
     add('close display options',eval='qa.key(report,16777216)',wait='!qa.find(report,"displayOptions").opened')
     add('restore report width preserves categories',eval='report.width=1280;report.height=840;',assert_='qa.find(report,"memoryChart").hidden.indexOf("GL")>=0')
     add('environment information',eval='qa.click(qa.find(report,"environmentButton"),-1,-1)',wait='qa.find(report,"environmentDialog").opened',window='report',screenshot='environment.png')
+    add('copy application from environment',eval='qa.click(qa.find(report,"environment-copy-bundle"),-1,-1)',assert_='!qa.find(report,"chartTip").visible')
     add('close environment',eval='qa.click(qa.find(qa.find(report,"environmentDialog"),"dialogClose"),-1,-1)',wait='!qa.find(report,"environmentDialog").opened')
     add('open rename dialog',eval='report.rename(report.meta.sessionDir,report.meta.taskName)',wait='qa.find(report,"renameDialog").opened',window='report',screenshot='rename.png')
+    add('paste copied environment value',eval='qa.find(report,"renameField").paste()',assert_='qa.find(report,"renameField").text===report.meta.bundleName && !qa.find(report,"chartTip").visible')
     add('reject empty name',eval='qa.find(report,"renameField").text=""',assert_='!qa.find(qa.find(report,"renameDialog"),"dialogAccept").enabled')
     add('cancel rename',eval='qa.click(qa.find(qa.find(report,"renameDialog"),"dialogCancel"),-1,-1)',assert_='report.meta.taskName==="Trend-1"')
     add('open report library',eval='root.raise();root.requestActivate();root.go("reports")',wait='qa.find(root,"reportsTable")!==null')
@@ -105,7 +107,7 @@ def main():
     add('minimum main screenshot',delay=300,screenshot='main-minimum.png')
     add('restore main size',eval='root.width=1280;root.height=820')
     add('open Windows Help',eval='if(root.windowsChrome) qa.click(qa.find(root,"helpButton"),-1,-1)',wait='!root.windowsChrome || qa.find(root,"helpMenu").opened')
-    add('about dialog',eval='if(root.windowsChrome) {qa.key(root,16777237);qa.key(root,16777220);} else qa.find(root,"aboutDialog").open()',wait='qa.find(root,"aboutDialog").opened',screenshot='about.png')
+    add('about dialog',eval='if(root.windowsChrome) {qa.key(root,16777237);qa.key(root,16777220);} else {qa.print(JSON.stringify(qa.nativeMenuEntries())); if(!qa.triggerNativeMenu("Help/关于 Woody")) throw new Error("Native Help/About menu is missing");}',wait='qa.find(root,"aboutDialog").opened',screenshot='about.png')
     add('close about',eval='qa.click(qa.find(qa.find(root,"aboutDialog"),"dialogClose"),-1,-1)',wait='!qa.find(root,"aboutDialog").opened')
     if args.hdc:
         add('live configuration',eval='root.raise();root.requestActivate();root.go("watch");',wait='backend.target.length>0 && qa.find(root,"startButton") && qa.find(root,"startButton").enabled')

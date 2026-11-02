@@ -20,6 +20,12 @@
 #include <algorithm>
 #include <cmath>
 
+#ifndef Q_OS_MACOS
+void UiAutomation::activateApp() {}
+QStringList UiAutomation::nativeMenuEntries() const { return {}; }
+bool UiAutomation::triggerNativeMenu(const QString &) { return false; }
+#endif
+
 UiAutomation::UiAutomation(QQmlApplicationEngine *engine, QObject *root,
                            QObject *backend, const QString &file)
     : QObject(engine), mEngine(engine), mBackend(backend),

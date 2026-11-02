@@ -20,14 +20,46 @@ Dialog {
         radius: 8
         border.color: T.border
     }
-    header: WText {
-        text: dialog.title
-        font.pixelSize: 16
-        font.weight: Font.DemiBold
-        leftPadding: 24
-        rightPadding: 24
-        topPadding: 22
-        bottomPadding: 4
+    header: Item {
+        implicitHeight: 44
+        Rectangle {
+            anchors.fill: parent
+            color: T.chrome
+            radius: 8
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 8
+            color: T.chrome
+        }
+        WText {
+            anchors.fill: parent
+            anchors.leftMargin: 44
+            anchors.rightMargin: 44
+            text: dialog.title
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+        }
+        WButton {
+            objectName: "dialogDismiss"
+            visible: dialog.standardButtons !== Dialog.NoButton
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            iconName: "CloseOutlined"
+            small: true
+            tone: "quiet"
+            hint: "关闭"
+            onClicked: dialog.reject()
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 1
+            color: T.border
+        }
     }
     footer: Item {
         implicitHeight: dialog.standardButtons ? 62 : 0
