@@ -132,19 +132,24 @@ WindowBase {
     Component.onDestruction: reports.forEach(function (r) {
         backend.releaseReport(r);
     })
-    ScrollView {
+    Flickable {
         id: compareScroll
         anchors.fill: parent
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
         property int pageMargin: win.width < 900 ? 12 : 24
-        contentWidth: availableWidth
+        contentWidth: width
         contentHeight: comparisonContent.height + pageMargin * 2
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+        }
         ColumnLayout {
             id: comparisonContent
             x: compareScroll.pageMargin
             y: compareScroll.pageMargin
-            width: compareScroll.availableWidth - compareScroll.pageMargin * 2
-            height: Math.max(540, compareScroll.availableHeight - compareScroll.pageMargin * 2)
+            width: compareScroll.width - compareScroll.pageMargin * 2
+            height: Math.max(540, compareScroll.height - compareScroll.pageMargin * 2)
             spacing: 12
             RowLayout {
                 Layout.fillWidth: true
