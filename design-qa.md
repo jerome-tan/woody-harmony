@@ -4,6 +4,7 @@
 验收对象是实际运行的 Qt Quick 窗口，不是重新绘制的静态效果图。
 最终验证代码为 `f4fc8572ae1ec45f2ab4c0eede903a9323c16e0c`，验收日期为 2026-11-03。
 本文之后的文档提交不改变该安装包和已验证的应用代码。
+后续分类配色修订见文末；每一轮构建和验证结果只对应注明的代码提交。
 
 ## 设计依据与证据
 
@@ -144,3 +145,35 @@ macOS arm64 ZIP 27.70 MiB、DMG 31.04 MiB。不同构建主机的压缩产物大
 - [x] 检查最终平台窗口截图，确认无新增 P0/P1/P2 问题；系统菜单截图的证明边界另列。
 
 final result: passed
+
+## 2026-11-03 分类配色修订
+
+代码提交：`45aa4cd932970498b5a67dcb6ec709561a1e78b8`。按用户的新要求，
+将图表分类从相近的灰紫/灰蓝色改为 14 种区分度更大的颜色：Total 紫色、GL 蓝色、
+Graph 橙色、ArkTS heap 红色、Native heap 绿色、Stack 青色，其他分类使用赭黄、
+洋红、棕、蓝灰、黄绿、深蓝、粉色和炭黑。应用控件继续使用淡紫主题。
+
+趋势线、快照条形图/环形图、图例和悬浮框统一调用 `Report::color()`，同一分类始终
+对应同一种颜色。未预定义的分类改为按名称选择备用色，避免因图表排序不同而变色。
+“其他分类”聚合项保留中性灰；报告 A/B/C/D 的身份配色独立于内存分类配色。
+
+本轮本机 Apple Silicon 验证：
+
+- 编译成功，已有的 2 套 CTest 全部通过。
+- 直接从开发构建运行时，前 96 项 UI 检查通过，第 97 项菜单检查失败：原生菜单将
+  中文“关于 Woody”放到应用菜单，测试要求的 `Help/关于 Woody` 路径不存在。
+  该次运行不记为完整通过。旧安装包的原生菜单检查仍通过，差异与运行形态有关。
+- 新安装包内应用使用同一套测试和菜单断言，98 项 UI 检查全部通过；本轮包内测试
+  使用离线报告模式。日志没有 QML 类型错误、引用错误或绑定循环。
+- 已查看实际包内应用的 `trend.png`、`snapshot.png`、`snapshot-donut.png` 和图例，
+  并核对开发运行时的 `tooltip.png`。数据分类的颜色对应关系一致。
+
+证据位于 `dist/qt-category-colors/`：`ui/` 为开发构建，`packaged-ui/` 为包内应用，
+`menu-baseline/` 为旧包菜单核对，`build/Testing/Temporary/LastTest.log` 为 CTest 日志。
+三平台 [CI 41571364564](https://github.com/jerome-tan/woody-harmony/actions/runs/41571364564)
+已触发；文档提交时仍在运行，不沿用上一轮 CI 结果宣称本轮三平台已通过。
+
+更新后的本机安装包在 `dist/qt-category-colors/package/`：
+`Woody-0.1.0-qt-mac-arm64.dmg` 约 30.75 MiB，
+`Woody-0.1.0-qt-mac-arm64-portable.zip` 约 28.58 MiB。
+已通过签名完整性检查；精确字节数和 SHA-256 见同目录 `package-sizes.json`。
