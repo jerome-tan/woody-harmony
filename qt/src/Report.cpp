@@ -9,16 +9,35 @@ const QStringList defaultCategories{
     "Total", "GL",  "Graph", "ark ts heap",    "native heap",
     "stack", ".so", ".hap",  "AnonPage other", "FilePage other",
     "dev",   ".db", ".ttf",  "guard"};
-const QStringList colors{"#8B5CF6", "#737FA5", "#B58139", "#AF739A", "#5273AA",
-                         "#43A1B2", "#AB9B54", "#8F829F", "#968A7B", "#9CA3AF",
-                         "#59857C", "#9A796A", "#9D8AA8", "#80888F"};
-const QStringList fallback{"#5273AA", "#B58139", "#AF739A", "#737FA5", "#43A1B2",
-                           "#59857C", "#AB9B54", "#968A7B"};
+// Data categories need distinct hues, independent of the lavender UI theme.
+// Trends, snapshot bars/donuts, legends and tooltips all use this mapping.
+const QStringList colors{
+    "#7C3AED", // Total: violet
+    "#0072B2", // GL: blue
+    "#D55E00", // Graph: orange
+    "#E31A1C", // ArkTS heap: red
+    "#009E73", // Native heap: green
+    "#008DA8", // Stack: cyan
+    "#A88700", // .so: ochre
+    "#C2188B", // .hap: magenta
+    "#8C4B21", // AnonPage other: brown
+    "#64748B", // FilePage other: slate
+    "#658800", // dev: lime
+    "#003F5C", // .db: navy
+    "#DB6B8A", // .ttf: pink
+    "#252525"  // guard: charcoal
+};
+const QStringList fallback{"#0072B2", "#D55E00", "#009E73", "#C2188B",
+                           "#008DA8", "#A88700", "#E31A1C", "#7C3AED",
+                           "#8C4B21", "#658800", "#003F5C", "#DB6B8A"};
 } // namespace
 
 QColor Report::color(const QString &category, int index) {
+  Q_UNUSED(index);
   const int fixed = defaultCategories.indexOf(category);
-  return QColor(fixed >= 0 ? colors[fixed] : fallback[index % fallback.size()]);
+  // Unknown categories must also keep their color when chart order changes.
+  return QColor(fixed >= 0 ? colors[fixed]
+                          : fallback[qHash(category, 0) % fallback.size()]);
 }
 
 bool Report::isMeasurement(const QJsonObject &sample) {
