@@ -165,13 +165,27 @@ WindowBase {
                 }
             }
             WButton {
+                id: reportsButton
                 objectName: "nav-reports"
                 width: 156
                 height: 42
                 text: "报告库"
                 iconName: "FolderOutlined"
+                rightPadding: reportCount.width + 20
                 tone: appWindow.page === "reports" ? "selected" : "quiet"
+                Accessible.name: "报告库，" + backend.records.length + " 份报告"
                 onClicked: appWindow.go("reports")
+                WTag {
+                    id: reportCount
+                    objectName: "reportCountBadge"
+                    anchors.right: parent.right
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(22, implicitWidth)
+                    text: String(backend.records.length)
+                    ink: reportsButton.tone === "selected" ? T.accent : T.muted
+                    tint: reportsButton.tone === "selected" ? "white" : T.chrome
+                }
             }
         }
         WButton {
