@@ -9,6 +9,7 @@ Button {
     property string iconName: ""
     property bool small: false
     property string hint: ""
+    property int textAlignment: Text.AlignHCenter
     implicitHeight: small ? 28 : 36
     implicitWidth: Math.max(implicitHeight, contentItem.implicitWidth + 24)
     padding: 8
@@ -34,7 +35,7 @@ Button {
             Layout.fillWidth: true
             text: control.text
             font: control.font
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: control.textAlignment
             color: !control.enabled ? T.disabled : control.tone === "danger" ? T.error : control.tone === "primary" ? T.primaryText : control.tone === "selected" ? T.accent : T.text
         }
     }

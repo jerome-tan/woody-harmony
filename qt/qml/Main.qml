@@ -115,6 +115,7 @@ WindowBase {
                 color: T.muted
             }
             Repeater {
+                id: toolNavigation
                 model: [
                     {
                         key: "watch",
@@ -134,11 +135,13 @@ WindowBase {
                 ]
                 WButton {
                     required property var modelData
+                    required property int index
                     objectName: "nav-" + modelData.key
                     width: 156
                     height: 42
                     text: modelData.label
                     iconName: modelData.icon
+                    textAlignment: Text.AlignLeft
                     readonly property bool selected: appWindow.page === modelData.key || (appWindow.page === "live" && modelData.key === (appWindow.watching ? "watch" : "peak"))
                     tone: selected ? "selected" : "quiet"
                     onClicked: appWindow.go(modelData.key)
@@ -151,6 +154,15 @@ WindowBase {
                         radius: 3
                         color: T.accent
                         visible: backend.sampling && modelData.key === (appWindow.watching ? "watch" : "peak")
+                    }
+                    Rectangle {
+                        x: 12
+                        y: parent.height + 4
+                        width: parent.width - 24
+                        height: 1
+                        color: T.border
+                        opacity: .65
+                        visible: index < toolNavigation.count - 1
                     }
                 }
             }
@@ -171,6 +183,7 @@ WindowBase {
                 height: 42
                 text: "报告库"
                 iconName: "FolderOutlined"
+                textAlignment: Text.AlignLeft
                 rightPadding: reportCount.width + 20
                 tone: appWindow.page === "reports" ? "selected" : "quiet"
                 Accessible.name: "报告库，" + backend.records.length + " 份报告"
@@ -197,6 +210,7 @@ WindowBase {
             height: 42
             text: "设置"
             iconName: "SettingOutlined"
+            textAlignment: Text.AlignLeft
             tone: appWindow.page === "settings" ? "selected" : "quiet"
             onClicked: appWindow.go("settings")
         }
