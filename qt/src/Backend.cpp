@@ -15,6 +15,7 @@
 #include <QUuid>
 #include <QWindow>
 #include <QtConcurrent>
+#include <algorithm>
 #include <stdexcept>
 
 namespace {
@@ -198,11 +199,17 @@ void Backend::selectDevice(const QString &target) {
     emit error(QStringLiteral("请先结束当前采集再切换设备"));
     return;
   }
+  if (target == mTarget) {
+    refreshApps();
+    return;
+  }
   mTarget = target;
   mDevice = {};
   mApps = {};
+  mSelectedBundle = mSettings["selectedApps"].toObject()[target].toString();
   const auto generation = ++mDeviceGeneration;
   emit deviceChanged();
+  emit selectedBundleChanged();
   emit appsChanged();
   if (target.isEmpty())
     return;
@@ -220,6 +227,34 @@ void Backend::selectDevice(const QString &target) {
   refreshApps();
 }
 
+void Backend::rememberAppSelection(const QString &bundle) {
+  auto selections = mSettings["selectedApps"].toObject();
+  const bool changed = mSelectedBundle != bundle;
+  mSelectedBundle = bundle;
+  if (!selections.contains(mTarget) || selections[mTarget].toString() != bundle) {
+    // An explicit empty choice prevents silently switching to another app
+    // after the remembered application has been uninstalled.
+    selections[mTarget] = bundle;
+    mSettings["selectedApps"] = selections;
+    saveSettings();
+  }
+  if (changed)
+    emit selectedBundleChanged();
+}
+
+void Backend::selectApp(const QString &bundle) {
+  if (mActive || mSnapshotting || mTarget.isEmpty())
+    return;
+  if (!bundle.isEmpty() &&
+      !std::any_of(mApps.cbegin(), mApps.cend(), [&](const auto &entry) {
+        return entry.toObject()["bundleName"].toString() == bundle;
+      })) {
+    emit error(QStringLiteral("目标应用已不在列表中，请刷新后重新选择"));
+    return;
+  }
+  rememberAppSelection(bundle);
+}
+
 void Backend::refreshApps() {
   if (mLoadingApps || mTarget.isEmpty())
     return;
@@ -228,10 +263,28 @@ void Backend::refreshApps() {
   const auto hdc = client();
   const auto generation = mDeviceGeneration;
   run([hdc] { return hdc.apps(); },
-      [this, generation](const QJsonValue &value, const QString &) {
+      [this, generation](const QJsonValue &value, const QString &problem) {
         mLoadingApps = false;
-        if (generation == mDeviceGeneration && value.isArray())
+        if (generation == mDeviceGeneration && problem.isEmpty() && value.isArray()) {
           mApps = value.toArray();
+          const bool selectedIsInstalled =
+              std::any_of(mApps.cbegin(), mApps.cend(), [&](const auto &entry) {
+                return entry.toObject()["bundleName"].toString() == mSelectedBundle;
+              });
+          if (!mSelectedBundle.isEmpty() && !selectedIsInstalled) {
+            rememberAppSelection({});
+          } else if (!mSettings["selectedApps"].toObject().contains(mTarget)) {
+            // Preserve the initial running-app default only for a device
+            // without a saved choice. Process exits never change that choice.
+            for (const auto &entry : mApps) {
+              const auto app = entry.toObject();
+              if (app["pid"].toInteger() > 0) {
+                rememberAppSelection(app["bundleName"].toString());
+                break;
+              }
+            }
+          }
+        }
         emit appsChanged();
         if (generation != mDeviceGeneration)
           refreshApps();

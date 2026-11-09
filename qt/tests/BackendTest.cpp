@@ -1,5 +1,6 @@
 #include "Backend.h"
 #include "ReportStore.h"
+#include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -50,6 +51,84 @@ private slots:
     }
     backend.reset();
     QDir(reports).removeRecursively();
+  }
+  void selectedApplicationSurvivesProcessExitQueryFailureAndRestart() {
+    QCOMPARE(backend->selectedBundle(), QString("com.example.woodyqa"));
+    backend->selectApp("com.example.stopped");
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+    state({{"pid", 0}});
+    backend->refreshApps();
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+    state({{"failApps", true}});
+    backend->refreshApps();
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QCOMPARE(backend->apps().size(), 2);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+    for (const auto &output : {QString("error: service unavailable"), QString()}) {
+      state({{"appsOutput", output}});
+      backend->refreshApps();
+      QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+      QCOMPARE(backend->apps().size(), 2);
+      QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+    }
+
+    state({{"pid", 2411}});
+    const auto profile = backend->profile();
+    backend.reset();
+    backend = std::make_unique<Backend>(profile);
+    backend->initialize();
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+    for (const auto &entry : backend->apps()) {
+      const auto app = entry.toMap();
+      QCOMPARE(app["label"].toString(), app["bundleName"].toString());
+    }
+  }
+  void deviceChoicesSurviveSwitchesAndStaleResponses() {
+    backend->selectApp("com.example.stopped");
+    backend->selectDevice("WOODY-QA-002");
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.woodyqa"));
+    backend->selectDevice("WOODY-QA-001");
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+
+    state({{"pid", 2411}, {"appsDelayMs", 600}});
+    QFile::remove(statePath + ".commands");
+    backend->refreshApps();
+    const auto appQueryStarted = [this] {
+      QFile log(statePath + ".commands");
+      return log.open(QIODevice::ReadOnly) && log.readAll().contains("bm dump -a");
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(appQueryStarted(), 5000);
+    state({{"installedBundles", QJsonArray{"com.example.second"}},
+           {"runningBundle", "com.example.second"}});
+    backend->selectDevice("WOODY-QA-003");
+    QTRY_COMPARE_WITH_TIMEOUT(backend->selectedBundle(),
+                             QString("com.example.second"), 10000);
+    QCOMPARE(backend->apps().size(), 1);
+
+    state({{"pid", 2411}});
+    backend->selectDevice("WOODY-QA-001");
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
+  }
+  void uninstallClearsSelectionWithoutChoosingAnotherApplication() {
+    backend->selectApp("com.example.stopped");
+    state({{"installedBundles", QJsonArray{"com.example.woodyqa"}}});
+    backend->refreshApps();
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 5000);
+    QVERIFY(backend->selectedBundle().isEmpty());
+    backend->refreshApps();
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QVERIFY(backend->selectedBundle().isEmpty());
+    const auto profile = backend->profile();
+    backend.reset();
+    backend = std::make_unique<Backend>(profile);
+    backend->initialize();
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 10000);
+    QVERIFY(backend->selectedBundle().isEmpty());
   }
   void watchDoesNotWriteReports() {
     start(false);

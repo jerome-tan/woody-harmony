@@ -38,6 +38,7 @@ Item {
                     width: parent.width
                     height: target.implicitHeight + 76
                     title: "设备与应用"
+                    headerColor: T.sectionHeader
                     TargetPicker {
                         id: target
                         width: parent.width
@@ -49,6 +50,7 @@ Item {
                     width: parent.width
                     height: settings.implicitHeight + 76
                     title: root.kind === "watch" ? "查看设置" : "采集设置"
+                    headerColor: T.sectionHeader
                     Column {
                         id: settings
                         width: parent.width

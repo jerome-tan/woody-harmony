@@ -21,23 +21,38 @@ int main(int argc, char **argv) {
               '\n');
   QTextStream out(stdout);
   const int pid = state.value("pid").toInt(2411);
+  const auto runningBundle = state.value("runningBundle").toString("com.example.woodyqa");
   if (command.endsWith("list targets")) {
-    out << "WOODY-QA-001\n";
+    const auto targets = state.value("targets").toArray({"WOODY-QA-001"});
+    for (const auto &target : targets)
+      out << target.toString() << '\n';
     return 0;
   }
   if (command.contains("bm dump -a")) {
-    out << "com.example.stopped\ncom.example.woodyqa\n";
+    QThread::msleep(state["appsDelayMs"].toInt(0));
+    if (state["failApps"].toBool())
+      return 1;
+    if (state.contains("appsOutput")) {
+      out << state["appsOutput"].toString();
+      return 0;
+    }
+    const auto bundles = state.value("installedBundles").toArray(
+        {"com.example.stopped", "com.example.woodyqa"});
+    if (bundles.isEmpty())
+      out << "[]\n";
+    for (const auto &bundle : bundles)
+      out << bundle.toString() << '\n';
     return 0;
   }
   if (command.contains("pidof ")) {
-    if (pid)
+    if (pid && command.section("pidof ", 1).trimmed() == runningBundle)
       out << pid << '\n';
     return 0;
   }
   if (command.endsWith("ps -ef")) {
     out << "UID PID PPID C STIME TTY TIME CMD\n";
     if (pid)
-      out << "2000 " << pid << " 1 0 00:00 ? 00:00:01 com.example.woodyqa\n";
+      out << "2000 " << pid << " 1 0 00:00 ? 00:00:01 " << runningBundle << '\n';
     return 0;
   }
   if (command.contains("param get ")) {

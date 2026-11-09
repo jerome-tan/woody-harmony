@@ -4,6 +4,7 @@ import QtQuick
 Rectangle {
     id: root
     property string title: ""
+    property color headerColor: "transparent"
     property int padding: 16
     property alias body: body
     property alias extras: extras.data
@@ -11,6 +12,20 @@ Rectangle {
     radius: 6
     color: "white"
     border.color: T.border
+    Item {
+        x: 1
+        y: 1
+        width: root.width - 2
+        height: 42
+        visible: root.title.length > 0
+        clip: true
+        Rectangle {
+            width: parent.width
+            height: parent.height + root.radius
+            radius: root.radius - 1
+            color: root.headerColor
+        }
+    }
     WText {
         x: Math.max(16, root.padding)
         y: 0

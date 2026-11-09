@@ -120,6 +120,11 @@ def main():
         add('application picker',eval='qa.click(qa.find(root,"appPicker"),-1,-1)',wait='qa.find(root,"appDialog").opened')
         add('search application by package',eval='qa.find(root,"appSearch").text="stopped"',assert_='qa.find(root,"appList").count===1',screenshot='app-picker.png')
         add('cancel pending app selection',eval='qa.click(qa.find(root,"app-com.example.stopped"),-1,-1);qa.click(qa.find(qa.find(root,"appDialog"),"dialogCancel"),-1,-1)',assert_='qa.find(root,"targetPicker").selectedBundle==="com.example.woodyqa"')
+        add('choose stopped application',eval='qa.click(qa.find(root,"appPicker"),-1,-1)',wait='qa.find(root,"appDialog").opened')
+        add('confirm stopped application',eval='qa.click(qa.find(root,"app-com.example.stopped"),-1,-1);qa.click(qa.find(qa.find(root,"appDialog"),"dialogAccept"),-1,-1)',wait='backend.selectedBundle==="com.example.stopped"',assert_='qa.find(root,"appPicker").text==="com.example.stopped" && !qa.find(root,"selectedAppStatus").running',screenshot='app-not-running.png')
+        for page in ['snap','peak','watch']:
+            add('remember application on '+page,eval='root.go('+json.dumps(page)+')',wait='qa.find(root,"targetPicker") && qa.find(root,"targetPicker").selectedBundle==="com.example.stopped"',assert_='qa.find(root,"appPicker").text==="com.example.stopped" && qa.find(root,"selectedAppStatus").text==="未运行"'+(' && !qa.find(root,"startButton").enabled' if page=='snap' else ''),screenshot='remember-app-'+page+'.png')
+        add('restore running application',eval='backend.selectApp("com.example.woodyqa")',wait='qa.find(root,"selectedAppStatus").running')
         add('device process exits',eval='qa.setFakeDeviceState({pid:0});backend.refreshApps()',wait='!qa.find(root,"targetPicker").selectedApp.pid')
         add('start waiting for app',eval='qa.click(qa.find(root,"startButton"),-1,-1)',wait='root.page==="live" && backend.live.count>=2',timeout=10000)
         add('waiting is not zero measurement',assert_='backend.live.stats.validCount===0 && qa.find(root,"statCards").values[0].value==="—"',screenshot='waiting-app.png')

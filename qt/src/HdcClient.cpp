@@ -236,7 +236,7 @@ QJsonArray HdcClient::apps() const {
       return;
     seen.insert(bundle);
     apps.append({{"bundleName", bundle},
-                 {"label", bundle.section('.', -1)},
+                 {"label", bundle},
                  {"pid", QJsonValue::Null}});
   };
   static const QRegularExpression kv(
@@ -251,6 +251,10 @@ QJsonArray HdcClient::apps() const {
     if (match.hasMatch())
       add(match.captured(1));
   }
+  // Some hdc versions report remote shell errors with exit code zero. Do not
+  // interpret an empty/unrecognized response as uninstalling every app.
+  if (apps.isEmpty() && output.trimmed() != "[]")
+    fail(QStringLiteral("未获取到有效的已安装应用列表，请稍后刷新"));
   try {
     const auto processes = shell("ps -ef", 15000);
     for (const auto &line : processes.split('\n')) {

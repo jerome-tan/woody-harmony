@@ -1,13 +1,12 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import "Format.js" as F
 import "Theme.js" as T
 
 Column {
     id: root
     objectName: "targetPicker"
-    property string selectedBundle: ""
+    readonly property string selectedBundle: backend.selectedBundle
     property string pendingBundle: ""
     property bool locked: false
     readonly property var selectedApp: backend.apps.find(function (a) {
@@ -15,21 +14,6 @@ Column {
     }) || null
     property string notRunningHint: "开始后将等待应用启动。"
     spacing: 16
-    function selectDefault() {
-        if (!selectedApp) {
-            var running = backend.apps.find(function (a) {
-                return a.pid;
-            });
-            selectedBundle = running ? running.bundleName : "";
-        }
-    }
-    Component.onCompleted: selectDefault()
-    Connections {
-        target: backend
-        function onAppsChanged() {
-            root.selectDefault();
-        }
-    }
     Timer {
         interval: 1500
         repeat: true
@@ -65,7 +49,6 @@ Column {
             })
             displayText: currentIndex >= 0 && model[currentIndex] ? model[currentIndex].label : "未检测到设备"
             onActivated: function (index) {
-                root.selectedBundle = "";
                 backend.selectDevice(model[index].value);
             }
         }
@@ -102,24 +85,25 @@ Column {
             id: appButton
             objectName: "appPicker"
             Layout.fillWidth: true
-            implicitHeight: root.selectedApp && root.selectedApp.label ? 54 : 36
-            text: root.selectedApp ? (root.selectedApp.label || root.selectedApp.bundleName) : "请选择应用"
+            implicitHeight: Math.max(40, selectedBundleLabel.implicitHeight + 16)
+            text: root.selectedBundle || "请选择应用"
             enabled: !root.locked && backend.target.length > 0
+            Accessible.name: text + (root.selectedApp ? "，" + selectedStatus.text : "")
             contentItem: RowLayout {
-                Column {
+                spacing: 12
+                WText {
+                    id: selectedBundleLabel
                     Layout.fillWidth: true
-                    spacing: 4
-                    WText {
-                        width: parent.width
-                        text: appButton.text
-                    }
-                    WText {
-                        visible: !!root.selectedApp && !!root.selectedApp.label
-                        width: parent.width
-                        text: root.selectedBundle
-                        color: T.muted
-                        font.pixelSize: 12
-                    }
+                    Layout.minimumWidth: 0
+                    text: appButton.text
+                    color: appButton.enabled ? T.text : T.disabled
+                    wrapMode: Text.WrapAnywhere
+                    elide: Text.ElideNone
+                }
+                AppStatusTag {
+                    id: selectedStatus
+                    objectName: "selectedAppStatus"
+                    application: root.selectedApp
                 }
                 WIcon {
                     name: "DownOutlined"
@@ -135,12 +119,6 @@ Column {
                 backend.refreshApps();
                 appSearch.forceActiveFocus();
             }
-        }
-        WText {
-            visible: !!root.selectedApp
-            text: root.selectedApp && root.selectedApp.pid ? "运行中 · PID " + root.selectedApp.pid : "未运行"
-            font.pixelSize: 12
-            color: T.muted
         }
     }
     WText {
@@ -166,7 +144,7 @@ Column {
         acceptEnabled: backend.apps.some(function (a) {
             return a.bundleName === root.pendingBundle;
         })
-        onAccepted: root.selectedBundle = root.pendingBundle
+        onAccepted: backend.selectApp(root.pendingBundle)
         ColumnLayout {
             anchors.fill: parent
             spacing: 12
@@ -176,7 +154,7 @@ Column {
                     id: appSearch
                     objectName: "appSearch"
                     Layout.fillWidth: true
-                    placeholderText: "搜索应用名称或包名"
+                    placeholderText: "搜索完整包名"
                 }
                 WButton {
                     iconName: "ReloadOutlined"
@@ -193,7 +171,7 @@ Column {
                 clip: true
                 reuseItems: true
                 model: backend.apps.filter(function (a) {
-                    return ((a.label || "") + " " + a.bundleName).toLowerCase().indexOf(appSearch.text.toLowerCase()) >= 0;
+                    return a.bundleName.toLowerCase().indexOf(appSearch.text.toLowerCase()) >= 0;
                 })
                 ScrollBar.vertical: ScrollBar {}
                 delegate: ItemDelegate {
@@ -201,36 +179,30 @@ Column {
                     objectName: "app-" + modelData.bundleName
                     required property var modelData
                     width: appList.width
-                    height: 62
+                    height: Math.max(52, appBundleLabel.implicitHeight + 12)
+                    topPadding: 6
+                    bottomPadding: 6
                     background: Rectangle {
                         radius: 5
                         color: root.pendingBundle === appRow.modelData.bundleName ? T.selected : appRow.hovered ? T.chrome : "white"
                     }
                     contentItem: RowLayout {
+                        spacing: 12
                         RadioButton {
                             checked: root.pendingBundle === appRow.modelData.bundleName
                             onClicked: root.pendingBundle = appRow.modelData.bundleName
-                            Accessible.name: appRow.modelData.label || appRow.modelData.bundleName
-                        }
-                        Column {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            WText {
-                                width: parent.width
-                                text: appRow.modelData.label || appRow.modelData.bundleName
-                                font.weight: Font.DemiBold
-                            }
-                            WText {
-                                width: parent.width
-                                text: appRow.modelData.bundleName
-                                color: T.muted
-                                font.pixelSize: 12
-                            }
+                            Accessible.name: appRow.modelData.bundleName
                         }
                         WText {
-                            text: appRow.modelData.pid ? "运行中 · PID " + appRow.modelData.pid : "未运行"
-                            color: T.muted
-                            font.pixelSize: 12
+                            id: appBundleLabel
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: appRow.modelData.bundleName
+                            wrapMode: Text.WrapAnywhere
+                            elide: Text.ElideNone
+                        }
+                        AppStatusTag {
+                            application: appRow.modelData
                         }
                     }
                     onClicked: root.pendingBundle = modelData.bundleName

@@ -10,6 +10,7 @@ class Backend : public QObject {
   Q_OBJECT
   Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
   Q_PROPERTY(QVariantList apps READ apps NOTIFY appsChanged)
+  Q_PROPERTY(QString selectedBundle READ selectedBundle NOTIFY selectedBundleChanged)
   Q_PROPERTY(QVariantMap deviceInfo READ deviceInfo NOTIFY deviceChanged)
   Q_PROPERTY(QString target READ target NOTIFY deviceChanged)
   Q_PROPERTY(QString hdcPath READ hdcPath NOTIFY settingsChanged)
@@ -28,6 +29,7 @@ public:
   ~Backend() override;
   QVariantList devices() const { return mDevices.toVariantList(); }
   QVariantList apps() const { return mApps.toVariantList(); }
+  QString selectedBundle() const { return mSelectedBundle; }
   QVariantMap deviceInfo() const { return mDevice.toVariantMap(); }
   QString target() const { return mTarget; }
   QString hdcPath() const { return mHdc; }
@@ -52,6 +54,7 @@ public:
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
   Q_INVOKABLE void refreshApps();
+  Q_INVOKABLE void selectApp(const QString &bundle);
   Q_INVOKABLE void refreshRecords();
   Q_INVOKABLE void saveHdcPath(const QString &value);
   Q_INVOKABLE void saveSessionsDir(const QString &value);
@@ -79,6 +82,7 @@ public:
 signals:
   void devicesChanged();
   void appsChanged();
+  void selectedBundleChanged();
   void deviceChanged();
   void settingsChanged();
   void recordsChanged();
@@ -102,9 +106,10 @@ private:
   void collect();
   void finish(bool automatic = false);
   void saveSettings();
+  void rememberAppSelection(const QString &bundle);
   QString root() const;
   HdcClient client() const;
-  QString mProfile, mHdc, mTarget;
+  QString mProfile, mHdc, mTarget, mSelectedBundle;
   QJsonObject mSettings, mPreferences, mDevice, mStatus;
   QJsonArray mDevices, mApps, mRecords;
   Report *mLive;
