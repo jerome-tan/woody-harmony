@@ -86,7 +86,7 @@ def main():
     add('peak alignment',eval='compare.alignment="peak";compare.metric="GL";',assert_='comparisonPlot.alignment==="peak" && comparisonPlot.metric==="GL"')
     add('end alignment',eval='compare.alignment="end";',assert_='comparisonPlot.totalSpan>=359')
     add('choose baseline C in report list',eval='var originalColors=compare.reports.map(r=>r.compareColor).join();var originalPicks=JSON.stringify(compare.picked);qa.click(qa.find(compare,"reportBaseline-2"),-1,-1)',wait='compare.baselineIndex===2')
-    add('baseline moves first with stable identity',assert_='compare.ordered[0].meta.id==="Trend-3" && compare.label(compare.ordered[0]).indexOf("C ·")===0 && compare.reports.map(r=>r.compareColor).join()===originalColors && JSON.stringify(compare.picked)===originalPicks && qa.find(compare,"baselinePicker")===null',window='compare',screenshot='compare-baseline-c.png')
+    add('baseline moves first with stable identity',assert_='compare.ordered[0].meta.id==="Trend-3" && compare.label(compare.ordered[0])==="Trend-3" && compare.reports.map(r=>r.compareColor).join()===originalColors && JSON.stringify(compare.picked)===originalPicks && qa.find(compare,"baselinePicker")===null',window='compare',screenshot='compare-baseline-c.png')
     add('picked mode',eval='compare.tab=1')
     add('select a sample',delay=200,eval='var mini=qa.find(compare,"memoryPlot");qa.click(mini,mini.width*.35,mini.height*.4)',assert_='compare.selected(compare.ordered[0])!==123',window='compare')
     add('clear picked hover',eval='qa.hover(mini,0,0);qa.hover(compare.bodyItem,2,2)')
@@ -163,7 +163,7 @@ def main():
     add('restore main size',eval='root.width=1280;root.height=820')
     add('open Windows Help',eval='if(root.windowsChrome) qa.click(qa.find(root,"helpButton"),-1,-1)',wait='!root.windowsChrome || qa.find(root,"helpMenu").opened')
     add('about dialog',eval='if(root.windowsChrome) {qa.key(root,16777237);qa.key(root,16777220);} else {qa.print(JSON.stringify(qa.nativeMenuEntries())); if(!qa.triggerNativeMenu("Help/关于 Woody")) throw new Error("Native Help/About menu is missing");}',wait='qa.find(root,"aboutDialog").opened',screenshot='about.png')
-    add('close about',eval='qa.click(qa.find(qa.find(root,"aboutDialog"),"dialogClose"),-1,-1)',wait='!qa.find(root,"aboutDialog").opened')
+    add('close about',eval='qa.click(qa.find(qa.find(root,"aboutDialog"),"dialogDismiss"),-1,-1)',wait='!qa.find(root,"aboutDialog").opened')
     if args.hdc:
         add('live configuration',eval='root.raise();root.requestActivate();root.go("watch");',wait='backend.target.length>0 && qa.find(root,"startButton") && qa.find(root,"startButton").enabled')
         add('start live via button',eval='qa.click(qa.find(root,"startButton"),-1,-1)',wait='root.page==="live" && backend.live.count>=2',timeout=10000)
