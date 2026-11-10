@@ -64,6 +64,9 @@ jobs:
         run: cmake --build dist/qt-build --config Release --parallel 4
       - name: Test parser, report compatibility, and hdc lifecycle
         run: ctest --test-dir dist/qt-build -C Release --output-on-failure
+      - name: Print backend test diagnostics
+        if: always()
+        run: python -c 'from pathlib import Path; p=Path("dist/qt-build/qt/backend-test.txt"); print(p.read_text(encoding="utf-8", errors="replace") if p.exists() else "Backend test log was not produced.")'
       - name: Create shared deterministic reports
         run: python qt/scripts/generate-fixtures.py dist/qt-fixtures --benchmark
       - name: Prepare Windows desktop for responsive UI validation
@@ -142,6 +145,7 @@ jobs:
             dist/qt-package/package-sizes.json
             dist/qt-evidence/
             dist/qt-build/Testing/Temporary/LastTest.log
+            dist/qt-build/qt/backend-test.txt
           if-no-files-found: warn
           retention-days: 14
 
