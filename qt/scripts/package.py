@@ -54,9 +54,9 @@ def mac_package(args, staging, output, prefix):
     run(['ditto','-c','-k','--sequesterRsrc','--keepParent',app,portable])
     artifacts=[portable]
     if not args.skip_installer:
-        (staging/'Applications').symlink_to('/Applications')
+        from dmg import build_dmg
         dmg=output/(prefix+'.dmg')
-        run(['hdiutil','create','-volname','Woody','-srcfolder',staging,'-ov','-format','UDZO','-fs','HFS+',dmg])
+        build_dmg(app, dmg)
         artifacts.append(dmg)
     return app,artifacts
 
@@ -74,7 +74,12 @@ def windows_package(args, staging, output, prefix):
     run([args.qt/'bin/windeployqt.exe','--release','--no-compiler-runtime','--no-translations','--qmldir',ROOT/'qt/qml',folder/'Woody.exe'])
     # App-local CRT makes the ZIP usable on clean Windows without running a redistributable installer.
     vswhere=Path(os.environ.get('ProgramFiles(x86)',r'C:\Program Files (x86)'))/'Microsoft Visual Studio/Installer/vswhere.exe'
-    visual_studio=Path(subprocess.check_output([str(vswhere),'-latest','-products','*','-property','installationPath'],text=True).strip())
+    location = str(args.vs_install) if args.vs_install else subprocess.check_output(
+        [str(vswhere), '-utf8', '-latest', '-products', '*', '-version', '[17.0,18.0)',
+         '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+         '-property', 'installationPath'], text=True, encoding='utf-8').strip()
+    if not location: raise RuntimeError('Visual Studio 2022 with C++ tools not found')
+    visual_studio=Path(location)
     crt_dirs=sorted((visual_studio/'VC/Redist/MSVC').glob('*/x64/Microsoft.VC*.CRT'))
     if not crt_dirs:raise RuntimeError('MSVC app-local runtime not found')
     for dll in crt_dirs[-1].glob('*.dll'):shutil.copy2(dll,folder/dll.name)
@@ -135,7 +140,15 @@ SectionEnd
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--build',type=Path,required=True);parser.add_argument('--qt',type=Path,required=True);parser.add_argument('--output',type=Path,default=ROOT/'dist/qt-package',help='Fixed local output directory (default: dist/qt-package); override only for CI or an explicit export');parser.add_argument('--arch',choices=['arm64','x64'],required=True);parser.add_argument('--skip-installer',action='store_true');args=parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--build', type=Path, required=True)
+    parser.add_argument('--qt', type=Path, required=True)
+    parser.add_argument('--output', type=Path, default=ROOT/'dist/qt-package',
+                        help='Fixed local output directory (default: dist/qt-package); override only for CI or an explicit export')
+    parser.add_argument('--arch', choices=['arm64', 'x64'], required=True)
+    parser.add_argument('--skip-installer', action='store_true')
+    parser.add_argument('--vs-install', type=Path, help='Visual Studio 2022 instance used for the build')
+    args = parser.parse_args()
     args.build=args.build.resolve();args.qt=args.qt.resolve();output=args.output.resolve();output.mkdir(parents=True,exist_ok=True)
     staging=output/'staging'
     if staging.exists():shutil.rmtree(staging)

@@ -47,6 +47,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           python -c 'import os,pathlib; expected="v"+pathlib.Path("VERSION").read_text(encoding="utf-8").strip(); assert os.environ["GITHUB_REF_NAME"]==expected, "Tag must match VERSION: "+expected'
+      - name: Test local build driver
+        run: python -m unittest discover -s qt/tests -p 'test_*.py'
+      - name: Prepare macOS DMG layout tools
+        if: matrix.platform == 'mac'
+        run: python qt/scripts/dmg.py --prepare
       - name: Install pinned official Qt SDK
         run: python qt/scripts/install-qt.py --output "$RUNNER_TEMP/qt-sdk"
       - name: Configure macOS

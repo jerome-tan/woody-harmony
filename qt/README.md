@@ -36,6 +36,54 @@ their complete comparison table. Saving uses the system file dialog.
 
 ## Build
 
+For local builds, prefer the cross-platform driver at the repository root:
+
+```sh
+python3 build.py                 # macOS (native Apple Silicon or Intel)
+# py -3 build.py                 # Windows x64; regular PowerShell/cmd works
+python3 build.py --check         # preflight only; does not download or build
+python3 build.py --jobs 8
+python3 build.py --skip-installer # keep tests and ZIP; omit DMG/NSIS installer
+python3 build.py --skip-tests     # omit test compilation and execution; still package
+python3 build.py --skip-tests --skip-installer # quick local build with ZIP only
+python3 build.py --qt /absolute/path/to/Qt/6.12.0/macos
+```
+
+On Windows replace `python3` with `py -3`, and use the `msvc2022_64` kit
+for `--qt`. The driver checks system prerequisites, downloads and verifies the
+pinned official Qt SDK if missing, configures Release with tests enabled by default, builds,
+runs all CTest groups, and packages only after successful tests. It stops on the
+first failure and returns a nonzero exit code. No device is required for CTest;
+the hdc lifecycle tests use an isolated simulated device.
+
+For faster local builds, `--skip-tests` sets `BUILD_TESTING=OFF` and skips CTest,
+while still compiling and packaging the application. It applies only to that
+invocation: running without the flag explicitly restores `BUILD_TESTING=ON`
+and runs tests again. The completion message indicates when tests were skipped.
+GitHub Actions continues to run tests.
+
+Python 3.10+ on macOS (3.9+ on Windows), Git and CMake 3.24+ must be on PATH. macOS also needs Xcode Command
+Line Tools and Ninja. Windows needs Visual Studio/Build Tools 2022 with desktop
+C++ (MSVC v143), a Windows 10/11 SDK, 7-Zip for SDK extraction, and NSIS 3 for the
+installer (`--skip-installer` removes the NSIS requirement). System tools are
+checked, not installed automatically. macOS DMG packaging automatically prepares
+`dmgbuild` and its dependencies in `dist/dmg-tools`, using pinned versions and
+verified wheel hashes; no global pip packages or Finder automation permission
+are needed. This first-time setup requires network access. Existing complete kits skip SDK download
+and extraction. `--check` with no SDK validates bootstrap prerequisites and
+reports that the real build will download Qt; it does not test network access.
+
+All paths are anchored to the repository, even when invoked from another working
+directory. The driver reuses `dist/qt-build.noindex`, `dist/qt-sdk` and
+`dist/qt-package`; it does not create per-build app copies, launch the app, or
+publish to GitHub. Exit the packaged Woody app before rebuilding. An incompatible
+CMake cache produces an actionable error rather than being deleted automatically.
+Remove only `dist/qt-build.noindex` when switching kits/generators/architectures.
+Old packages may remain after a failure; only the final success message confirms
+a newly completed build. See the [Chinese quick start](../README.md#开发).
+
+The commands below are the equivalent manual steps for advanced use.
+
 Install Qt **6.12.0 exactly**, with Qt Base, Declarative, SVG, Tools, Shader Tools,
 and Translations. `scripts/install-qt.py` downloads the official SDK, checks
 archive hashes, and supports Qt 6.12's nested repository layout.
@@ -73,6 +121,12 @@ to this fixed output directory and replaces its staging app on each run. Do not
 create another package directory for each UI change; keep per-change screenshots
 and logs separately. The app to launch is
 `dist/qt-package/staging/Woody.app`, and the DMG/ZIP are in `dist/qt-package`.
+
+The DMG opens a 640 × 432 point Finder window with lavender 1x/2x artwork,
+Woody on the left, Applications on the right, and drag-to-install instructions.
+The layout is generated headlessly for both local builds and CI. Background
+sources and regeneration instructions are in [resources/dmg](resources/dmg/README.md).
+Eject any previously mounted image before inspecting a rebuilt DMG.
 
 The `.noindex` build directory keeps the SDK-linked development bundle out of
 Spotlight's file index ([Apple documentation](https://developer.apple.com/documentation/xcode/locating-a-missing-debug-symbol-file)).
