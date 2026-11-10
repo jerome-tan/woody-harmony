@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLockFile>
 #include <QTextStream>
 #include <QThread>
 
@@ -17,8 +18,17 @@ int main(int argc, char **argv) {
   stateFile.close();
   const auto args = app.arguments().mid(1);
   const auto command = args.join(' ');
-  QFile log(qEnvironmentVariable("WOODY_FAKE_STATE") + ".commands");
-  if (log.open(QIODevice::WriteOnly | QIODevice::Append)) {
+  {
+    const auto logPath = qEnvironmentVariable("WOODY_FAKE_STATE") + ".commands";
+    // Device metadata and app queries run in separate processes. Serialize
+    // append writes so Windows file offsets cannot overwrite a start marker.
+    // Release both handles before simulating a slow command or disconnect.
+    QLockFile lock(logPath + ".lock");
+    if (!lock.tryLock(5000))
+      return 3;
+    QFile log(logPath);
+    if (!log.open(QIODevice::WriteOnly | QIODevice::Append))
+      return 3;
     log.write(QJsonDocument(QJsonArray::fromStringList(args))
                   .toJson(QJsonDocument::Compact) +
               '\n');
