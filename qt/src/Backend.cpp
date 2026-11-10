@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <QEvent>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QStandardPaths>
@@ -21,6 +22,37 @@
 #include <stdexcept>
 
 namespace {
+void centerNativeFrame(QWindow *window) {
+  if (!window->screen()) return;
+  const auto available = window->screen()->availableGeometry();
+  const auto frame = window->frameGeometry().size();
+  window->setFramePosition(available.topLeft() +
+      QPoint(qMax(0, (available.width() - frame.width()) / 2),
+             qMax(0, (available.height() - frame.height()) / 2)));
+}
+
+// Native frame margins can settle only when a window is first exposed (not
+// merely created). Correct initial placement once, without moving later windows.
+class InitialWindowPlacement final : public QObject {
+public:
+  explicit InitialWindowPlacement(QWindow *window) : QObject(window) {
+    window->installEventFilter(this);
+  }
+protected:
+  bool eventFilter(QObject *object, QEvent *event) override {
+    auto *window = static_cast<QWindow *>(object);
+    if (event->type() == QEvent::Expose && window->isExposed()) {
+      window->removeEventFilter(this);
+      QTimer::singleShot(0, window, [window] {
+        if (window->isVisible() && window->visibility() == QWindow::Windowed)
+          centerNativeFrame(window);
+      });
+      deleteLater();
+    }
+    return false;
+  }
+};
+
 qint64 now() { return QDateTime::currentMSecsSinceEpoch(); }
 QString failure(const std::exception &error) {
   return QString::fromUtf8(error.what());
@@ -141,13 +173,11 @@ void Backend::showWindowCentered(QObject *object, QObject *screenReference) {
                         available.height() - 48 - margins.top() - margins.bottom());
     // Explicit defaults avoid macOS titlebar expansion changing the first size.
     window->resize(initialSize.boundedTo(maximum).expandedTo(window->minimumSize()));
-    const auto frame = window->frameGeometry().size();
-    window->setFramePosition(available.topLeft() +
-        QPoint(qMax(0, (available.width() - frame.width()) / 2),
-               qMax(0, (available.height() - frame.height()) / 2)));
+    centerNativeFrame(window);
   } else {
     window->resize(initialSize);
   }
+  if (!window->isVisible()) new InitialWindowPlacement(window);
   window->show();
   window->raise();
   window->requestActivate();
