@@ -61,6 +61,12 @@ jobs:
         run: ctest --test-dir dist/qt-build -C Release --output-on-failure
       - name: Create shared deterministic reports
         run: python qt/scripts/generate-fixtures.py dist/qt-fixtures --benchmark
+      - name: Prepare Windows desktop for responsive UI validation
+        if: matrix.platform == 'win'
+        shell: powershell
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Get-DisplayResolution
       - name: Validate native macOS UI and live capture
         if: matrix.platform == 'mac'
         run: python qt/scripts/ui-smoke.py --exe dist/qt-build/qt/Woody.app/Contents/MacOS/Woody --hdc dist/qt-build/qt/woody_fake_hdc --output dist/qt-evidence/built --fixtures dist/qt-fixtures

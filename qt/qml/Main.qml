@@ -13,7 +13,7 @@ WindowBase {
     initialWidth: 1000
     initialHeight: 740
     minimumWidth: 720
-    minimumHeight: 680
+    minimumHeight: 560
     mainWindow: true
     caption: "Woody"
     captionNote: backend.target ? F.device(backend.deviceInfo, backend.target) : "未连接设备"
