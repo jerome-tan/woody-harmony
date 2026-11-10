@@ -1,4 +1,5 @@
 .pragma library
+function debugMode(value) { return value === true ? "Debug" : value === false ? "Release" : "未知"; }
 function bytes(kb) { kb=Number(kb)||0; return Math.abs(kb)>=1048576?(kb/1048576).toFixed(2)+" GB":Math.abs(kb)>=1024?(kb/1024).toFixed(1)+" MB":Math.round(kb)+" kB" }
 function delta(kb) { return (kb>=0?"+":"−")+bytes(Math.abs(kb)) }
 function duration(ms) { var s=Math.round((Number(ms)||0)/1000);return s<60?s+"s":Math.floor(s/60)+"m"+s%60+"s" }
@@ -7,6 +8,8 @@ function device(d,fallback) { d=d||{};var name=d.marketName||d.model||"",sn=d.se
 function title(meta) {return meta.taskName||meta.appLabel||meta.bundleName||"报告"}
 function taskName(){return "Task-"+Qt.formatDateTime(new Date(),"yyyyMMdd-HHmmss")}
 function mb(kb){return (Number(kb||0)/1024).toFixed(2)}
+function memoryMb(kb) { var n=Number(kb)||0; return (n/1024).toFixed(n!==0&&Math.abs(n)<10.24?3:2)+" MB"; }
+function deltaMb(kb) { return (kb>=0?"+":"−")+memoryMb(Math.abs(kb)); }
 function categoryRows(s) {s=s||{};var rows=[];if(!s.total)return rows;rows.push(Object.assign({name:"Total",fixed:true},s.total));Object.keys(s.categories||{}).forEach(function(k){rows.push(Object.assign({name:k},s.categories[k]))});Object.keys(s.nativeHeapDetail||{}).forEach(function(k){rows.push(Object.assign({name:"↳ "+k},s.nativeHeapDetail[k]))});return rows}
 
 function categoryName(name) { return {"native heap":"Native heap", "ark ts heap":"ArkTS heap", "stack":"Stack"}[name] || name; }

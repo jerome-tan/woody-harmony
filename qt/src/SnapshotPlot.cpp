@@ -114,7 +114,7 @@ void SnapshotPlot::paint(QPainter *p) {
     std::sort(side.begin(), side.end(),
               [](auto a, auto b) { return a->y < b->y; });
     const double spacing =
-        std::min(32.0, (height() - 32) / std::max<qsizetype>(1, side.size()));
+        std::min(24.0, (height() - 32) / std::max<qsizetype>(1, side.size()));
     double previous = 16 - spacing;
     for (auto *label : side) {
       label->y = std::max(previous + spacing, label->y);
@@ -127,26 +127,29 @@ void SnapshotPlot::paint(QPainter *p) {
     }
     for (const auto *label : side) {
       const double direction = right ? 1 : -1;
-      const QPointF end(center.x() + direction * (radius + 25), label->y);
+      const QPointF end(center.x() + direction * (radius + 12), label->y);
       const QPointF bend(end.x() - direction * 12, label->y);
       p->setPen(QColor("#bfbfbf"));
       p->drawLine(label->edge, bend);
       p->drawLine(bend, end);
       const double available =
-          std::max(20.0, right ? width() - end.x() - 4 : end.x() - 4);
-      const QRectF rect(right ? end.x() + 3 : 1, label->y - 14, available, 30);
-      const int align = right ? Qt::AlignLeft : Qt::AlignRight;
+          std::max(0.0, right ? width() - end.x() - 7 : end.x() - 7);
+      const QString value = QString::number(label->slice.value / 1024, 'f', 1) +
+                            " MB · " + QString::number(label->slice.value / sum * 100, 'f', 1) + "%";
+      const QFontMetricsF metrics(p->font());
+      const QString detail = metrics.elidedText(value, Qt::ElideRight, available);
+      const double detailWidth = metrics.horizontalAdvance(detail);
+      const QString name = metrics.elidedText(displayCategory(label->slice.name),
+                                              Qt::ElideRight, std::max(0.0, available - detailWidth - 6));
+      const double nameWidth = metrics.horizontalAdvance(name);
+      const double gap = name.isEmpty() ? 0 : 6;
+      const double x = right ? end.x() + 3
+                             : end.x() - 3 - nameWidth - gap - detailWidth;
+      const double baseline = label->y + (metrics.ascent() - metrics.descent()) / 2;
       p->setPen(QColor("#241D35"));
-      p->drawText(QRectF(rect.x(), rect.y(), rect.width(), 15),
-                  align | Qt::AlignVCenter,
-                  p->fontMetrics().elidedText(displayCategory(label->slice.name), Qt::ElideRight,
-                                              rect.width()));
+      p->drawText(QPointF(x, baseline), name);
       p->setPen(QColor("#665E73"));
-      p->drawText(
-          QRectF(rect.x(), rect.y() + 15, rect.width(), 15),
-          align | Qt::AlignVCenter,
-          QString::number(label->slice.value / 1024, 'f', 1) + " MB · " +
-              QString::number(label->slice.value / sum * 100, 'f', 1) + "%");
+      p->drawText(QPointF(x + nameWidth + gap, baseline), detail);
     }
   }
   p->setPen(Qt::NoPen);

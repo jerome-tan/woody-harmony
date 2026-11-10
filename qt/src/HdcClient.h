@@ -17,6 +17,7 @@ public:
   QString shell(const QString &command, int timeoutMs = 20000) const;
   QJsonArray devices() const;
   QJsonArray apps() const;
+  QJsonValue appDebugMode(const QString &bundle) const;
   QJsonObject deviceInfo() const;
   qint64 pid(const QString &bundle) const;
   static void validateBundle(const QString &bundle);

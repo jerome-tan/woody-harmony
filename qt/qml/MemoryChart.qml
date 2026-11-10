@@ -12,6 +12,7 @@ WCard {
     property var reports: []
     property bool live: false
     property bool compact: false
+    property bool wheelEnabled: true
     property bool comparison: false
     property string expandedTitle: ""
     property bool controls: true
@@ -25,8 +26,21 @@ WCard {
     property bool smooth: false
     property bool points: false
     readonly property bool blockedByDialog: Window.window ? !!Window.window.modalDialogOpen : false
-    readonly property bool narrow: width < 820
+    readonly property bool narrow: width < 1000
     readonly property bool hasCategories: legend && reports.length === 1
+    readonly property var detailReport: hasCategories ? reports[0] : null
+    readonly property int detailIndex: detailReport && detailReport.count > 0 ? (selectedIndex >= 0 ? Math.min(selectedIndex, detailReport.count - 1) : detailReport.count - 1) : -1
+    readonly property var detailData: {
+        // Reading count keeps the default latest point reactive during recording.
+        if (!detailReport || detailReport.count === 0)
+            return ({});
+        return detailReport.sampleDetails(detailIndex);
+    }
+    function selectPoint(index) {
+        if (hasCategories)
+            selectedIndex = index;
+        pointSelected(index);
+    }
     property alias plotItem: plot
     property bool maximized: false
     function openDisplayOptions(button) {
@@ -148,54 +162,66 @@ WCard {
             Column {
                 width: categoryScroll.availableWidth
                 spacing: 6
+                RowLayout {
+                    width: parent.width
+                    WText {
+                        Layout.fillWidth: true
+                        text: chart.detailIndex < 0 ? "采样点明细" : (chart.selectedIndex < 0 ? "最新采样点" : "已选采样点") + " · " + (chart.detailIndex + 1)
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                    WButton {
+                        visible: chart.selectedIndex >= 0
+                        text: "返回最新"
+                        small: true
+                        tone: "quiet"
+                        onClicked: chart.selectedIndex = -1
+                    }
+                }
                 WText {
-                    text: "内存分类"
+                    width: parent.width
+                    text: chart.detailData.heading || "暂无采样数据"
                     color: T.muted
                     font.pixelSize: 12
-                    height: 28
+                }
+                WText {
+                    width: parent.width
+                    visible: chart.detailIndex >= 0 && !chart.detailData.valid
+                    text: "此采样点无有效内存数据"
+                    color: T.muted
+                    font.pixelSize: 12
+                }
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: T.border
                 }
                 Repeater {
-                    model: chart.reports.length ? chart.reports[0].categories : []
+                    model: chart.detailData.items || []
                     RowLayout {
                         id: categoryRow
-                        required property string modelData
-                        required property int index
-                        readonly property var sample: chart.reports.length && chart.reports[0].stats.currentValid ? chart.reports[0].sampleAt(chart.reports[0].count - 1) : ({})
-                        readonly property var value: modelData === "Total" ? (sample.total || {}).pssTotalKb : ((sample.categories || {})[modelData] || {}).pssTotalKb
+                        required property var modelData
                         width: parent.width
                         spacing: 8
                         WCheck {
-                            objectName: "category-" + modelData
-                            Accessible.name: modelData
-                            checked: chart.hidden.indexOf(modelData) < 0
+                            objectName: "category-" + categoryRow.modelData.name
+                            Accessible.name: categoryRow.modelData.name
+                            checked: chart.hidden.indexOf(categoryRow.modelData.name) < 0
                             onClicked: {
-                                var a = chart.hidden.slice(), i = a.indexOf(modelData);
+                                var a = chart.hidden.slice(), i = a.indexOf(categoryRow.modelData.name);
                                 if (i < 0)
-                                    a.push(modelData);
+                                    a.push(categoryRow.modelData.name);
                                 else
                                     a.splice(i, 1);
                                 chart.hidden = a;
                             }
                         }
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: backend.colorOf(modelData, index)
-                        }
-                        WText {
+                        MemoryDetailRow {
                             Layout.fillWidth: true
-                            text: F.categoryName(modelData)
-                            font.pixelSize: 12
+                            detail: categoryRow.modelData
                             HoverHandler {
-                                onHoveredChanged: plot.highlight = hovered ? categoryRow.modelData : ""
+                                onHoveredChanged: plot.highlight = hovered ? categoryRow.modelData.name : ""
                             }
-                        }
-                        WText {
-                            Layout.preferredWidth: 64
-                            text: categoryRow.value === undefined ? "—" : F.bytes(categoryRow.value)
-                            font.pixelSize: 12
-                            horizontalAlignment: Text.AlignRight
                         }
                     }
                 }
@@ -209,7 +235,7 @@ WCard {
         parent: categoriesButton
         x: Math.min(0, categoriesButton.width - width)
         y: categoriesButton.height + 5
-        width: 220
+        width: Math.min(380, chart.Window.window ? chart.Window.window.width - 24 : 380)
         height: Math.min(360, chart.height - 8)
         padding: 14
         focus: true
@@ -234,10 +260,11 @@ WCard {
             reports: chart.reports
             live: chart.live
             compact: chart.compact
+            wheelEnabled: chart.wheelEnabled
             comparison: chart.comparison
             metric: chart.metric
             alignment: chart.alignment
-            selectedIndex: chart.selectedIndex
+            selectedIndex: chart.hasCategories ? chart.detailIndex : chart.selectedIndex
             smooth: chart.smooth
             points: chart.points
             hiddenCategories: chart.hidden
@@ -258,7 +285,7 @@ WCard {
                 }
             }
             onPointSelected: function (index) {
-                chart.pointSelected(index);
+                chart.selectPoint(index);
             }
         }
         Rectangle {
@@ -270,7 +297,7 @@ WCard {
         Loader {
             visible: chart.hasCategories && !chart.narrow
             active: visible
-            Layout.preferredWidth: 230
+            Layout.preferredWidth: 350
             Layout.fillHeight: true
             Layout.leftMargin: visible ? 12 : 0
             sourceComponent: categoryList
@@ -279,6 +306,7 @@ WCard {
 
     ChartTip {
         objectName: "chartTip"
+        allowAboveSource: chart.compact
         data: plot.tooltip
         source: !chart.visible || chart.blockedByDialog || expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
         alpha: chart.tooltipAlpha
@@ -303,6 +331,8 @@ WCard {
         onAboutToHide: {
             if (!expandedLoader.item)
                 return;
+            if (chart.hasCategories)
+                chart.selectedIndex = expandedLoader.item.selectedIndex;
             chart.hidden = expandedLoader.item.hidden;
             chart.points = expandedLoader.item.points;
             chart.smooth = expandedLoader.item.smooth;
@@ -350,7 +380,7 @@ WCard {
                         expanded.close();
                     });
                     item.pointSelected.connect(function (index) {
-                        chart.pointSelected(index);
+                        chart.selectPoint(index);
                     });
                 }
             }

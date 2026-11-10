@@ -22,7 +22,7 @@ ColumnLayout {
                 width: parent.width
                 WText {
                     Layout.fillWidth: true
-                    text: root.watch ? "实时查看" : F.title(root.report.meta)
+                    text: root.watch ? "内存监测" : F.title(root.report.meta)
                     font.pixelSize: 20
                     font.weight: Font.DemiBold
                 }
@@ -41,7 +41,7 @@ ColumnLayout {
         WButton {
             id: stopButton
             objectName: "stopButton"
-            text: root.waiting ? "结束等待" : root.watch ? "结束查看" : "结束采样"
+            text: root.waiting ? "结束等待" : root.watch ? "结束监测" : "结束录制"
             contentItem: RowLayout {
                 spacing: 8
                 Rectangle {

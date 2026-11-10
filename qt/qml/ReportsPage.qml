@@ -76,7 +76,7 @@ ColumnLayout {
                     },
                     {
                         key: "trend",
-                        label: "持续采样"
+                        label: "内存录制"
                     },
                     {
                         key: "snapshot",
@@ -154,6 +154,7 @@ ColumnLayout {
             anchors.fill: parent
             rows: root.filtered
             selectable: true
+            numberedSelection: true
             selected: root.selected
             editableColumns: true
             preferenceKey: "reports.columns.v1"
@@ -180,7 +181,7 @@ ColumnLayout {
                         return v === "snapshot" ? "CameraOutlined" : "LineChartOutlined";
                     },
                     format: function (v) {
-                        return v === "snapshot" ? "内存快照" : "持续采样";
+                        return v === "snapshot" ? "内存快照" : "内存录制";
                     }
                 },
                 {

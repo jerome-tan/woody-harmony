@@ -136,7 +136,7 @@ void ReportStore::remove(const QString &directory,
   if (!lockedDirectory.isEmpty() &&
       info.canonicalFilePath() ==
           QFileInfo(lockedDirectory).canonicalFilePath())
-    fail(QStringLiteral("该记录正在采样中，无法删除"));
+    fail(QStringLiteral("该报告正在录制中，无法删除"));
   if (!QDir(directory).removeRecursively())
     fail(QStringLiteral("删除报告失败，请检查文件权限"));
 }

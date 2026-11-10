@@ -11,12 +11,13 @@
 #include <limits>
 
 namespace {
-QString bytes(double kb) {
-  if (std::abs(kb) >= 1048576)
+QString megabytes(double kb) {
+  return QString::number(kb / 1024, 'f', kb != 0 && std::abs(kb) < 1024 ? 3 : 1) + " MB";
+}
+QString peakLabel(double kb) {
+  if (std::abs(kb) > 1048576)
     return QString::number(kb / 1048576, 'f', 2) + " GB";
-  if (std::abs(kb) >= 1024)
-    return QString::number(kb / 1024, 'f', 1) + " MB";
-  return QString::number(std::round(kb), 'f', 0) + " kB";
+  return megabytes(kb);
 }
 QPainterPath linePath(const QVector<QPointF> &points, bool smooth) {
   QPainterPath path;
@@ -73,8 +74,9 @@ void MemoryPlot::invalidate() {
   update();
 }
 QRectF MemoryPlot::plotRect() const {
-  return {mCompact ? 60.0 : 72.0, 30,
-          std::max(1.0, width() - (mCompact ? 78 : 94)),
+  // Fixed MB labels need room for four-digit values even in comparison cards.
+  return {90.0, 30,
+          std::max(1.0, width() - (mCompact ? 108 : 112)),
           std::max(1.0, height() - (mCompact ? 92 : 114))};
 }
 QRectF MemoryPlot::overviewRect() const {
@@ -238,7 +240,7 @@ void MemoryPlot::draw(QPainter &p) {
     if (hasMeasurements)
       p.drawText(QRectF(0, y - 8, area.left() - 8, 16),
                  Qt::AlignRight | Qt::AlignVCenter,
-                 bytes(lower + (upper - lower) * i / ticks));
+                 megabytes(lower + (upper - lower) * i / ticks));
   }
   const int timeTicks = mEnd - mStart < 4 ? 2 : 4;
   for (int i = 0; i <= timeTicks; ++i) {
@@ -338,7 +340,7 @@ void MemoryPlot::draw(QPainter &p) {
     p.drawEllipse(at, 4.5, 4.5);
     if (&series != labelSeries)
       continue;
-    const auto text = QStringLiteral("峰值 ") + bytes(value.y());
+    const auto text = QStringLiteral("峰值 ") + peakLabel(value.y());
     const double labelWidth = p.fontMetrics().horizontalAdvance(text) + 12;
     QRectF label(std::clamp(at.x() - labelWidth / 2, area.left(),
                             area.right() - labelWidth),
@@ -362,8 +364,8 @@ void MemoryPlot::draw(QPainter &p) {
     }
   }
   const auto overview = overviewRect();
-  p.setPen(QColor("#E7E2EF"));
-  p.setBrush(QColor("#F8F7FC"));
+  p.setPen(QColor("#D1D5DB"));
+  p.setBrush(QColor("#F3F4F6"));
   p.drawRoundedRect(overview, 2, 2);
   if (!mSeries.isEmpty()) {
     const auto &series = mSeries.first();
@@ -379,13 +381,13 @@ void MemoryPlot::draw(QPainter &p) {
                     overview.bottom() - v.y() / peak * (overview.height() - 3));
     path.lineTo(overview.bottomRight());
     path.closeSubpath();
-    p.fillPath(path, QColor("#EDE9FE"));
+    p.fillPath(path, QColor("#D1D5DB"));
   }
   QRectF selection(overview.left() + mStart / mSpan * overview.width(),
                    overview.top(), (mEnd - mStart) / mSpan * overview.width(),
                    overview.height());
-  p.setPen(QColor("#A78BFA"));
-  p.setBrush(QColor(196, 181, 253, 55));
+  p.setPen(QColor("#9CA3AF"));
+  p.setBrush(QColor(156, 163, 175, 55));
   p.drawRect(selection);
   p.setBrush(Qt::white);
   for (double x : {selection.left(), selection.right()})
@@ -437,31 +439,11 @@ void MemoryPlot::hoverAt(const QPointF &position) {
     mHoverTime = (sample["timestamp"].toDouble() -
                   report->samples.first()["timestamp"].toDouble()) /
                  1000;
-    heading = QString::number(mHoverTime, 'f', 1) + " s · " +
-              QDateTime::fromMSecsSinceEpoch(sample["timestamp"].toInteger())
-                  .toString("HH:mm:ss.zzz");
-    const double total = Report::value(sample, "Total");
-    QList<QVariantMap> rows;
-    for (int i = 0; i < report->categories().size(); ++i) {
-      const auto name = report->categories()[i];
-      if (mHidden.contains(name))
-        continue;
-      const double v = Report::value(sample, name);
-      rows.append({{"name", name},
-                   {"kb", v},
-                   {"color", Report::color(name, i).name()},
-                   {"percent", total > 0 ? v / total * 100 : 0}});
-    }
-    std::stable_sort(rows.begin(), rows.end(),
-                     [](const auto &a, const auto &b) {
-                       if (a["name"] == "Total")
-                         return true;
-                       if (b["name"] == "Total")
-                         return false;
-                       return a["kb"].toDouble() > b["kb"].toDouble();
-                     });
-    for (const auto &row : rows)
-      items.append(row);
+    const auto details = report->sampleDetails(index);
+    heading = details["heading"].toString();
+    for (const auto &row : details["items"].toList())
+      if (!mHidden.contains(row.toMap()["name"].toString()))
+        items.append(row);
   } else {
     mHoverTime = time;
     heading = QString::number(time, 'f', 1) + " s";
@@ -500,6 +482,11 @@ void MemoryPlot::hoverLeaveEvent(QHoverEvent *) {
   emit tooltipChanged();
 }
 void MemoryPlot::wheelEvent(QWheelEvent *event) {
+  if (!mWheelEnabled) {
+    hoverLeaveEvent(nullptr);
+    event->ignore();
+    return;
+  }
   if (!plotRect().contains(event->position()) &&
       !overviewRect().contains(event->position())) {
     event->ignore();

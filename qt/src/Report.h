@@ -31,6 +31,7 @@ public:
   void append(const QJsonObject &sample);
   void reset();
   Q_INVOKABLE QVariantMap sampleAt(int index) const;
+  Q_INVOKABLE QVariantMap sampleDetails(int index) const;
   Q_INVOKABLE int nearest(double seconds) const;
   Q_INVOKABLE int peakIndex(const QString &metric = "Total") const;
   static bool isMeasurement(const QJsonObject &sample);

@@ -84,6 +84,7 @@ struct JobResult {
 
 Backend::Backend(QString profile, QObject *parent)
     : QObject(parent), mProfile(std::move(profile)), mLive(new Report(this)),
+      mDeviceMonitor(this),
       mQuit(std::make_shared<std::atomic_bool>(false)) {
   if (mProfile.isEmpty())
     mProfile =
@@ -126,6 +127,17 @@ Backend::Backend(QString profile, QObject *parent)
   mStatus = {{"state", "idle"}};
   mTimer.setSingleShot(true);
   connect(&mTimer, &QTimer::timeout, this, &Backend::collect);
+  mDeviceRetryTimer.setSingleShot(true);
+  // Discovery must not queue behind slow device/app queries or a capture.
+  mDiscoveryPool.setMaxThreadCount(1);
+  mAppInfoPool.setMaxThreadCount(2);
+  connect(&mDeviceRetryTimer, &QTimer::timeout, this,
+          [this] { discoverDevices(false); });
+  connect(&mDeviceMonitor, &DeviceMonitor::topologyChanged, this,
+          [this](bool arrival) { beginDeviceRefresh(arrival ? 1 : -1); },
+          Qt::QueuedConnection);
+  connect(&mDeviceMonitor, &DeviceMonitor::resumed, this,
+          [this] { beginDeviceRefresh(0); }, Qt::QueuedConnection);
   const auto checkQuit = [this] {
     if (mQuitting && !mActive && !mSnapshotting)
       emit quitReady();
@@ -141,6 +153,9 @@ bool Backend::toolPathExists(const QString &path) const {
 
 void Backend::requestQuit() {
   mQuitting = true;
+  mDeviceRetryActive = false;
+  mDeviceRetryTimer.stop();
+  mDeviceMonitor.stop();
   if (mActive)
     stopSampling();
   if (!mActive && !mSnapshotting)
@@ -178,7 +193,11 @@ void Backend::showWindowCentered(QObject *object, QObject *screenReference) {
     window->resize(initialSize);
   }
   if (!window->isVisible()) new InitialWindowPlacement(window);
-  window->show();
+  const auto maximizedKey = window->property("maximizedPreferenceKey").toString();
+  if (!maximizedKey.isEmpty() && uiPreference(maximizedKey, false).toBool())
+    window->showMaximized();
+  else
+    window->show();
   window->raise();
   window->requestActivate();
 }
@@ -188,7 +207,10 @@ void Backend::copyText(const QString &text) {
 }
 
 Backend::~Backend() {
+  mDeviceMonitor.stop();
   mQuit->store(true);
+  if (mDeviceCancel)
+    mDeviceCancel->store(true);
   if (mSnapshotCancel) mSnapshotCancel->store(true);
   if (mCancel)
     mCancel->store(true);
@@ -210,7 +232,8 @@ QUrl Backend::toFileUrl(const QString &file) const {
   return QUrl::fromLocalFile(file);
 }
 
-void Backend::run(std::function<QJsonValue()> task, Completion done) {
+void Backend::run(std::function<QJsonValue()> task, Completion done,
+                  QThreadPool *pool) {
   auto *watcher = new QFutureWatcher<JobResult>(this);
   connect(watcher, &QFutureWatcher<JobResult>::finished, this,
           [watcher, done = std::move(done)] {
@@ -218,7 +241,8 @@ void Backend::run(std::function<QJsonValue()> task, Completion done) {
             watcher->deleteLater();
             done(result.value, result.error);
           });
-  watcher->setFuture(QtConcurrent::run([task = std::move(task)] {
+  watcher->setFuture(QtConcurrent::run(pool ? pool : QThreadPool::globalInstance(),
+                                     [task = std::move(task)] {
     try {
       return JobResult{task(), {}};
     } catch (const std::exception &error) {
@@ -234,30 +258,169 @@ void Backend::initialize() {
           mHdc = value.toString();
           emit settingsChanged();
         }
-        refreshDevices();
+        if (mQuitting) return;
+        // GUI-less tests drive the same signals explicitly, without host USB events.
+        if (qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
+          QString monitorError;
+          if (!mDeviceMonitor.start(&monitorError))
+            emit notification(QStringLiteral("设备事件监听不可用，请手动刷新设备。%1")
+                                  .arg(monitorError));
+        }
+        beginDeviceRefresh(0);
       });
   refreshRecords();
 }
 
 void Backend::refreshDevices() {
-  if (mDiscovering)
+  // Explicit refresh performs one query; never starts a periodic fallback.
+  mDeviceRetryActive = false;
+  mDeviceRetryTimer.stop();
+  ++mDiscoveryRevision;
+  discoverDevices(true);
+}
+
+void Backend::beginDeviceRefresh(int goal) {
+  if (mQuitting) return;
+  ++mDiscoveryRevision;
+  mDeviceRetryGoal = goal;
+  mDeviceRetryBaseline.clear();
+  for (const auto &entry : mDevices)
+    mDeviceRetryBaseline.insert(entry.toObject()["targetId"].toString());
+  mDeviceRetryIndex = 0;
+  mDeviceRetryClock.start();
+  mDeviceRetryActive = true;
+  // Coalesce the multiple interface notifications emitted by a composite USB device.
+  mDeviceRetryTimer.start(100);
+}
+
+void Backend::continueDeviceRefresh(const QJsonArray &devices, bool success) {
+  if (!mDeviceRetryActive || mQuitting) return;
+  QSet<QString> current;
+  for (const auto &entry : devices)
+    current.insert(entry.toObject()["targetId"].toString());
+  const bool settled = success && (mDeviceRetryGoal > 0
+      ? !(current - mDeviceRetryBaseline).isEmpty()
+      : mDeviceRetryGoal < 0 ? !(mDeviceRetryBaseline - current).isEmpty()
+                            : !current.isEmpty());
+  // Bounded settling retries only, at most ten seconds after an event.
+  static constexpr int delays[] = {250, 500, 1000, 2000, 3000, 3000};
+  if (settled || mDeviceRetryIndex >= int(std::size(delays)) ||
+      mDeviceRetryClock.elapsed() + delays[mDeviceRetryIndex] > 10000) {
+    mDeviceRetryActive = false;
+    mDeviceRetryTimer.stop();
     return;
-  mDiscovering = true;
-  emit devicesChanged();
+  }
+  mDeviceRetryTimer.start(delays[mDeviceRetryIndex++]);
+}
+
+void Backend::discoverDevices(bool manual) {
+  if (mQuitting)
+    return;
+  // Only explicit refreshes affect the button. Requests received in flight
+  // are serialized into a fresh query instead of starting concurrent processes.
+  if (manual && !mDiscovering) {
+    mDiscovering = true;
+    emit discoveringChanged();
+  }
+  if (mDiscoveryInFlight) {
+    mDiscoveryRequested = true;
+    return;
+  }
+  mDiscoveryRequested = false;
+  mDiscoveryInFlight = true;
+  const auto revision = mDiscoveryRevision;
   const auto hdc = client();
-  run([hdc] { return hdc.devices(); },
-      [this](const QJsonValue &value, const QString &problem) {
-        mDiscovering = false;
-        if (problem.isEmpty())
-          mDevices = value.toArray();
-        emit devicesChanged();
+  run([hdc] {
+        const auto devices = hdc.devices();
+        QJsonArray ready;
+        QString readinessError;
+        for (const auto &entry : devices) {
+          auto probe = hdc;
+          probe.target = entry.toObject()["targetId"].toString();
+          try {
+            // Enumeration alone does not mean the HDC communication channel is ready.
+            if (probe.shell("echo woody-device-ready", 3000).trimmed() == "woody-device-ready")
+              ready.append(probe.target);
+            else
+              readinessError = QStringLiteral("设备通信通道尚未就绪，请稍后刷新设备。");
+          } catch (const std::exception &e) {
+            readinessError = QString::fromUtf8(e.what());
+          }
+        }
+        return QJsonObject{{"devices", devices}, {"ready", ready},
+                           {"readinessError", readinessError}};
+      },
+      [this, binary = hdc.binary, revision](const QJsonValue &value, const QString &problem) {
+        mDiscoveryInFlight = false;
+        if (mQuitting)
+          return;
+        if (binary != client().binary || revision != mDiscoveryRevision ||
+            mDiscoveryRequested) {
+          // An event received during a query must not be lost or apply stale results.
+          mDeviceRetryTimer.stop();
+          discoverDevices(mDiscovering);
+          return;
+        }
+        const bool manual = mDiscovering;
+        if (mDiscovering) {
+          mDiscovering = false;
+          emit discoveringChanged();
+        }
+        const auto result = value.toObject();
+        const auto devices = problem.isEmpty() ? result["devices"].toArray() : QJsonArray{};
+        const auto ready = result["ready"].toArray();
+        const auto readinessError = result["readinessError"].toString();
+        const bool changed = mDevices != devices;
+        mDevices = devices;
+        const bool recordingDevicePresent = std::any_of(
+            mDevices.cbegin(), mDevices.cend(), [this](const auto &entry) {
+              return entry.toObject()["targetId"].toString() == mSamplingClient.target;
+            });
+        if (mActive && mPersist && !mStopping && !recordingDevicePresent) {
+          mDisconnectedAt = now();
+          stopSampling();
+        }
+        const bool targetPresent = std::any_of(
+            mDevices.cbegin(), mDevices.cend(), [this](const auto &entry) {
+              return entry.toObject()["targetId"].toString() == mTarget;
+            });
+        if (!mTarget.isEmpty() && !targetPresent)
+          clearDevice();
+        if (changed)
+          emit devicesChanged();
         // Discovery failures are shown in the empty device state, without
         // repeated modal interruptions.
-        if (mTarget.isEmpty() && !mDevices.isEmpty())
-          selectDevice(mDevices.first().toObject()["targetId"].toString());
-        if (!problem.isEmpty())
-          emit notification(problem);
-      });
+        if (!mActive && !mSnapshotting) {
+          if (!mTarget.isEmpty() && !ready.contains(mTarget))
+            clearDevice();
+          if (mTarget.isEmpty() && !ready.isEmpty())
+            selectDevice(ready.first().toString());
+          else if (!mTarget.isEmpty() && (manual || mDevice.isEmpty()))
+            selectDevice(mTarget);
+        }
+        if (manual && (!problem.isEmpty() || !readinessError.isEmpty()))
+          emit notification(problem.isEmpty() ? readinessError : problem);
+        continueDeviceRefresh(devices, problem.isEmpty() && readinessError.isEmpty());
+      }, &mDiscoveryPool);
+}
+
+void Backend::clearDevice() {
+  // Invalidate pending queries even if the same device reconnects shortly.
+  ++mDeviceGeneration;
+  mAppDebugCache.clear();
+  mAppDebugPending.clear();
+  if (mDeviceCancel)
+    mDeviceCancel->store(true);
+  mTarget.clear();
+  mDevice = {};
+  mApps = {};
+  mSelectedBundle.clear();
+  mLoadingApps = false;
+  emit loadingAppsChanged();
+  // Keep selectedApps in settings: disconnection is not uninstallation.
+  emit deviceChanged();
+  emit selectedBundleChanged();
+  emit appsChanged();
 }
 
 void Backend::selectDevice(const QString &target) {
@@ -265,21 +428,27 @@ void Backend::selectDevice(const QString &target) {
     emit error(QStringLiteral("请先结束当前采集再切换设备"));
     return;
   }
-  if (target == mTarget) {
-    refreshApps();
-    return;
-  }
+  // Explicitly selecting/refreshing the same device must also reload metadata.
+  // Otherwise a transient handshake failure leaves the old device name cached.
   mTarget = target;
   mDevice = {};
   mApps = {};
   mSelectedBundle = mSettings["selectedApps"].toObject()[target].toString();
   const auto generation = ++mDeviceGeneration;
+  mAppDebugCache.clear();
+  mAppDebugPending.clear();
+  if (mDeviceCancel)
+    mDeviceCancel->store(true);
+  mDeviceCancel = std::make_shared<std::atomic_bool>(false);
+  mLoadingApps = false;
+  emit loadingAppsChanged();
   emit deviceChanged();
   emit selectedBundleChanged();
   emit appsChanged();
   if (target.isEmpty())
     return;
-  const auto hdc = client();
+  auto hdc = client();
+  hdc.cancelled = mDeviceCancel;
   run([hdc] { return hdc.deviceInfo(); },
       [this, generation](const QJsonValue &value, const QString &problem) {
         if (generation != mDeviceGeneration)
@@ -325,14 +494,33 @@ void Backend::refreshApps() {
   if (mLoadingApps || mTarget.isEmpty())
     return;
   mLoadingApps = true;
-  emit appsChanged();
-  const auto hdc = client();
+  emit loadingAppsChanged();
+  auto hdc = client();
+  hdc.cancelled = mDeviceCancel;
   const auto generation = mDeviceGeneration;
   run([hdc] { return hdc.apps(); },
       [this, generation](const QJsonValue &value, const QString &problem) {
+        if (generation != mDeviceGeneration)
+          return;
         mLoadingApps = false;
-        if (generation == mDeviceGeneration && problem.isEmpty() && value.isArray()) {
+        emit loadingAppsChanged();
+        const auto previousApps = mApps;
+        if (problem.isEmpty() && value.isArray()) {
           mApps = value.toArray();
+          QSet<QString> installed;
+          for (qsizetype i = 0; i < mApps.size(); ++i) {
+            auto app = mApps[i].toObject();
+            const auto bundle = app["bundleName"].toString();
+            installed.insert(bundle);
+            app["debug"] = mAppDebugCache.value(bundle).value("debug");
+            mApps[i] = app;
+          }
+          for (auto it = mAppDebugCache.begin(); it != mAppDebugCache.end();) {
+            if (!installed.contains(it.key()))
+              it = mAppDebugCache.erase(it);
+            else
+              ++it;
+          }
           const bool selectedIsInstalled =
               std::any_of(mApps.cbegin(), mApps.cend(), [&](const auto &entry) {
                 return entry.toObject()["bundleName"].toString() == mSelectedBundle;
@@ -351,10 +539,43 @@ void Backend::refreshApps() {
             }
           }
         }
-        emit appsChanged();
-        if (generation != mDeviceGeneration)
-          refreshApps();
+        if (mApps != previousApps)
+          emit appsChanged();
       });
+}
+
+void Backend::requestAppDebugMode(const QString &bundle) {
+  if (mTarget.isEmpty() || mAppDebugPending.contains(bundle) ||
+      !std::any_of(mApps.cbegin(), mApps.cend(), [&](const auto &entry) {
+        return entry.toObject()["bundleName"].toString() == bundle;
+      }))
+    return;
+  const auto cached = mAppDebugCache.value(bundle);
+  if (!cached.isEmpty() && now() - cached["checkedAt"].toInteger() < 30000)
+    return;
+  mAppDebugPending.insert(bundle);
+  auto hdc = client();
+  hdc.cancelled = mDeviceCancel;
+  const auto generation = mDeviceGeneration;
+  run([hdc, bundle] { return hdc.appDebugMode(bundle); },
+      [this, bundle, generation](const QJsonValue &value, const QString &) {
+        if (generation != mDeviceGeneration)
+          return;
+        mAppDebugPending.remove(bundle);
+        const auto debug = value.isBool() ? value : QJsonValue(QJsonValue::Null);
+        for (qsizetype i = 0; i < mApps.size(); ++i) {
+          auto app = mApps[i].toObject();
+          if (app["bundleName"].toString() != bundle)
+            continue;
+          mAppDebugCache.insert(bundle, {{"debug", debug}, {"checkedAt", now()}});
+          if (app.value("debug") != debug) {
+            app["debug"] = debug;
+            mApps[i] = app;
+            emit appsChanged();
+          }
+          break;
+        }
+      }, &mAppInfoPool);
 }
 
 void Backend::refreshRecords() {
@@ -428,6 +649,7 @@ void Backend::startSampling(const QVariantMap &configuration,
   mStopping = false;
   mDirectory.clear();
   mStartedAt = now();
+  mDisconnectedAt = 0;
   mCancel = std::make_shared<std::atomic_bool>(false);
   mSamplingClient = client();
   mSamplingClient.cancelled = mCancel;
@@ -451,6 +673,7 @@ void Backend::startSampling(const QVariantMap &configuration,
         QJsonObject meta{{"id", QFileInfo(directory).fileName()},
                          {"bundleName", bundle},
                          {"appLabel", label},
+                         {"appDebug", hdc.appDebugMode(bundle)},
                          {"device", info},
                          {"config", config},
                          {"startedAt", started},
@@ -466,9 +689,13 @@ void Backend::startSampling(const QVariantMap &configuration,
       [this](const QJsonValue &value, const QString &problem) {
         mStarting = false;
         if (!problem.isEmpty()) {
+          const bool stopped = mStopping;
           mActive = false;
-          state(mStopping ? "idle" : "error", mStopping ? QString() : problem);
-          if (!mStopping)
+          mStopping = false;
+          state(stopped ? "idle" : "error", stopped ? QString() : problem);
+          if (mDisconnectedAt)
+            emit notification(QStringLiteral("设备连接已中断，录制已结束，尚未产生可保存的数据。重连后需手动开始录制。"));
+          else if (!stopped)
             emit error(problem);
           return;
         }
@@ -483,7 +710,7 @@ void Backend::startSampling(const QVariantMap &configuration,
         }
         state("sampling",
               mPid
-                  ? QStringLiteral("采样中，pid=%1").arg(mPid)
+                  ? (mPersist ? QStringLiteral("录制中，pid=%1") : QStringLiteral("监测中，pid=%1")).arg(mPid)
                   : QStringLiteral("等待应用启动"));
         emit samplingStarted(mPersist);
         collect();
@@ -552,7 +779,7 @@ void Backend::collect() {
           mLive->append(result["sample"].toObject());
           if (!mStopping)
             state("sampling",
-                  mPid ? QStringLiteral("采样中，pid=%1").arg(mPid)
+                  mPid ? (mPersist ? QStringLiteral("录制中，pid=%1") : QStringLiteral("监测中，pid=%1")).arg(mPid)
                        : QStringLiteral(
                              "等待应用启动"));
         } else if (result.contains("collectError")) {
@@ -585,7 +812,7 @@ void Backend::stopSampling() {
   mTimer.stop();
   if (mCancel)
     mCancel->store(true);
-  state("stopping", QStringLiteral("正在停止采样…"));
+  state("stopping", mPersist ? QStringLiteral("正在结束录制…") : QStringLiteral("正在结束监测…"));
   if (!mCollecting && !mStarting)
     finish();
 }
@@ -595,18 +822,23 @@ void Backend::finish(bool automatic) {
   mStopping = true;
   state("stopping", QStringLiteral("正在保存报告…"));
   auto meta = mLive->metadata;
-  meta["endedAt"] = now();
+  meta["endedAt"] = mDisconnectedAt ? mDisconnectedAt : now();
   meta["sampleCount"] = mLive->count();
+  if (mDisconnectedAt)
+    meta["stopReason"] = "device-disconnected";
   mLive->metadata = meta;
   emit mLive->changed();
   const auto directory = mDirectory;
   const auto persist = mPersist;
   run(
       [meta, directory, persist] {
-        if (persist && !directory.isEmpty())
-          ReportStore::updateMetadata(directory,
-                                      {{"endedAt", meta["endedAt"]},
-                                       {"sampleCount", meta["sampleCount"]}});
+        if (persist && !directory.isEmpty()) {
+          QJsonObject update{{"endedAt", meta["endedAt"]},
+                             {"sampleCount", meta["sampleCount"]}};
+          if (meta.contains("stopReason"))
+            update["stopReason"] = meta["stopReason"];
+          ReportStore::updateMetadata(directory, update);
+        }
         return QJsonValue();
       },
       [this, directory, persist, automatic](const QJsonValue &,
@@ -614,7 +846,11 @@ void Backend::finish(bool automatic) {
         mActive = mStopping = false;
         state(problem.isEmpty() ? "idle" : "error", problem, automatic);
         if (!problem.isEmpty())
-          emit error(problem);
+          emit error(mDisconnectedAt
+                         ? QStringLiteral("设备连接已中断，录制已结束，但报告保存失败：%1").arg(problem)
+                         : problem);
+        else if (mDisconnectedAt)
+          emit notification(QStringLiteral("设备连接已中断，录制已结束，已有数据已保存。重连后需手动开始录制。"));
         refreshRecords();
         emit samplingFinished(persist, directory, automatic);
         if (!mQuitting && persist && !directory.isEmpty())
@@ -690,6 +926,7 @@ void Backend::takeSnapshot(const QString &bundle, const QString &label,
                                {"type", "snapshot"},
                                {"bundleName", bundle},
                                {"appLabel", label},
+                               {"appDebug", hdc.appDebugMode(bundle)},
                                {"device", info},
                                {"config", QJsonObject{{"intervalMs", 0},
                                                       {"showAshmem", false},
@@ -768,7 +1005,7 @@ void Backend::openCompare(const QStringList &directories) {
           const auto data = ReportStore::load(directory);
           const auto type = data["meta"].toObject()["type"].toString("trend");
           if (!kind.isEmpty() && kind != type)
-            throw std::runtime_error("持续采样与内存快照不可互相对比");
+            throw std::runtime_error("内存录制与内存快照不可互相对比");
           kind = type;
           if (type == "snapshot" && !data["snapshot"].isObject())
             throw std::runtime_error("快照文件缺失或损坏");
@@ -843,6 +1080,15 @@ void Backend::deleteReports(const QStringList &directories) {
 }
 void Backend::revealPath(const QString &directory) {
   QDesktopServices::openUrl(QUrl::fromLocalFile(directory));
+}
+void Backend::revealFileDirectory(const QString &filePath) {
+  const QFileInfo file(filePath.trimmed());
+  if (!file.isFile()) {
+    emit error(QStringLiteral("文件不存在，无法打开所在目录"));
+    return;
+  }
+  if (!QDesktopServices::openUrl(QUrl::fromLocalFile(file.absolutePath())))
+    emit error(QStringLiteral("无法打开文件所在目录"));
 }
 QVariant Backend::uiPreference(const QString &key,
                                const QVariant &fallback) const {

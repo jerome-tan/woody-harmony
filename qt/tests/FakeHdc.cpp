@@ -15,14 +15,24 @@ int main(int argc, char **argv) {
   const auto args = app.arguments().mid(1);
   const auto command = args.join(' ');
   QFile log(qEnvironmentVariable("WOODY_FAKE_STATE") + ".commands");
-  if (log.open(QIODevice::WriteOnly | QIODevice::Append))
+  if (log.open(QIODevice::WriteOnly | QIODevice::Append)) {
     log.write(QJsonDocument(QJsonArray::fromStringList(args))
                   .toJson(QJsonDocument::Compact) +
               '\n');
+    log.flush();
+  }
   QTextStream out(stdout);
+  if (state.contains("hdcFailure") &&
+      (!command.endsWith("list targets") || state["failEnumeration"].toBool())) {
+    out << state["hdcFailure"].toString() << '\n';
+    return 0;
+  }
   const int pid = state.value("pid").toInt(2411);
   const auto runningBundle = state.value("runningBundle").toString("com.example.woodyqa");
   if (command.endsWith("list targets")) {
+    QThread::msleep(state["devicesDelayMs"].toInt(0));
+    if (state["failDevices"].toBool())
+      return 1;
     const auto targets = state.value("targets").toArray({"WOODY-QA-001"});
     for (const auto &target : targets)
       out << target.toString() << '\n';
@@ -44,7 +54,30 @@ int main(int argc, char **argv) {
       out << bundle.toString() << '\n';
     return 0;
   }
+  if (command.endsWith("echo woody-device-ready")) {
+    out << "woody-device-ready\n";
+    return 0;
+  }
+  if (command.contains("bm dump -n ")) {
+    QThread::msleep(state["appInfoDelayMs"].toInt(0));
+    if (state["failAppInfo"].toBool())
+      return 1;
+    if (state.contains("appInfoOutput")) {
+      out << state["appInfoOutput"].toString();
+      return 0;
+    }
+    const auto bundle = command.section("bm dump -n ", 1).trimmed();
+    const auto debug = state.value("appDebug").isUndefined()
+                           ? QJsonValue(bundle == "com.example.woodyqa")
+                           : state["appDebug"];
+    // Deliberately disagree with debug: signing must not affect the result.
+    const QJsonObject info{{"debug", debug},
+                           {"appProvisionType", debug.toBool() ? "release" : "debug"}};
+    out << bundle << ":\n" << QJsonDocument(QJsonObject{{"applicationInfo", info}}).toJson();
+    return 0;
+  }
   if (command.contains("pidof ")) {
+    QThread::msleep(state["pidDelayMs"].toInt(0));
     if (pid && command.section("pidof ", 1).trimmed() == runningBundle)
       out << pid << '\n';
     return 0;
@@ -56,8 +89,9 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (command.contains("param get ")) {
+    QThread::msleep(state["deviceInfoDelayMs"].toInt(0));
     const auto name = command.section(' ', -1);
-    const QJsonObject params{{"const.product.name", "HUAWEI QA Device"},
+    const QJsonObject params{{"const.product.name", state.value("marketName").toString("HUAWEI QA Device")},
                              {"const.product.model", "QA-001"},
                              {"const.product.os.dist.name", "HarmonyOS"},
                              {"const.ohos.fullname", "OpenHarmony-6.1.1.120"},

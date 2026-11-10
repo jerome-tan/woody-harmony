@@ -12,13 +12,56 @@ Column {
     readonly property var selectedApp: backend.apps.find(function (a) {
         return a.bundleName === selectedBundle;
     }) || null
+    // Keep delegate identities while background queries update their roles.
+    // A fresh JS array as ListView.model resets the view on every reply.
+    ListModel { id: appRows }
+    function syncAppRows(reset) {
+        if (!appDialog.visible)
+            return;
+        var query = appSearch.text.toLowerCase();
+        var apps = backend.apps.filter(function (a) {
+            return a.bundleName.toLowerCase().indexOf(query) >= 0;
+        });
+        var byBundle = {};
+        apps.forEach(function (a) { byBundle[a.bundleName] = a; });
+        if (reset)
+            appRows.clear();
+        for (var i = appRows.count - 1; i >= 0; --i) {
+            if (!byBundle[appRows.get(i).bundleName])
+                appRows.remove(i);
+        }
+        var existing = {};
+        for (var row = 0; row < appRows.count; ++row)
+            existing[appRows.get(row).bundleName] = row;
+        apps.forEach(function (a) {
+            var roles = {
+                bundleName: a.bundleName,
+                pid: Number(a.pid) || 0
+            };
+            var index = existing[a.bundleName];
+            if (index === undefined) {
+                appRows.append(roles);
+            } else {
+                // Do not reorder running apps underneath the user's pointer.
+                // Refresh their initial ordering when the dialog is reopened.
+                if (appRows.get(index).pid !== roles.pid)
+                    appRows.setProperty(index, "pid", roles.pid);
+            }
+        });
+        if (reset)
+            appList.positionViewAtBeginning();
+    }
     property string notRunningHint: "开始后将等待应用启动。"
     spacing: 16
-    Timer {
-        interval: 1500
-        repeat: true
-        running: root.visible && backend.target.length > 0 && !root.locked
-        onTriggered: backend.refreshApps()
+    Connections {
+        target: backend
+        function onAppsChanged() { root.syncAppRows(false); }
+        function onDeviceChanged() {
+            if (!backend.target.length) {
+                root.pendingBundle = "";
+                appDialog.close();
+            }
+        }
     }
     RowLayout {
         width: parent.width
@@ -47,7 +90,8 @@ Column {
             currentIndex: backend.devices.findIndex(function (d) {
                 return d.targetId === backend.target;
             })
-            displayText: currentIndex >= 0 && model[currentIndex] ? model[currentIndex].label : "未检测到设备"
+            displayText: currentIndex >= 0 && model[currentIndex] ? model[currentIndex].label
+                         : backend.devices.length ? "设备通信尚未就绪，请稍后刷新" : "未检测到设备"
             onActivated: function (index) {
                 backend.selectDevice(model[index].value);
             }
@@ -88,7 +132,7 @@ Column {
             implicitHeight: Math.max(40, selectedBundleLabel.implicitHeight + 16)
             text: root.selectedBundle || "请选择应用"
             enabled: !root.locked && backend.target.length > 0
-            Accessible.name: text + (root.selectedApp ? "，" + selectedStatus.text : "")
+            Accessible.name: text + (root.selectedApp ? "，" + selectedDebug.text + "，" + selectedStatus.text : "")
             contentItem: RowLayout {
                 spacing: 12
                 WText {
@@ -99,6 +143,11 @@ Column {
                     color: appButton.enabled ? T.text : T.disabled
                     wrapMode: Text.WrapAnywhere
                     elide: Text.ElideNone
+                }
+                AppDebugTag {
+                    id: selectedDebug
+                    objectName: "selectedAppDebug"
+                    application: root.selectedApp
                 }
                 AppStatusTag {
                     id: selectedStatus
@@ -144,6 +193,7 @@ Column {
         acceptEnabled: backend.apps.some(function (a) {
             return a.bundleName === root.pendingBundle;
         })
+        onOpened: root.syncAppRows(true)
         onAccepted: backend.selectApp(root.pendingBundle)
         ColumnLayout {
             anchors.fill: parent
@@ -155,6 +205,7 @@ Column {
                     objectName: "appSearch"
                     Layout.fillWidth: true
                     placeholderText: "搜索完整包名"
+                    onTextChanged: root.syncAppRows(true)
                 }
                 WButton {
                     iconName: "ReloadOutlined"
@@ -170,42 +221,51 @@ Column {
                 Layout.fillHeight: true
                 clip: true
                 reuseItems: true
-                model: backend.apps.filter(function (a) {
-                    return a.bundleName.toLowerCase().indexOf(appSearch.text.toLowerCase()) >= 0;
-                })
+                model: appRows
                 ScrollBar.vertical: ScrollBar {}
                 delegate: ItemDelegate {
                     id: appRow
-                    objectName: "app-" + modelData.bundleName
-                    required property var modelData
+                    objectName: "app-" + bundleName
+                    required property string bundleName
+                    required property int pid
+                    function confirmSelection() {
+                        root.pendingBundle = bundleName;
+                        if (appDialog.acceptEnabled)
+                            appDialog.accept();
+                    }
+                    readonly property var application: ({
+                        bundleName: bundleName, pid: pid
+                    })
                     width: appList.width
                     height: Math.max(52, appBundleLabel.implicitHeight + 12)
                     topPadding: 6
                     bottomPadding: 6
                     background: Rectangle {
                         radius: 5
-                        color: root.pendingBundle === appRow.modelData.bundleName ? T.selected : appRow.hovered ? T.chrome : "white"
+                        color: root.pendingBundle === appRow.bundleName ? T.selected : appRow.hovered ? T.chrome : "white"
                     }
                     contentItem: RowLayout {
                         spacing: 12
                         RadioButton {
-                            checked: root.pendingBundle === appRow.modelData.bundleName
-                            onClicked: root.pendingBundle = appRow.modelData.bundleName
-                            Accessible.name: appRow.modelData.bundleName
+                            checked: root.pendingBundle === appRow.bundleName
+                            onClicked: root.pendingBundle = appRow.bundleName
+                            onDoubleClicked: appRow.confirmSelection()
+                            Accessible.name: appRow.bundleName
                         }
                         WText {
                             id: appBundleLabel
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            text: appRow.modelData.bundleName
+                            text: appRow.bundleName
                             wrapMode: Text.WrapAnywhere
                             elide: Text.ElideNone
                         }
                         AppStatusTag {
-                            application: appRow.modelData
+                            application: appRow.application
                         }
                     }
-                    onClicked: root.pendingBundle = modelData.bundleName
+                    onClicked: root.pendingBundle = bundleName
+                    onDoubleClicked: confirmSelection()
                 }
                 WText {
                     anchors.centerIn: parent

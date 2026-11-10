@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QJsonDocument>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
@@ -141,10 +142,18 @@ QString HdcClient::run(const QStringList &arguments, int timeoutMs,
   }
   output += process.readAllStandardOutput();
   errors += process.readAllStandardError();
-  if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0)
+  const auto stdoutText = QString::fromUtf8(output);
+  const auto stderrText = QString::fromUtf8(errors);
+  // HDC transport failures can be written to stdout with a successful exit code.
+  static const QRegularExpression hdcFailure(
+      QStringLiteral("(?:^|[\\r\\n])\\s*\\[Fail\\]"),
+      QRegularExpression::CaseInsensitiveOption);
+  if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0 ||
+      hdcFailure.match(stdoutText).hasMatch() ||
+      hdcFailure.match(stderrText).hasMatch())
     fail(QStringLiteral("hdc %1 执行失败：%2")
-             .arg(arguments.join(' '), QString::fromUtf8(errors).left(4096)));
-  return QString::fromUtf8(output);
+             .arg(arguments.join(' '), (stderrText + '\n' + stdoutText).trimmed().left(4096)));
+  return stdoutText;
 }
 
 QString HdcClient::shell(const QString &command, int timeoutMs) const {
@@ -153,7 +162,7 @@ QString HdcClient::shell(const QString &command, int timeoutMs) const {
 
 QJsonArray HdcClient::devices() const {
   QJsonArray result;
-  const auto output = run({"list targets"}, 20000, false);
+  const auto output = run({"list targets"}, 3000, false);
   for (const auto &line : output.split('\n')) {
     const auto parts =
         line.trimmed().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
@@ -279,6 +288,26 @@ QJsonArray HdcClient::apps() const {
   for (const auto &app : apps)
     result.append(app);
   return result;
+}
+
+QJsonValue HdcClient::appDebugMode(const QString &bundle) const {
+  validateBundle(bundle);
+  try {
+    const auto output = shell("bm dump -n " + bundle, 3000).toUtf8();
+    // bm prefixes the JSON object with the bundle name. Read only the boolean
+    // application flag, never appProvisionType (the signing certificate type).
+    const auto begin = output.indexOf('{');
+    if (begin >= 0) {
+      const auto info = QJsonDocument::fromJson(output.mid(begin)).object();
+      const auto debug = info["applicationInfo"].toObject().value("debug");
+      if (debug.isBool())
+        return debug;
+    }
+  } catch (const std::exception &) {
+    if (cancelled && cancelled->load())
+      throw;
+  }
+  return QJsonValue::Null;
 }
 
 void HdcClient::validateBundle(const QString &bundle) {

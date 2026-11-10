@@ -12,9 +12,9 @@ class ComparisonImageTest : public QObject {
       rows.append(QVariantMap{{"fixed", i == 0}, {"cells", QVariantList{
           QVariantMap{{"text", i == count - 1 ? "LAST-CATEGORY" : QString("Category %1").arg(i)}},
           QVariantMap{{"text", "100.0 MB"}},
-          QVariantMap{{"text", "120.0 MB"}, {"secondary", "+20.0 MB  +20.0%"}, {"secondaryColor", "#C43D50"}}}}});
+          QVariantMap{{"text", "120.0 MB"}, {"secondary", "(+20.0 MB)"}, {"secondaryInline", true}, {"secondaryColor", "#C43D50"}}}}});
     return {{"mode", "picked"}, {"title", "测试报告"}, {"baseline", 0},
-            {"names", QStringList{"A · 很长的报告名称需要完整保留，不能因窗口宽度而裁切", "B · 对比报告"}},
+            {"names", QStringList{"很长的报告名称需要完整保留，不能因窗口宽度而裁切", "对比报告"}},
             {"indices", QVariantList{1, 1}},
             {"headers", QVariantList{QVariantMap{{"text", "分类"}, {"width", 150}},
               QVariantMap{{"text", "A（基准）"}, {"width", 190}},
@@ -38,7 +38,7 @@ private slots:
     QVERIFY(exporter.save(QUrl::fromLocalFile(path)));
     QImage image(path);
     QCOMPARE(image.width(), 2880);
-    QVERIFY(image.height() > 8000); // Far beyond the window; no viewport truncation.
+    QVERIFY(image.height() > 6500); // Far beyond the window; no viewport truncation.
     QVERIFY(image.text("Description").contains("LAST-CATEGORY"));
     QVERIFY(image.text("Description").contains("不能因窗口宽度而裁切"));
     // The final row actually has painted glyphs, not just metadata.
@@ -66,6 +66,39 @@ private slots:
     QVERIFY(exporter.prepare({QVariant::fromValue(&b)}, config));
     QVERIFY(exporter.save(QUrl::fromLocalFile(path)));
     QCOMPARE(QImage(path).pixelColor(76, 196), Report::comparisonColor(1));
+  }
+  void chartsStackBesideCompleteTable() {
+    ComparisonImageExporter exporter;
+    QTemporaryDir directory;
+    for (int count : {2, 3, 4}) {
+      auto config = options(3);
+      QStringList names;
+      QVariantList reports, indices, headers{QVariantMap{{"text", "Category"}, {"width", 160}}};
+      QVariantList cells{QVariantMap{{"text", "Total"}}};
+      for (int i = 0; i < count; ++i) {
+        names.append(QString("Report %1").arg(i + 1));
+        reports.append(QVariant::fromValue(i % 2 ? &b : &a));
+        indices.append(1);
+        headers.append(QVariantMap{{"text", names.last()}, {"width", 190}});
+        cells.append(QVariantMap{{"text", "123456.7 MB"}, {"secondary", "(+123456.7 MB)"},
+                                 {"secondaryInline", true}});
+      }
+      config["names"] = names;
+      config["indices"] = indices;
+      config["headers"] = headers;
+      config["rows"] = QVariantList{QVariantMap{{"fixed", true}, {"cells", cells}}};
+      QVERIFY(exporter.prepare(reports, config));
+      const auto path = directory.filePath("layout.png");
+      QVERIFY(exporter.save(QUrl::fromLocalFile(path)));
+      QImage image(path);
+      // Each report's swatch is down the left, not across the top.
+      for (int i = 0; i < count; ++i)
+        QCOMPARE(image.pixelColor(76, 196 + i * 668), Report::comparisonColor(i % 2));
+      // Table starts alongside the first chart; Total row is painted there.
+      QCOMPARE(image.pixelColor(1140, 270), QColor("#EDE9FE"));
+      QVERIFY(image.width() >= 2880);
+      if (count == 4) QVERIFY(image.width() > 2880);
+    }
   }
   void rejectInvalidAndOversize() {
     ComparisonImageExporter exporter;

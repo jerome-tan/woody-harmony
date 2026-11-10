@@ -6,7 +6,7 @@ add_library(woody_core STATIC
     src/ReportStore.cpp src/ReportStore.h
     src/HdcClient.cpp src/HdcClient.h
     src/Report.cpp src/Report.h
-    src/Backend.cpp src/Backend.h
+    src/Backend.cpp src/Backend.h src/DeviceMonitor.h
 )
 target_link_libraries(woody_core PUBLIC Qt6::Core Qt6::Gui Qt6::Concurrent)
 target_include_directories(woody_core PUBLIC src)
@@ -31,6 +31,12 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME woody_image COMMAND woody_image_test)
     set_tests_properties(woody_image PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(APPLE OR WIN32)
+        qt_add_executable(woody_device_monitor_test tests/DeviceMonitorTest.cpp)
+        target_link_libraries(woody_device_monitor_test PRIVATE woody_core Qt6::Test)
+        add_test(NAME woody_device_monitor COMMAND woody_device_monitor_test)
+        set_tests_properties(woody_device_monitor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
 endif()
 
 qt_add_executable(Woody MACOSX_BUNDLE WIN32
@@ -54,9 +60,9 @@ qt_add_resources(Woody brand PREFIX /assets BASE "${CMAKE_CURRENT_SOURCE_DIR}/re
 if(APPLE)
     enable_language(OBJCXX)
     set_property(TARGET woody_core PROPERTY OBJCXX_STANDARD 20)
-    target_sources(woody_core PRIVATE src/PlatformWindow_mac.mm)
+    target_sources(woody_core PRIVATE src/PlatformWindow_mac.mm src/DeviceMonitor_mac.mm)
     target_sources(Woody PRIVATE tests/UiAutomation_mac.mm)
-    target_link_libraries(woody_core PUBLIC "-framework AppKit")
+    target_link_libraries(woody_core PUBLIC "-framework AppKit" "-framework IOKit")
     target_sources(Woody PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.icns")
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(Woody PROPERTIES
@@ -68,6 +74,13 @@ if(APPLE)
     )
 else()
     target_sources(woody_core PRIVATE src/PlatformWindow.cpp)
+    if(WIN32)
+        target_sources(woody_core PRIVATE src/DeviceMonitor_win.cpp)
+        target_compile_definitions(woody_core PRIVATE _WIN32_WINNT=0x0A00 WINVER=0x0A00)
+        target_link_libraries(woody_core PUBLIC Cfgmgr32 PowrProf)
+    else()
+        target_sources(woody_core PRIVATE src/DeviceMonitor.cpp)
+    endif()
 endif()
 install(TARGETS Woody BUNDLE DESTINATION . RUNTIME DESTINATION .)
 if(WIN32)

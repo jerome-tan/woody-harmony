@@ -63,15 +63,15 @@ WindowBase {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 480
-        title: backend.snapshotting ? "采集尚未结束" : "采样尚未结束"
+        title: backend.snapshotting ? "采集尚未结束" : appWindow.watching ? "监测尚未结束" : "录制尚未结束"
         standardButtons: Dialog.Ok | Dialog.Cancel
-        acceptText: backend.snapshotting ? "取消采集并退出" : appWindow.watching ? "结束查看并退出" : "结束采样并退出"
-        rejectText: backend.snapshotting ? "继续采集" : appWindow.watching ? "继续查看" : "继续采样"
+        acceptText: backend.snapshotting ? "取消采集并退出" : appWindow.watching ? "结束监测并退出" : "结束录制并退出"
+        rejectText: backend.snapshotting ? "继续采集" : appWindow.watching ? "继续监测" : "继续录制"
         WText {
             width: parent.width
             wrapMode: Text.Wrap
             elide: Text.ElideNone
-            text: backend.snapshotting ? "取消当前快照采集后退出。" : appWindow.watching ? "实时查看的数据不会保存为报告。" : "结束采样并保存报告后再退出。"
+            text: backend.snapshotting ? "取消当前快照采集后退出。" : appWindow.watching ? "内存监测的数据不会保存为报告。" : "结束录制并保存报告后再退出。"
         }
         onAccepted: {
             if (backend.snapshotting)
@@ -117,7 +117,7 @@ WindowBase {
                     {
                         key: "watch",
                         icon: "EyeOutlined",
-                        label: "实时查看"
+                        label: "内存监测"
                     },
                     {
                         key: "snap",
@@ -127,7 +127,7 @@ WindowBase {
                     {
                         key: "peak",
                         icon: "LineChartOutlined",
-                        label: "持续采样"
+                        label: "内存录制"
                     }
                 ]
                 WButton {
@@ -254,6 +254,7 @@ WindowBase {
         id: reportWindow
         ReportWindow {
             onClosing: {
+                rememberMaximizedState();
                 appWindow.forgetWindow(this);
                 Qt.callLater(destroy);
             }
@@ -263,6 +264,7 @@ WindowBase {
         id: compareWindow
         CompareWindow {
             onClosing: {
+                rememberMaximizedState();
                 appWindow.forgetWindow(this);
                 Qt.callLater(destroy);
             }
@@ -274,6 +276,9 @@ WindowBase {
             appWindow.requestQuit();
         }
         function onQuitReady() {
+            appWindow.childWindows.forEach(function (window) {
+                window.rememberMaximizedState();
+            });
             appWindow.quitting = true;
         }
         function onReportOpened(report) {
@@ -290,7 +295,7 @@ WindowBase {
             if (appWindow.page === "live")
                 appWindow.go(persist ? "peak" : "watch");
             if (automatic)
-                appWindow.notify("已到设定时长，采样报告已保存");
+                appWindow.notify("已到设定时长，内存录制报告已保存");
         }
     }
 }

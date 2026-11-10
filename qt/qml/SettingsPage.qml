@@ -10,6 +10,7 @@ ColumnLayout {
     property string selectedDirectory: backend.sessionsDir
     property bool automatic: backend.hdcPath.length === 0
     property bool pathValid: automatic || backend.toolPathExists(hdc.text)
+    readonly property bool compact: width < 660
     spacing: 18
     WText {
         text: "设置"
@@ -19,11 +20,14 @@ ColumnLayout {
     WCard {
         Layout.fillWidth: true
         Layout.maximumWidth: 840
-        implicitHeight: 130
+        implicitHeight: root.compact ? 174 : 130
         title: "报告存储"
-        RowLayout {
+        headerColor: T.sectionHeader
+        GridLayout {
             anchors.fill: parent
-            spacing: 12
+            columns: root.compact ? 2 : 3
+            columnSpacing: 12
+            rowSpacing: 12
             WText {
                 text: "保存目录"
                 Layout.preferredWidth: 72
@@ -34,21 +38,32 @@ ColumnLayout {
                 text: root.selectedDirectory || backend.defaultSessionsDir
                 readOnly: true
             }
-            WButton {
-                text: "浏览…"
-                onClicked: choose.open()
-            }
-            WButton {
-                text: "恢复默认"
-                onClicked: root.selectedDirectory = ""
+            RowLayout {
+                Layout.columnSpan: root.compact ? 2 : 1
+                Layout.alignment: Qt.AlignRight
+                spacing: 12
+                WButton {
+                    text: "浏览…"
+                    onClicked: choose.open()
+                }
+                WButton {
+                    objectName: "openReportsDirectory"
+                    text: "打开目录"
+                    onClicked: backend.revealPath(root.selectedDirectory || backend.defaultSessionsDir)
+                }
+                WButton {
+                    text: "恢复默认"
+                    onClicked: root.selectedDirectory = ""
+                }
             }
         }
     }
     WCard {
         Layout.fillWidth: true
         Layout.maximumWidth: 840
-        implicitHeight: 222
+        implicitHeight: root.compact ? 266 : 222
         title: "设备工具"
+        headerColor: T.sectionHeader
         Column {
             width: parent.width
             spacing: 16
@@ -67,9 +82,11 @@ ColumnLayout {
                     onClicked: root.automatic = false
                 }
             }
-            RowLayout {
+            GridLayout {
                 width: parent.width
-                spacing: 12
+                columns: root.compact ? 2 : 3
+                columnSpacing: 12
+                rowSpacing: 12
                 WText {
                     text: "hdc 路径"
                     Layout.preferredWidth: 72
@@ -83,10 +100,21 @@ ColumnLayout {
                     text: backend.hdcPath
                     placeholderText: root.automatic ? "启动时从 SDK 和系统路径查找" : "选择 hdc 可执行文件"
                 }
-                WButton {
-                    text: "浏览…"
-                    enabled: !root.automatic
-                    onClicked: toolFile.open()
+                RowLayout {
+                    Layout.columnSpan: root.compact ? 2 : 1
+                    Layout.alignment: Qt.AlignRight
+                    spacing: 12
+                    WButton {
+                        text: "浏览…"
+                        enabled: !root.automatic
+                        onClicked: toolFile.open()
+                    }
+                    WButton {
+                        objectName: "openHdcDirectory"
+                        text: "打开目录"
+                        enabled: backend.toolPathExists(root.automatic ? backend.hdcPath : hdc.text)
+                        onClicked: backend.revealFileDirectory(root.automatic ? backend.hdcPath : hdc.text)
+                    }
                 }
             }
             WText {

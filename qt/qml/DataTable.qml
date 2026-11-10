@@ -7,6 +7,7 @@ Item {
     property var rows: []
     property var columns: []
     property bool selectable: false
+    property bool numberedSelection: false
     property int rowHeight: 44
     property bool fillColumns: false
     // Let an enclosing page own vertical scrolling while retaining horizontal columns.
@@ -19,12 +20,18 @@ Item {
     property string emptyText: "暂无数据"
     property string preferenceKey: ""
     property bool editableColumns: false
+    property bool resizableColumns: true
+    // Keep widths outside the column model: replacing the Repeater model while
+    // dragging destroys the MouseArea that owns the pointer grab.
+    property var columnWidths: ({})
+    property bool resizingColumn: false
+    signal columnWidthsEdited(var widths)
     property var layoutColumns: columns
     readonly property var visibleColumns: layoutColumns.filter(function (c) {
         return !c.hidden;
     })
     readonly property real tableWidth: visibleColumns.reduce(function (s, c) {
-        return s + (c.width || 150);
+        return s + baseColumnWidth(c);
     }, selectable ? 48 : 0)
     readonly property var sortedRows: {
         var result = rows.slice();
@@ -45,8 +52,25 @@ Item {
     signal cellClicked(var row, string key)
     signal action(var row, string name)
     signal selectionChangedByUser(var keys)
+    function baseColumnWidth(c) {
+        return columnWidths[c.key] === undefined ? (c.width || 150) : columnWidths[c.key];
+    }
     function columnWidth(c) {
-        return (c.width || 150) + (fillColumns ? Math.max(0, horizontal.width - tableWidth) / Math.max(1, visibleColumns.length) : 0);
+        return baseColumnWidth(c) + (fillColumns && Object.keys(columnWidths).length === 0 ? Math.max(0, horizontal.width - tableWidth) / Math.max(1, visibleColumns.length) : 0);
+    }
+    readonly property real renderedTableWidth: visibleColumns.reduce(function (s, c) {
+        return s + columnWidth(c);
+    }, selectable ? 48 : 0)
+    function beginResize() {
+        var widths = Object.assign({}, columnWidths);
+        visibleColumns.forEach(function (c) { widths[c.key] = columnWidth(c); });
+        resizingColumn = true;
+        columnWidths = widths;
+    }
+    function finishResize() {
+        resizingColumn = false;
+        saveLayout();
+        columnWidthsEdited(columnWidths);
     }
     function toggle(row) {
         var result = selected.slice(), k = row[keyRole], i = result.indexOf(k);
@@ -61,7 +85,7 @@ Item {
             backend.setUiPreference(preferenceKey, layoutColumns.map(function (c) {
                 return {
                     key: c.key,
-                    width: c.width,
+                    width: baseColumnWidth(c),
                     hidden: !!c.hidden
                 };
             }));
@@ -75,10 +99,12 @@ Item {
         saveLayout();
     }
     function resetLayout() {
+        columnWidths = ({});
         layoutColumns = columns.map(function (c) {
             return Object.assign({}, c);
         });
         saveLayout();
+        columnWidthsEdited(columnWidths);
     }
     function moveColumn(from, to) {
         if (from === to || layoutColumns[from].locked || layoutColumns[to].locked || layoutColumns[from].lockedRight || layoutColumns[to].lockedRight)
@@ -125,6 +151,8 @@ Item {
         contentWidth: Math.max(width, table.tableWidth)
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: !table.resizingColumn
         ScrollBar.horizontal: ScrollBar {
             policy: table.tableWidth > horizontal.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
         }
@@ -156,13 +184,14 @@ Item {
                 }
             }
             Repeater {
+                id: headerCells
                 model: table.visibleColumns
                 Rectangle {
                     id: headerCell
                     objectName: "header-" + modelData.key
                     z: modelData.lockedRight ? 3 : modelData.locked ? 1 : 0
                     transform: Translate {
-                        x: headerCell.modelData.lockedRight ? horizontal.contentX + horizontal.width - table.tableWidth : headerCell.modelData.locked ? horizontal.contentX : 0
+                        x: headerCell.modelData.lockedRight ? horizontal.contentX + horizontal.width - table.renderedTableWidth : headerCell.modelData.locked ? horizontal.contentX : 0
                     }
                     required property var modelData
                     required property int index
@@ -211,7 +240,8 @@ Item {
                     MouseArea {
                         id: headerMouse
                         anchors.fill: parent
-                        anchors.rightMargin: 7
+                        anchors.rightMargin: table.resizableColumns && !headerCell.modelData.lockedRight ? 9 : 0
+                        preventStealing: table.editableColumns && !headerCell.modelData.locked && !headerCell.modelData.lockedRight
                         cursorShape: table.editableColumns && !headerCell.modelData.locked ? Qt.OpenHandCursor : Qt.PointingHandCursor
                         property real pressedX: 0
                         onPressed: function (mouse) {
@@ -223,7 +253,7 @@ Item {
                                 for (var i = 0; i < table.visibleColumns.length; ++i) {
                                     if (targetX >= pos)
                                         to = i;
-                                    pos += table.visibleColumns[i].width || 150;
+                                    pos += table.columnWidth(table.visibleColumns[i]);
                                 }
                                 table.moveColumn(table.layoutColumns.findIndex(function (c) {
                                     return c.key === headerCell.modelData.key;
@@ -231,41 +261,19 @@ Item {
                                     return c.key === table.visibleColumns[to].key;
                                 }));
                             } else if (headerCell.modelData.sortable !== false) {
-                                if (table.sortKey === headerCell.modelData.key)
-                                    table.descending = !table.descending;
-                                else {
+                                if (table.sortKey !== headerCell.modelData.key) {
                                     table.sortKey = headerCell.modelData.key;
+                                    table.descending = false;
+                                } else if (!table.descending) {
+                                    table.descending = true;
+                                } else {
+                                    table.sortKey = "";
                                     table.descending = false;
                                 }
                             }
                         }
                     }
-                    MouseArea {
-                        anchors.right: parent.right
-                        width: 7
-                        height: parent.height
-                        cursorShape: Qt.SplitHCursor
-                        enabled: table.editableColumns
-                        property real startX: 0
-                        property real startWidth: 0
-                        onPressed: function (mouse) {
-                            startX = mapToItem(table, mouse.x, 0).x;
-                            startWidth = headerCell.width;
-                        }
-                        onPositionChanged: function (mouse) {
-                            if (!pressed)
-                                return;
-                            var copy = table.layoutColumns.slice();
-                            var at = table.layoutColumns.findIndex(function (c) {
-                                return c.key === headerCell.modelData.key;
-                            });
-                            copy[at] = Object.assign({}, copy[at], {
-                                width: Math.max(70, startWidth + mapToItem(table, mouse.x, 0).x - startX)
-                            });
-                            table.layoutColumns = copy;
-                        }
-                        onReleased: table.saveLayout()
-                    }
+
                 }
             }
         }
@@ -307,6 +315,8 @@ Item {
                         height: table.rowHeight
                         WCheck {
                             anchors.centerIn: parent
+                            selectionNumber: table.numberedSelection ? table.selected.indexOf(rowItem.modelData[table.keyRole]) + 1 : 0
+                            Accessible.name: table.numberedSelection ? (checked ? "已选第 " + selectionNumber + " 份报告" + (selectionNumber === 1 ? "，默认基准" : "") : "选择报告") : text
                             checked: table.selected.indexOf(rowItem.modelData[table.keyRole]) >= 0
                             onClicked: table.toggle(rowItem.modelData)
                         }
@@ -315,10 +325,11 @@ Item {
                         model: table.visibleColumns
                         Rectangle {
                             id: cell
+                            objectName: "cell-" + modelData.key + "-" + rowItem.index
                             color: rowItem.color
                             z: modelData.lockedRight ? 3 : modelData.locked ? 1 : 0
                             transform: Translate {
-                                x: cell.modelData.lockedRight ? horizontal.contentX + horizontal.width - table.tableWidth : cell.modelData.locked ? horizontal.contentX : 0
+                                x: cell.modelData.lockedRight ? horizontal.contentX + horizontal.width - table.renderedTableWidth : cell.modelData.locked ? horizontal.contentX : 0
                             }
                             required property var modelData
                             width: table.columnWidth(modelData)
@@ -473,4 +484,62 @@ Item {
             horizontalAlignment: Text.AlignHCenter
         }
     }
+    // Own the drag in stable table coordinates. A moving column edge (or a
+    // clamped horizontal scroll position) must not change the drag delta.
+    MouseArea {
+        id: resizeHandle
+        objectName: "columnResizeHandle"
+        width: table.width
+        height: 38
+        z: 10
+        enabled: table.resizableColumns
+        hoverEnabled: true
+        preventStealing: true
+        property string activeKey: ""
+        property real startX: 0
+        property real startWidth: 0
+        function columnAt(pointerX) {
+            for (var i = 0; i < headerCells.count; ++i) {
+                var h = headerCells.itemAt(i);
+                if (!h || h.modelData.lockedRight) continue;
+                var edge = h.mapToItem(table, h.width, 0).x;
+                if (pointerX < edge - 9 || pointerX > edge) continue;
+                var covered = false;
+                for (var j = 0; j < headerCells.count; ++j) {
+                    var other = headerCells.itemAt(j);
+                    if (!other || other.z <= h.z) continue;
+                    var left = other.mapToItem(table, 0, 0).x;
+                    if (pointerX >= left && pointerX < left + other.width) covered = true;
+                }
+                if (!covered) return h;
+            }
+            return null;
+        }
+        cursorShape: activeKey || columnAt(mouseX) ? Qt.SplitHCursor : Qt.ArrowCursor
+        onPressed: function(mouse) {
+            var h = columnAt(mouse.x);
+            if (!h) { mouse.accepted = false; return; }
+            activeKey = h.modelData.key;
+            startX = mouse.x;
+            startWidth = h.width;
+            table.beginResize();
+        }
+        onPositionChanged: function(mouse) {
+            if (!pressed || !activeKey) return;
+            var widths = Object.assign({}, table.columnWidths);
+            widths[activeKey] = Math.max(70, startWidth + mouse.x - startX);
+            table.columnWidths = widths;
+        }
+        onReleased: {
+            if (!activeKey) return;
+            activeKey = "";
+            table.finishResize();
+        }
+        onCanceled: {
+            if (!activeKey) return;
+            activeKey = "";
+            table.finishResize();
+        }
+    }
+
 }

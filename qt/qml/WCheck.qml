@@ -4,13 +4,14 @@ import QtQuick.Controls.Basic
 
 CheckBox {
     id: control
+    property int selectionNumber: 0
     spacing: 7
     implicitHeight: 26
     padding: 0
     indicator: Rectangle {
         x: 0
         y: (control.height - height) / 2
-        width: 16
+        width: control.checked && control.selectionNumber > 0 ? Math.max(20, numberLabel.implicitWidth + 6) : 16
         height: 16
         radius: 3
         color: control.checked ? T.accent : "white"
@@ -23,7 +24,16 @@ CheckBox {
             tone: "white"
             width: 12
             height: 12
-            visible: control.checked
+            visible: control.checked && control.selectionNumber <= 0
+        }
+        Text {
+            id: numberLabel
+            anchors.centerIn: parent
+            text: control.selectionNumber > 0 ? control.selectionNumber : ""
+            color: "white"
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+            visible: control.checked && control.selectionNumber > 0
         }
     }
     contentItem: WText {

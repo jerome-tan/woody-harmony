@@ -20,6 +20,7 @@ class MemoryPlot : public QQuickPaintedItem {
   Q_PROPERTY(bool points MEMBER mPoints NOTIFY optionsChanged)
   Q_PROPERTY(bool live MEMBER mLive NOTIFY optionsChanged)
   Q_PROPERTY(bool compact MEMBER mCompact NOTIFY optionsChanged)
+  Q_PROPERTY(bool wheelEnabled MEMBER mWheelEnabled NOTIFY optionsChanged)
   Q_PROPERTY(bool comparison MEMBER mComparison NOTIFY optionsChanged)
   Q_PROPERTY(int selectedIndex MEMBER mSelected NOTIFY optionsChanged)
   Q_PROPERTY(bool following READ following NOTIFY rangeChanged)
@@ -78,6 +79,7 @@ private:
   QList<Series> mSeries;
   QString mMetric = "Total", mAlignment = "start", mHighlight;
   QStringList mHidden, mHiddenReports;
+  bool mWheelEnabled = true;
   bool mSmooth = false, mPoints = true, mLive = false, mCompact = false,
        mFollowing = true, mComparison = false;
   int mSelected = -1, mDrag = 0;

@@ -9,6 +9,16 @@ ApplicationWindow {
     property string badge: ""
     property string captionNote: ""
     property bool mainWindow: false
+    property string maximizedPreferenceKey: ""
+    // Hidden/minimized transitions during closing must not erase the last
+    // normal or maximized state.
+    property bool lastMaximized: false
+    onVisibilityChanged: {
+        if (visibility === Window.Maximized)
+            lastMaximized = true;
+        else if (visibility === Window.Windowed)
+            lastMaximized = false;
+    }
     property bool windowsChrome: Qt.platform.os === "windows"
     default property alias contents: body.data
     property alias bodyItem: body
@@ -50,6 +60,10 @@ ApplicationWindow {
     }
     function toggleMaximize() {
         visibility === Window.Maximized ? showNormal() : showMaximized();
+    }
+    function rememberMaximizedState() {
+        if (maximizedPreferenceKey)
+            backend.setUiPreference(maximizedPreferenceKey, lastMaximized);
     }
     function rename(directory, name) {
         renameDirectory = directory;
@@ -200,17 +214,45 @@ ApplicationWindow {
         width: 460
         modal: true
         title: "关于 Woody"
+        readonly property string versionText: "版本：" + buildInfo.version + "\nGit 提交：" + buildInfo.commit + "\nQt：" + buildInfo.qt + "\n运行系统：" + buildInfo.os + " (" + buildInfo.arch + ")"
         standardButtons: Dialog.Close
+        footer: Item {
+            implicitHeight: 62
+            WButton {
+                objectName: "copyVersionInfo"
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 8
+                text: "复制"
+                iconName: "CopyOutlined"
+                tone: "primary"
+                onClicked: {
+                    backend.copyText(about.versionText);
+                    win.notify("版本信息已复制");
+                }
+            }
+        }
         Column {
             width: parent.width
             spacing: 16
+            Image {
+                objectName: "aboutLogo"
+                anchors.horizontalCenter: parent.horizontalCenter
+                source: "qrc:/assets/icon-win.png"
+                width: 64
+                height: 64
+                sourceSize.width: 128
+                sourceSize.height: 128
+                fillMode: Image.PreserveAspectFit
+            }
             WText {
-                text: "HarmonyOS 内存分析工具"
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: "HarmonyOS开发者工具"
                 font.pixelSize: 14
             }
             WText {
                 width: parent.width
-                text: "版本：" + buildInfo.version + "\nGit 提交：" + buildInfo.commit + "\nQt：" + buildInfo.qt + "\n运行系统：" + buildInfo.os + " (" + buildInfo.arch + ")"
+                text: about.versionText
                 wrapMode: Text.Wrap
                 elide: Text.ElideNone
                 lineHeight: 1.6

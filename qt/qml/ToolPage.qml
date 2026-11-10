@@ -10,7 +10,7 @@ Item {
     property string kind: "peak"
     property bool advanced: false
     readonly property bool locked: backend.sampling || backend.snapshotting
-    readonly property string pageTitle: kind === "watch" ? "实时查看" : kind === "snap" ? "内存快照" : "持续采样"
+    readonly property string pageTitle: kind === "watch" ? "内存监测" : kind === "snap" ? "内存快照" : "内存录制"
     ColumnLayout {
         anchors.fill: parent
         spacing: 16
@@ -49,7 +49,7 @@ Item {
                 WCard {
                     width: parent.width
                     height: settings.implicitHeight + 76
-                    title: root.kind === "watch" ? "查看设置" : "采集设置"
+                    title: root.kind === "watch" ? "监测设置" : root.kind === "peak" ? "录制设置" : "采集设置"
                     headerColor: T.sectionHeader
                     Column {
                         id: settings
@@ -130,7 +130,7 @@ Item {
                             width: parent.width
                             spacing: 16
                             WText {
-                                text: "采样时长"
+                                text: "录制时长"
                                 Layout.preferredWidth: 80
                             }
                             WCombo {
@@ -192,7 +192,7 @@ Item {
                 }
                 WText {
                     visible: backend.sampling
-                    text: "已有采样任务进行中，请先结束当前采样。"
+                    text: "已有采集任务进行中，请先结束当前任务。"
                     color: T.positive
                     font.pixelSize: 12
                 }
@@ -233,7 +233,7 @@ Item {
             }
             WButton {
                 objectName: "startButton"
-                text: root.kind === "watch" ? "开始查看" : root.kind === "snap" ? "采集快照" : "开始采样"
+                text: root.kind === "watch" ? "开始监测" : root.kind === "snap" ? "采集快照" : "开始录制"
                 iconName: root.kind === "snap" ? "CameraOutlined" : "PlayCircleOutlined"
                 tone: "primary"
                 enabled: !root.locked && !!target.selectedApp && (root.kind === "watch" || taskName.text.trim().length > 0) && (root.kind === "snap" ? !!target.selectedApp.pid : Number(interval.text) >= 200)

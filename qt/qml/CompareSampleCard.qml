@@ -42,6 +42,7 @@ WCard {
                 color: backend.comparisonColor(card.ordinal)
             }
             WText {
+                objectName: "sampleTitle-" + card.ordinal
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 text: card.reportTitle
@@ -50,50 +51,51 @@ WCard {
                 font.weight: Font.DemiBold
                 HoverHandler { id: titleHover }
                 ToolTip.visible: titleHover.hovered && truncated
-                ToolTip.text: text
+                ToolTip.text: card.reportTitle
                 ToolTip.delay: 500
             }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            WTag {
-                objectName: "currentBaseline-" + card.ordinal
-                visible: card.isBaseline
-                text: "当前基准"
-                implicitHeight: 28
-                implicitWidth: 72
-                ink: T.error
-                tint: "white"
-            }
-            WButton {
-                objectName: "setBaseline-" + card.ordinal
-                visible: !card.isBaseline
-                text: "设为基准"
-                small: true
-                onClicked: card.baselineRequested()
-            }
-            WButton {
-                objectName: "samplePeak-" + card.ordinal
-                text: "选中峰值"
-                hint: "定位峰值"
-                small: true
-                visible: card.shown
-                enabled: card.report.stats.validCount > 0
-                onClicked: {
-                    card.pointPicked(card.report.peakIndex("Total"));
-                    chart.plotItem.resetView();
+            RowLayout {
+                objectName: "sampleActions-" + card.ordinal
+                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                spacing: 8
+                WTag {
+                    objectName: "currentBaseline-" + card.ordinal
+                    visible: card.isBaseline
+                    text: "当前基准"
+                    implicitHeight: 28
+                    implicitWidth: 72
+                    ink: "white"
+                    tint: T.successText
+                    border.color: tint
+                }
+                WButton {
+                    objectName: "setBaseline-" + card.ordinal
+                    visible: !card.isBaseline
+                    text: "设为基准"
+                    small: true
+                    onClicked: card.baselineRequested()
+                }
+                WButton {
+                    objectName: "samplePeak-" + card.ordinal
+                    text: "选中峰值"
+                    hint: "定位峰值"
+                    small: true
+                    visible: card.shown
+                    enabled: card.report.stats.validCount > 0
+                    onClicked: {
+                        card.pointPicked(card.report.peakIndex("Total"));
+                        chart.plotItem.resetView();
+                    }
+                }
+                WButton {
+                    objectName: "expandSample-" + card.ordinal
+                    visible: card.shown
+                    iconName: "ExpandOutlined"
+                    hint: "放大图表并选择采样点"
+                    small: true
+                    onClicked: chart.expandChart()
                 }
             }
-            WButton {
-                objectName: "expandSample-" + card.ordinal
-                visible: card.shown
-                iconName: "ExpandOutlined"
-                hint: "放大图表并选择采样点"
-                small: true
-                onClicked: chart.expandChart()
-            }
-            Item { Layout.fillWidth: true }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -121,7 +123,7 @@ WCard {
                 font.pixelSize: 12; color: T.muted
             }
             WText {
-                text: F.validSample(card.report.sampleAt(card.selectedIndex)) ? F.bytes(card.report.sampleAt(card.selectedIndex).total.pssTotalKb) : "—"
+                text: F.validSample(card.report.sampleAt(card.selectedIndex)) ? F.memoryMb(card.report.sampleAt(card.selectedIndex).total.pssTotalKb) : "—"
                 font.pixelSize: 14; font.weight: Font.DemiBold
             }
         }
@@ -133,6 +135,7 @@ WCard {
             controls: false
             legend: false
             compact: true
+            wheelEnabled: false
             comparison: true
             expandedTitle: card.reportTitle
             reports: [card.report]

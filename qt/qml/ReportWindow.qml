@@ -7,6 +7,7 @@ import "Format.js" as F
 WindowBase {
     id: win
     objectName: "reportWindow"
+    maximizedPreferenceKey: "window.report.maximized"
     property var report: null
     readonly property var meta: report ? report.meta : {}
     readonly property var stats: report ? report.stats : {}
@@ -26,7 +27,7 @@ WindowBase {
             spacing: 12
             WTag {
                 visible: win.width >= 800
-                text: win.snapshot ? "内存快照" : "持续采样"
+                text: win.snapshot ? "内存快照" : "内存录制"
             }
             WText {
                 Layout.fillWidth: true
@@ -65,6 +66,15 @@ WindowBase {
                     }
                 }
             }
+        }
+        WText {
+            Layout.fillWidth: true
+            visible: win.meta.stopReason === "device-disconnected"
+            text: "设备连接中断，录制已自动结束；此报告保留了中断前已保存的数据。"
+            color: T.muted
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+            elide: Text.ElideNone
         }
         Loader {
             Layout.fillWidth: true
@@ -185,13 +195,18 @@ WindowBase {
                         value: win.meta.bundleName
                     },
                     {
+                        key: "debug",
+                        name: "调试模式",
+                        value: F.debugMode(win.meta.appDebug)
+                    },
+                    {
                         key: "time",
                         name: "开始时间",
                         value: F.date(win.meta.startedAt)
                     },
                     {
                         key: "duration",
-                        name: win.snapshot ? "进程 PID" : "采样时长",
+                        name: win.snapshot ? "进程 PID" : "录制时长",
                         value: win.snapshot ? (win.report.snapshot.pid || "—") : F.duration(win.stats.durationMs)
                     },
                     {

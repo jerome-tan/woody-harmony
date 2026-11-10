@@ -8,6 +8,35 @@
 class CoreTest : public QObject {
   Q_OBJECT
 private slots:
+  void selectedSampleDetails() {
+    Report report;
+    auto first = MemoryParser::processMemory(
+        "Total 100 0 0 0 0 0 0 0 0 0\nGL 25 0 0 0 0 0 0 0 0 0\nGraph 50 0 0 0 0 0 0 0 0 0\n");
+    first["timestamp"] = 1000;
+    first["pid"] = 42;
+    report.append(first);
+    auto second = first;
+    second["timestamp"] = 2000;
+    second["total"] = QJsonObject{{"pssTotalKb", 200}};
+    report.append(second);
+    const auto details = report.sampleDetails(0);
+    const auto rows = details["items"].toList();
+    QVERIFY(details["valid"].toBool());
+    QVERIFY(details["heading"].toString().startsWith("0.0 s"));
+    QCOMPARE(rows[0].toMap()["name"].toString(), QString("Total"));
+    QCOMPARE(rows[0].toMap()["kb"].toDouble(), 100.0);
+    QCOMPARE(rows[1].toMap()["name"].toString(), QString("Graph"));
+    QCOMPARE(rows[1].toMap()["percent"].toDouble(), 50.0);
+    QCOMPARE(rows[1].toMap()["color"].toString(), Report::color("Graph").name());
+    QCOMPARE(report.sampleDetails(1)["items"].toList()[0].toMap()["kb"].toDouble(), 200.0);
+    second["pid"] = QJsonValue::Null;
+    report.append(second);
+    const auto missing = report.sampleDetails(2);
+    QVERIFY(!missing["valid"].toBool());
+    QVERIFY(missing["items"].toList()[0].toMap()["kb"].isNull());
+    QVERIFY(report.sampleDetails(-1).isEmpty());
+    QVERIFY(report.sampleDetails(3).isEmpty());
+  }
   void memoryRows() {
     const auto parsed =
         MemoryParser::processMemory("Total 120 1 2 3 4 5 6 7 8 9\r\n"

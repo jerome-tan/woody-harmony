@@ -9,6 +9,7 @@ import "Theme.js" as T
 WindowBase {
     id: win
     objectName: "compareWindow"
+    maximizedPreferenceKey: "window.compare.maximized"
     initialWidth: 1440
     initialHeight: 960
     property var reports: []
@@ -19,11 +20,13 @@ WindowBase {
     property var picked: ({})
     property int tab: 1
     property string metric: "Total"
-    property string alignment: "start"
+    property string alignment: "peak"
     property real tipAlpha: .8
     property var hiddenReports: []
     property real split: Math.max(25, Math.min(75, Number(backend.uiPreference("compare.chartWidth.v4", 42))))
     property bool exporting: false
+    property var differenceColumnWidths: ({})
+    property var summaryColumnWidths: ({})
     readonly property bool snapshots: ordered.length > 0 && ordered[0].meta.type === "snapshot"
     readonly property bool snapshotPair: snapshots && ordered.length === 2
     readonly property int otherSnapshotIndex: baselineIndex === 0 ? 1 : 0
@@ -67,11 +70,11 @@ WindowBase {
                 width: ordered.length >= 4 ? (i === baselineIndex ? 130 : 180) : 220,
                 align: "right",
                 format: function (v) {
-                    return v === null ? "—" : F.bytes(v);
+                    return v === null ? "—" : F.memoryMb(v);
                 },
                 secondaryInline: true,
                 secondary: function (v, row) {
-                    return i === baselineIndex ? "" : row["d" + i] === null ? "(—)" : "(" + F.delta(row["d" + i]) + ")";
+                    return i === baselineIndex ? "" : row["d" + i] === null ? "(—)" : "(" + F.deltaMb(row["d" + i]) + ")";
                 },
                 secondaryColor: function (v, row) {
                     return win.deltaColor(row["d" + i]);
@@ -87,7 +90,7 @@ WindowBase {
         var name = F.title(r.meta), duplicate = reports.filter(function (o) {
             return F.title(o.meta) === name;
         }).length > 1;
-        return String.fromCharCode(65 + reports.indexOf(r)) + " · " + name + (duplicate ? " · " + F.date(r.meta.startedAt) : "");
+        return name + (duplicate ? " · " + F.date(r.meta.startedAt) : "");
     }
     function color(r) {
         return Qt.color(backend.comparisonColor(reports.indexOf(r)));
@@ -176,7 +179,7 @@ WindowBase {
             names: activeReports.map(function(r) { return win.label(r); }),
             indices: activeReports.map(function(r) { return win.selected(r); }),
             metric: metric, alignment: alignment,
-            headers: columns.map(function(c) { return {text:c.title, width:c.width || 150, align:c.align || "left", color:c.headerColor || T.text, background:c.headerBackground || T.chrome}; }),
+            headers: columns.map(function(c) { return {text:c.title, width:table.columnWidth(c), align:c.align || "left", color:c.headerColor || T.text, background:c.headerBackground || T.chrome}; }),
             rows: table.sortedRows.map(function(row) {
                 return {fixed: !!row.fixed, cells: columns.map(function(c) {
                     var v = row[c.key];
@@ -288,8 +291,9 @@ WindowBase {
                         visible: modelData === win.baseline
                         anchors.verticalCenter: parent.verticalCenter
                         text: "当前基准"
-                        ink: T.error
-                        tint: "white"
+                        ink: "white"
+                        tint: T.successText
+                        border.color: tint
                     }
                     WButton {
                         objectName: "reportBaseline-" + win.reports.indexOf(modelData)
@@ -412,6 +416,8 @@ WindowBase {
                     DataTable {
                         id: summaryTable
                     objectName: "summaryTable"
+                        columnWidths: win.summaryColumnWidths
+                        onColumnWidthsEdited: function(widths) { win.summaryColumnWidths = widths; }
                         fillColumns: true
                         anchors.fill: parent
                         rows: win.activeReports.map(function (r) {
@@ -439,7 +445,7 @@ WindowBase {
                                 width: 120,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.validCount ? F.bytes(v) : "—";
+                                    return r.validCount ? F.memoryMb(v) : "—";
                                 }
                             },
                             {
@@ -448,7 +454,7 @@ WindowBase {
                                 width: 120,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.validCount ? F.bytes(v) : "—";
+                                    return r.validCount ? F.memoryMb(v) : "—";
                                 }
                             },
                             {
@@ -457,7 +463,7 @@ WindowBase {
                                 width: 120,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.validCount ? F.bytes(v) : "—";
+                                    return r.validCount ? F.memoryMb(v) : "—";
                                 }
                             },
                             {
@@ -466,7 +472,7 @@ WindowBase {
                                 width: 130,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.validCount ? F.delta(v) : "—";
+                                    return r.validCount ? F.deltaMb(v) : "—";
                                 },
                                 color: function (v) {
                                     return win.deltaColor(v);
@@ -478,7 +484,7 @@ WindowBase {
                                 width: 200,
                                 align: "right",
                                 format: function (v, r) {
-                                    return r.baseline || v === null ? "—" : F.delta(v) + " (" + win.percent(v, win.baseline.stats.peak) + ")";
+                                    return r.baseline || v === null ? "—" : F.deltaMb(v) + " (" + win.percent(v, win.baseline.stats.peak) + ")";
                                 },
                                 color: function (v, r) {
                                     return r.baseline ? T.muted : win.deltaColor(v);
@@ -536,7 +542,7 @@ WindowBase {
                             required property int index
                             objectName: "sampleCard-" + win.reports.indexOf(modelData)
                             width: chartColumn.width
-                            height: shown ? Math.max(280, (miniScroll.availableHeight - (win.ordered.length - 1) * 8) / Math.max(1, win.ordered.length)) : 84
+                            height: shown ? Math.max(280, (miniScroll.availableHeight - (win.ordered.length - 1) * 8) / Math.max(1, win.ordered.length)) : 50
                             report: modelData
                             ordinal: win.reports.indexOf(modelData)
                             isBaseline: modelData === win.baseline
@@ -554,6 +560,8 @@ WindowBase {
             DataTable {
                 id: pickedTable
                 objectName: "differenceTable"
+                columnWidths: win.differenceColumnWidths
+                onColumnWidthsEdited: function(widths) { win.differenceColumnWidths = widths; }
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 320
                 rows: win.differenceRows
@@ -588,7 +596,7 @@ WindowBase {
                         Layout.fillWidth: true
                     }
                     WText {
-                        text: parent.parent.total.base === null ? "—" : F.bytes(parent.parent.total.base)
+                        text: parent.parent.total.base === null ? "—" : F.memoryMb(parent.parent.total.base)
                         font.pixelSize: win.width < 900 ? 16 : 20
                         font.weight: Font.DemiBold
                     }
@@ -597,7 +605,7 @@ WindowBase {
                         tone: "muted"
                     }
                     WText {
-                        text: parent.parent.total["v" + win.otherSnapshotIndex] === null ? "—" : F.bytes(parent.parent.total["v" + win.otherSnapshotIndex])
+                        text: parent.parent.total["v" + win.otherSnapshotIndex] === null ? "—" : F.memoryMb(parent.parent.total["v" + win.otherSnapshotIndex])
                         font.pixelSize: win.width < 900 ? 16 : 20
                         font.weight: Font.DemiBold
                     }
@@ -606,7 +614,7 @@ WindowBase {
                     }
                     WText {
                         property var total: parent.parent.total
-                        text: total["d" + win.otherSnapshotIndex] === null ? "—" : F.delta(total["d" + win.otherSnapshotIndex]) + " (" + win.percent(total["d" + win.otherSnapshotIndex], total.base) + ")"
+                        text: total["d" + win.otherSnapshotIndex] === null ? "—" : F.deltaMb(total["d" + win.otherSnapshotIndex]) + " (" + win.percent(total["d" + win.otherSnapshotIndex], total.base) + ")"
                         font.pixelSize: win.width < 900 ? 14 : 20
                         font.weight: Font.DemiBold
                         color: win.deltaColor(total["d" + win.otherSnapshotIndex])
@@ -642,6 +650,8 @@ WindowBase {
                 DataTable {
                     id: snapshotTable
                     objectName: "differenceTable"
+                    columnWidths: win.differenceColumnWidths
+                    onColumnWidthsEdited: function(widths) { win.differenceColumnWidths = widths; }
                     anchors.fill: parent
                     rows: win.snapshotPair ? win.snapshotRows : win.differenceRows
                     columns: win.differenceColumns

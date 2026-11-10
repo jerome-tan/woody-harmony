@@ -39,7 +39,7 @@ void plot(QPainter &p, const QRectF &rect, const QVariantList &reports,
   chart.setProperty("compact", index >= 0);
   chart.setProperty("points", false);
   chart.setProperty("metric", index >= 0 ? "Total" : options.value("metric", "Total"));
-  chart.setProperty("alignment", options.value("alignment", "start"));
+  chart.setProperty("alignment", options.value("alignment", "peak"));
   if (index >= 0)
     chart.setProperty("selectedIndex", options.value("indices").toList().value(index, -1));
   chart.setReports(reports);
@@ -77,27 +77,53 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
     if (!qobject_cast<Report *>(value.value<QObject *>()) && !value.value<Report *>())
       return fail(QStringLiteral("报告已关闭，请重新打开后导出"));
 
-  constexpr int width = 1440, margin = 24, gap = 12, scale = 2;
+  constexpr int margin = 24, gap = 12, scale = 2;
+  const bool sideBySide = mode == "picked";
   const int count = reports.size();
+  // Keep full inline values legible when three or four reports are exported.
+  // The document can grow horizontally as well as vertically; it is not a
+  // screenshot of the table's current viewport.
+  QList<qreal> minimumWidths;
+  qreal minimumTableWidth = 0;
+  for (int i = 0; i < headers.size(); ++i) {
+    qreal minimum = i == 0 ? 160 : 190;
+    for (const auto &value : rows) {
+      const auto row = value.toMap();
+      const auto cell = row.value("cells").toList().value(i).toMap();
+      if (!cell.value("secondaryInline").toBool()) continue;
+      const QString secondary = cell.value("secondary").toString();
+      minimum = std::max(minimum,
+          QFontMetricsF(font(14, row.value("fixed").toBool())).horizontalAdvance(cell.value("text").toString()) +
+          QFontMetricsF(font(12)).horizontalAdvance(secondary) + (secondary.isEmpty() ? 0 : 6) + 26);
+    }
+    minimumWidths.append(minimum);
+    minimumTableWidth += minimum;
+  }
+  const int width = sideBySide ? std::max(1440, qCeil(48 + 520 + 20 + minimumTableWidth)) : 1440;
   const qreal contentWidth = width - margin * 2;
-  const qreal chartWidth = (contentWidth - gap * (count - 1)) / count;
+  const qreal chartWidth = sideBySide ? 520 : (contentWidth - gap * (count - 1)) / count;
+  const qreal tableX = sideBySide ? margin + chartWidth + 20 : margin;
+  const qreal tableWidth = width - margin - tableX;
   qreal headingHeight = 48;
   for (int i = 0; i < count; ++i)
     headingHeight = std::max(headingHeight, textHeight(names.value(i), chartWidth - 36, 14, true) + 18);
   // Export height expands for long report names and every table row.
   qreal y = 76;
   qreal chartBottom = y;
-  if (mode == "picked") chartBottom += headingHeight + 28 + 234 + 12;
+  const qreal cardHeight = headingHeight + 28 + 234 + 12;
+  if (sideBySide) chartBottom += count * cardHeight + gap * (count - 1);
   else if (mode == "overlay") chartBottom += headingHeight + 344;
   else chartBottom += headingHeight;
-  qreal tableY = chartBottom + 20;
+  const qreal tableY = sideBySide ? y : chartBottom + 20;
   QList<qreal> widths;
   qreal sum = 0;
   for (const auto &h : headers) sum += std::max(1.0, h.toMap().value("width", 150).toDouble());
   qreal headerHeight = 48;
-  for (const auto &h : headers) {
+  for (int i = 0; i < headers.size(); ++i) {
+    const auto &h = headers[i];
     const auto c = h.toMap();
-    const qreal w = contentWidth * std::max(1.0, c.value("width", 150).toDouble()) / sum;
+    const qreal weight = std::max(1.0, c.value("width", 150).toDouble()) / sum;
+    const qreal w = sideBySide ? minimumWidths[i] + (tableWidth - minimumTableWidth) * weight : tableWidth * weight;
     widths.append(w);
     headerHeight = std::max(headerHeight, textHeight(c.value("text").toString(), w - 24, 14, true) + 20);
   }
@@ -117,6 +143,7 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
     heights.append(height);
     totalHeight += height;
   }
+  totalHeight = std::max(totalHeight, chartBottom + 48);
   const qint64 pixels = qint64(width * scale) * qCeil(totalHeight * scale);
   if (pixels > 64000000 || totalHeight > 16000)
     return fail(QStringLiteral("完整图片过大，请减少参与对比的报告或分类后重试"));
@@ -131,12 +158,18 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
        QStringLiteral("基准：") + names.value(options.value("baseline").toInt()) +
        (mode == "overlay" ? QStringLiteral("  ·  指标：") + options.value("metric").toString() : QString()), muted, 12);
   for (int i = 0; i < count; ++i) {
-    const qreal x = margin + i * (chartWidth + gap);
+    const qreal x = sideBySide ? margin : margin + i * (chartWidth + gap);
+    const qreal y = sideBySide ? 76 + i * (cardHeight + gap) : 76;
     p.setPen(border); p.setBrush(mode == "picked" ? Qt::white : chrome);
-    p.drawRoundedRect(QRectF(x, y, chartWidth, mode == "picked" ? chartBottom - y : headingHeight), 6, 6);
+    p.drawRoundedRect(QRectF(x, y, chartWidth, sideBySide ? cardHeight : headingHeight), 6, 6);
     auto *identity = qobject_cast<Report *>(reports[i].value<QObject *>());
     if (!identity) identity = reports[i].value<Report *>();
     const QColor reportColor(identity->compareColor.isEmpty() ? Report::comparisonColor(i).name() : identity->compareColor);
+    if (sideBySide) {
+      QColor tint = reportColor;
+      tint.setAlphaF(.09);
+      p.fillRect(QRectF(x + 1, y + 1, chartWidth - 2, headingHeight - 1), tint);
+    }
     p.setPen(Qt::NoPen); p.setBrush(reportColor);
     p.drawEllipse(QPointF(x + 14, y + 22), 5, 5);
     text(p, QRectF(x + 26, y + 8, chartWidth - 36, headingHeight - 12), names.value(i), reportColor.darker(125), 14, true);
@@ -154,8 +187,8 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
   if (mode == "overlay")
     plot(p, QRectF(margin, y + headingHeight + 8, contentWidth, 330), reports, options);
 
-  p.fillRect(QRectF(margin, tableY, contentWidth, headerHeight), chrome);
-  qreal x = margin;
+  p.fillRect(QRectF(tableX, tableY, tableWidth, headerHeight), chrome);
+  qreal x = tableX;
   for (int i = 0; i < headers.size(); ++i) {
     const auto h = headers[i].toMap();
     p.fillRect(QRectF(x, tableY, widths[i], headerHeight), QColor(h.value("background", chrome.name()).toString()));
@@ -169,8 +202,8 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
     const auto row = rows[ri].toMap();
     const auto cells = row.value("cells").toList();
     const qreal h = heights[ri];
-    if (row.value("fixed").toBool()) p.fillRect(QRectF(margin, y, contentWidth, h), selected);
-    x = margin;
+    if (row.value("fixed").toBool()) p.fillRect(QRectF(tableX, y, tableWidth, h), selected);
+    x = tableX;
     QStringList line;
     for (int i = 0; i < cells.size() && i < widths.size(); ++i) {
       const auto cell = cells[i].toMap();
@@ -205,10 +238,10 @@ bool ComparisonImageExporter::prepare(const QVariantList &reports, const QVarian
       x += widths[i];
     }
     description.append(line.join(" | "));
-    p.setPen(border); p.drawLine(QPointF(margin, y + h), QPointF(width - margin, y + h));
+    p.setPen(border); p.drawLine(QPointF(tableX, y + h), QPointF(width - margin, y + h));
     y += h;
   }
-  text(p, QRectF(margin, y + 12, contentWidth, 20),
+  text(p, QRectF(margin, std::max(y, chartBottom) + 12, contentWidth, 20),
        QStringLiteral("Woody · %1 份报告 · %2 行 · 完整内容").arg(count).arg(rows.size()), muted, 12);
   p.end();
   mImage.setText("Description", description.join("\n"));

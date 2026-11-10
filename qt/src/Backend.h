@@ -1,8 +1,12 @@
 #pragma once
 #include "HdcClient.h"
+#include "DeviceMonitor.h"
 #include "Report.h"
 #include <QElapsedTimer>
+#include <QHash>
+#include <QSet>
 #include <QTimer>
+#include <QThreadPool>
 #include <QUrl>
 #include <functional>
 
@@ -19,8 +23,8 @@ class Backend : public QObject {
   Q_PROPERTY(QVariantMap status READ status NOTIFY statusChanged)
   Q_PROPERTY(bool sampling READ sampling NOTIFY statusChanged)
   Q_PROPERTY(bool snapshotting READ snapshotting NOTIFY snapshottingChanged)
-  Q_PROPERTY(bool discovering READ discovering NOTIFY devicesChanged)
-  Q_PROPERTY(bool loadingApps READ loadingApps NOTIFY appsChanged)
+  Q_PROPERTY(bool discovering READ discovering NOTIFY discoveringChanged)
+  Q_PROPERTY(bool loadingApps READ loadingApps NOTIFY loadingAppsChanged)
   Q_PROPERTY(Report *live READ live CONSTANT)
   Q_PROPERTY(QVariantList records READ records NOTIFY recordsChanged)
   Q_PROPERTY(QString profile READ profile CONSTANT)
@@ -55,6 +59,7 @@ public:
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
   Q_INVOKABLE void refreshApps();
+  Q_INVOKABLE void requestAppDebugMode(const QString &bundle);
   Q_INVOKABLE void selectApp(const QString &bundle);
   Q_INVOKABLE void refreshRecords();
   Q_INVOKABLE void saveHdcPath(const QString &value);
@@ -72,6 +77,7 @@ public:
   Q_INVOKABLE void renameReport(const QString &directory, const QString &name);
   Q_INVOKABLE void deleteReports(const QStringList &directories);
   Q_INVOKABLE void revealPath(const QString &directory);
+  Q_INVOKABLE void revealFileDirectory(const QString &filePath);
   Q_INVOKABLE QVariant uiPreference(const QString &key,
                                     const QVariant &fallback = {}) const;
   Q_INVOKABLE void setUiPreference(const QString &key, const QVariant &value);
@@ -85,7 +91,9 @@ public:
   Q_INVOKABLE QUrl toFileUrl(const QString &file) const;
 signals:
   void devicesChanged();
+  void discoveringChanged();
   void appsChanged();
+  void loadingAppsChanged();
   void selectedBundleChanged();
   void deviceChanged();
   void settingsChanged();
@@ -104,32 +112,48 @@ signals:
 
 private:
   using Completion = std::function<void(const QJsonValue &, const QString &)>;
-  void run(std::function<QJsonValue()> task, Completion done);
+  void run(std::function<QJsonValue()> task, Completion done,
+           QThreadPool *pool = nullptr);
   void state(const QString &value, const QString &message = {},
              bool autoStopped = false);
   void collect();
   void finish(bool automatic = false);
   void saveSettings();
   void rememberAppSelection(const QString &bundle);
+  void discoverDevices(bool manual);
+  void beginDeviceRefresh(int goal);
+  void continueDeviceRefresh(const QJsonArray &devices, bool success);
+  void clearDevice();
   QString root() const;
   HdcClient client() const;
   QString mProfile, mHdc, mTarget, mSelectedBundle;
   QJsonObject mSettings, mPreferences, mDevice, mStatus;
   QJsonArray mDevices, mApps, mRecords;
   Report *mLive;
-  QTimer mTimer;
+  QTimer mTimer, mDeviceRetryTimer;
+  DeviceMonitor mDeviceMonitor;
+  QElapsedTimer mDeviceRetryClock;
+  QSet<QString> mDeviceRetryBaseline;
+  int mDeviceRetryIndex = 0, mDeviceRetryGoal = 0;
+  quint64 mDiscoveryRevision = 0;
+  bool mDeviceRetryActive = false, mDiscoveryRequested = false;
+  QThreadPool mDiscoveryPool, mAppInfoPool;
+  QHash<QString, QJsonObject> mAppDebugCache;
+  QSet<QString> mAppDebugPending;
+  std::shared_ptr<std::atomic_bool> mDeviceCancel;
   std::shared_ptr<std::atomic_bool> mQuit;
   std::shared_ptr<std::atomic_bool> mCancel;
   std::shared_ptr<std::atomic_bool> mSnapshotCancel;
   QJsonObject mConfig;
   QString mBundle, mLabel, mDirectory;
   HdcClient mSamplingClient;
-  qint64 mPid = 0, mStartedAt = 0;
+  qint64 mPid = 0, mStartedAt = 0, mDisconnectedAt = 0;
   int mFailures = 0;
   quint64 mDeviceGeneration = 0;
   bool mActive = false, mCollecting = false, mStarting = false,
        mStopping = false;
   bool mPersist = false, mSnapshotting = false, mDiscovering = false,
        mLoadingApps = false;
+  bool mDiscoveryInFlight = false;
   bool mQuitting = false;
 };

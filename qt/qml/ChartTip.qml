@@ -38,12 +38,13 @@ Popup {
     }
     property Item source: null
     property real alpha: .8
+    property bool allowAboveSource: false
     function topBoundary() {
         if (!source || !parent)
             return 6;
-        var top = Math.max(6, source.mapToItem(parent, 0, 0).y);
-        // A scrollable miniature chart may be partly clipped. Keep its tooltip
-        // below both the chart controls and the visible scroll region.
+        var top = allowAboveSource ? 6 : Math.max(6, source.mapToItem(parent, 0, 0).y);
+        // Miniatures share the scroll viewport's space: a low chart must be
+        // able to place its full tooltip above itself instead of clipping rows.
         for (var item = source.parent; item; item = item.parent)
             if (item.clip)
                 top = Math.max(top, item.mapToItem(parent, 0, 0).y);
@@ -55,8 +56,8 @@ Popup {
     modal: false
     focus: false
     padding: 12
-    width: Math.min(500, Math.max(300, table.implicitWidth + 24))
-    height: Math.min(implicitHeight, parent ? parent.height * .6 : 500, parent && source ? Math.max(60, parent.height - topBoundary() - 6) : 500)
+    width: Math.min(parent ? parent.width - 12 : 500, 500, Math.max(380, table.implicitWidth + 24))
+    height: Math.min(implicitHeight, parent ? parent.height * (allowAboveSource ? 1 : .6) : 500, parent && source ? Math.max(60, parent.height - topBoundary() - 6) : 500)
     implicitHeight: head.implicitHeight + table.implicitHeight + 38
     x: {
         if (!source || !parent)
@@ -107,65 +108,10 @@ Popup {
                 spacing: 6
                 Repeater {
                     model: tip.retained.items || []
-                    Row {
+                    MemoryDetailRow {
                         required property var modelData
                         width: table.width
-                        spacing: 8
-                        Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 1
-                            color: modelData.color
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        WText {
-                            width: Math.max(80, table.width - 178)
-                            text: F.categoryName(modelData.name)
-                            font.pixelSize: 12
-                            font.bold: modelData.name === "Total"
-                        }
-                        Column {
-                            width: 88
-                            WText {
-                                width: 88
-                                text: modelData.kb === null || modelData.kb === undefined ? "—" : F.mb(modelData.kb) + " MB"
-                                horizontalAlignment: Text.AlignRight
-                                font.pixelSize: 12
-                                font.bold: modelData.name === "Total"
-                            }
-                            WText {
-                                visible: modelData.name === "Total" && modelData.kb >= 1048576
-                                width: 88
-                                text: (Number(modelData.kb) / 1048576).toFixed(2) + " GB"
-                                horizontalAlignment: Text.AlignRight
-                                color: T.muted
-                                font.pixelSize: 11
-                            }
-                        }
-                        Column {
-                            width: 56
-                            visible: modelData.percent >= 0
-                            spacing: 3
-                            WText {
-                                width: 56
-                                text: Number(modelData.percent).toFixed(1) + "%"
-                                font.pixelSize: 11
-                                horizontalAlignment: Text.AlignRight
-                            }
-                            Rectangle {
-                                width: 48
-                                height: 4
-                                radius: 2
-                                color: T.border
-                                anchors.right: parent.right
-                                Rectangle {
-                                    width: parent.width * Math.max(0, Math.min(1, modelData.percent / 100))
-                                    height: 4
-                                    radius: 2
-                                    color: modelData.color
-                                }
-                            }
-                        }
+                        detail: modelData
                     }
                 }
             }

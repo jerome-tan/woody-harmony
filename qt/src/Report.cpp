@@ -1,5 +1,6 @@
 #include "Report.h"
 #include <QColor>
+#include <QDateTime>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -116,6 +117,36 @@ double Report::duration() const {
 QVariantMap Report::sampleAt(int index) const {
   return index < 0 || index >= samples.size() ? QVariantMap{}
                                               : samples[index].toVariantMap();
+}
+
+QVariantMap Report::sampleDetails(int index) const {
+  if (index < 0 || index >= samples.size())
+    return {};
+  const auto &sample = samples[index];
+  const auto timestamp = sample["timestamp"].toInteger();
+  const auto seconds = (timestamp - samples.first()["timestamp"].toInteger()) / 1000.0;
+  const auto heading = QString::number(seconds, 'f', 1) + " s · " +
+      QDateTime::fromMSecsSinceEpoch(timestamp).toString("HH:mm:ss.zzz");
+  const bool valid = isMeasurement(sample);
+  const double total = value(sample, "Total");
+  QList<QVariantMap> rows;
+  const auto names = categories();
+  for (int i = 0; i < names.size(); ++i) {
+    const auto &name = names[i];
+    const double kb = value(sample, name);
+    rows.append({{"name", name}, {"kb", valid ? QVariant(kb) : QVariant()},
+                 {"color", color(name, i).name()},
+                 {"percent", valid ? (total > 0 ? kb / total * 100 : 0) : -1}});
+  }
+  std::stable_sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) {
+    if ((a["name"] == "Total") != (b["name"] == "Total"))
+      return a["name"] == "Total";
+    return a["kb"].toDouble() > b["kb"].toDouble();
+  });
+  QVariantList items;
+  for (const auto &row : rows)
+    items.append(row);
+  return {{"heading", heading}, {"items", items}, {"valid", valid}};
 }
 
 int Report::nearest(double seconds) const {
