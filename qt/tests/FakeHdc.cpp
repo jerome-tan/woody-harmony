@@ -12,6 +12,9 @@ int main(int argc, char **argv) {
   if (!stateFile.open(QIODevice::ReadOnly))
     return 2;
   const auto state = QJsonDocument::fromJson(stateFile.readAll()).object();
+  // A simulated slow command must not hold the fixture open. On Windows that
+  // prevents QSaveFile from replacing it to simulate unplug/reconnect events.
+  stateFile.close();
   const auto args = app.arguments().mid(1);
   const auto command = args.join(' ');
   QFile log(qEnvironmentVariable("WOODY_FAKE_STATE") + ".commands");

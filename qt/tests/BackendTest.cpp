@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <cstdio>
+#include <stdexcept>
 
 class BackendTest : public QObject {
   Q_OBJECT
@@ -11,7 +13,22 @@ private:
   std::unique_ptr<Backend> backend;
   QString statePath, reports;
   void state(const QJsonObject &value) {
-    ReportStore::writeObject(statePath, value);
+    // A child can briefly have this fixture open while reading its command
+    // state. Windows denies atomic replacement during that read; retry only
+    // this test-fixture write, without changing application discovery behavior.
+    QElapsedTimer timer;
+    timer.start();
+    QString problem;
+    do {
+      try {
+        ReportStore::writeObject(statePath, value);
+        return;
+      } catch (const std::exception &e) {
+        problem = QString::fromUtf8(e.what());
+      }
+      QTest::qWait(10);
+    } while (timer.elapsed() < 2000);
+    QFAIL(qPrintable(problem));
   }
   void deviceEvent(bool arrival) {
     auto *monitor = backend->findChild<DeviceMonitor *>("deviceMonitor");
@@ -651,5 +668,12 @@ private slots:
     QVERIFY(ReportStore::list(reports).isEmpty());
   }
 };
-QTEST_GUILESS_MAIN(BackendTest)
+int main(int argc, char **argv) {
+  // Keep the last test name and exception diagnostics if the process crashes.
+  std::setvbuf(stdout, nullptr, _IONBF, 0);
+  std::setvbuf(stderr, nullptr, _IONBF, 0);
+  QCoreApplication app(argc, argv);
+  BackendTest test;
+  return QTest::qExec(&test, argc, argv);
+}
 #include "BackendTest.moc"

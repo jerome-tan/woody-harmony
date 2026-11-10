@@ -21,7 +21,7 @@ if(BUILD_TESTING)
     qt_add_executable(woody_backend_test tests/BackendTest.cpp)
     target_link_libraries(woody_backend_test PRIVATE woody_core Qt6::Test)
     add_dependencies(woody_backend_test woody_fake_hdc)
-    add_test(NAME woody_backend COMMAND woody_backend_test)
+    add_test(NAME woody_backend COMMAND woody_backend_test -v1)
     qt_add_executable(woody_image_test tests/ComparisonImageTest.cpp
         src/ComparisonImageExporter.cpp src/ComparisonImageExporter.h
         src/MemoryPlot.cpp src/MemoryPlot.h)
