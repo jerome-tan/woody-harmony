@@ -11,7 +11,6 @@
 #include <limits>
 
 namespace {
-const QStringList compareColors{"#5273AA", "#8B5CF6", "#B58139", "#468C81"};
 QString bytes(double kb) {
   if (std::abs(kb) >= 1048576)
     return QString::number(kb / 1048576, 'f', 2) + " GB";
@@ -115,7 +114,7 @@ void MemoryPlot::rebuild() {
     if (mHiddenReports.contains(report->metadata["sessionDir"].toString()))
       continue;
     const auto metrics =
-        (mReports.size() > 1 || mCompact) ? QStringList{mMetric} : report->categories();
+        (mReports.size() > 1 || mCompact || mComparison) ? QStringList{mMetric} : report->categories();
     for (int mi = 0; mi < metrics.size(); ++mi) {
       const auto &metric = metrics[mi];
       if (mHidden.contains(metric))
@@ -142,8 +141,8 @@ void MemoryPlot::rebuild() {
         if (duplicates > 1)
           series.label += QString(" (%1)").arg(ordinal);
       }
-      series.color = (mReports.size() > 1 || (mCompact && !report->compareColor.isEmpty())) ? QColor(report->compareColor.isEmpty()
-                                                      ? compareColors[ri % 4]
+      series.color = (mReports.size() > 1 || ((mCompact || mComparison) && !report->compareColor.isEmpty())) ? QColor(report->compareColor.isEmpty()
+                                                      ? Report::comparisonColor(ri).name()
                                                       : report->compareColor)
                                          : Report::color(metric, mi);
       series.peak = report->peakIndex(metric);

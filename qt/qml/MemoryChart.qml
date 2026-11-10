@@ -12,6 +12,8 @@ WCard {
     property var reports: []
     property bool live: false
     property bool compact: false
+    property bool comparison: false
+    property string expandedTitle: ""
     property bool controls: true
     property bool legend: true
     property string metric: "Total"
@@ -36,7 +38,7 @@ WCard {
     }
     signal pointSelected(int index)
     signal restoreRequested
-    title: controls ? "内存趋势" : ""
+    title: controls ? (expandedTitle || "内存趋势") : ""
     padding: compact ? 4 : 8
     extras: Row {
         visible: chart.controls
@@ -176,9 +178,9 @@ WCard {
                             }
                         }
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
+                            width: 12
+                            height: 12
+                            radius: 6
                             color: backend.colorOf(modelData, index)
                         }
                         WText {
@@ -232,6 +234,7 @@ WCard {
             reports: chart.reports
             live: chart.live
             compact: chart.compact
+            comparison: chart.comparison
             metric: chart.metric
             alignment: chart.alignment
             selectedIndex: chart.selectedIndex
@@ -277,7 +280,7 @@ WCard {
     ChartTip {
         objectName: "chartTip"
         data: plot.tooltip
-        source: chart.blockedByDialog || expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
+        source: !chart.visible || chart.blockedByDialog || expanded.opened || displayOptions.opened || categoriesPopup.opened ? null : plot
         alpha: chart.tooltipAlpha
     }
     Popup {
@@ -327,6 +330,8 @@ WCard {
                     item.live = Qt.binding(function () {
                         return chart.live;
                     });
+                    item.comparison = chart.comparison;
+                    item.expandedTitle = chart.expandedTitle;
                     item.metric = chart.metric;
                     item.alignment = chart.alignment;
                     item.legend = chart.legend;

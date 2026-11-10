@@ -3,6 +3,8 @@
 #include "PlatformWindow.h"
 #include "ReportStore.h"
 #include <QClipboard>
+#include <QCursor>
+#include <QScreen>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
@@ -115,6 +117,40 @@ void Backend::requestQuit() {
 void Backend::prepareWindow(QObject *object) {
   if (auto *window = qobject_cast<QWindow *>(object))
     configurePlatformWindow(window);
+}
+
+void Backend::showWindowCentered(QObject *object, QObject *screenReference) {
+  auto *window = qobject_cast<QWindow *>(object);
+  if (!window)
+    return;
+  // Secondary windows use the launching window's display. The main window
+  // uses the pointer's display. Apply placement only before the first show.
+  auto *reference = qobject_cast<QWindow *>(screenReference);
+  auto *screen = reference ? reference->screen()
+                           : QGuiApplication::screenAt(QCursor::pos());
+  if (!screen)
+    screen = window->screen();
+  const QSize initialSize(window->property("initialWidth").toInt(),
+                          window->property("initialHeight").toInt());
+  if (screen) {
+    window->setScreen(screen);
+    window->create();
+    const auto available = screen->availableGeometry();
+    const auto margins = window->frameMargins();
+    const QSize maximum(available.width() - 48 - margins.left() - margins.right(),
+                        available.height() - 48 - margins.top() - margins.bottom());
+    // Explicit defaults avoid macOS titlebar expansion changing the first size.
+    window->resize(initialSize.boundedTo(maximum).expandedTo(window->minimumSize()));
+    const auto frame = window->frameGeometry().size();
+    window->setFramePosition(available.topLeft() +
+        QPoint(qMax(0, (available.width() - frame.width()) / 2),
+               qMax(0, (available.height() - frame.height()) / 2)));
+  } else {
+    window->resize(initialSize);
+  }
+  window->show();
+  window->raise();
+  window->requestActivate();
 }
 
 void Backend::copyText(const QString &text) {
@@ -716,12 +752,11 @@ void Backend::openCompare(const QStringList &directories) {
           return;
         }
         QVariantList reports;
-        const QStringList colors{"#5273AA", "#8B5CF6", "#B58139", "#468C81"};
         for (const auto &data : value.toArray()) {
           auto *report = new Report(this);
           report->load(data.toObject());
           report->compareOrdinal = reports.size();
-          report->compareColor = colors[reports.size()];
+          report->compareColor = Report::comparisonColor(reports.size()).name();
           reports.append(QVariant::fromValue(report));
         }
         emit compareOpened(reports);

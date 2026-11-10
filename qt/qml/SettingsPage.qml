@@ -30,6 +30,7 @@ ColumnLayout {
             }
             WField {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: root.selectedDirectory || backend.defaultSessionsDir
                 readOnly: true
             }
@@ -77,6 +78,7 @@ ColumnLayout {
                     id: hdc
                     objectName: "hdcPathField"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     enabled: !root.automatic
                     text: backend.hdcPath
                     placeholderText: root.automatic ? "启动时从 SDK 和系统路径查找" : "选择 hdc 可执行文件"

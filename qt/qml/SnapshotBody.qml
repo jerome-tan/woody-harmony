@@ -35,7 +35,8 @@ ColumnLayout {
         return tabs;
     }
     property int detailIndex: 0
-    property string chartMode: "bar"
+    property string chartMode: "pie"
+    readonly property bool sideBySide: width >= 1000
     spacing: 14
     StatCards {
         width: parent.width
@@ -62,110 +63,94 @@ ColumnLayout {
         ]
     }
     WCard {
+        objectName: "snapshotComposition"
         Layout.fillWidth: true
-        Layout.preferredHeight: 280
-        Layout.minimumHeight: 260
+        Layout.preferredHeight: 350 + (root.sideBySide ? 0 : 40)
         title: "内存构成"
-        extras: Row {
-            spacing: 4
-            WButton {
-                objectName: "barChartButton"
-                text: "条形图"
-                small: true
-                tone: root.chartMode === "bar" ? "selected" : "default"
-                onClicked: root.chartMode = "bar"
-            }
-            WButton {
-                objectName: "pieChartButton"
-                text: "环形图"
-                small: true
-                tone: root.chartMode === "pie" ? "selected" : "default"
-                onClicked: root.chartMode = "pie"
-            }
-        }
-        RowLayout {
+        ColumnLayout {
             anchors.fill: parent
-            spacing: 24
-            SnapshotPlot {
-                id: composition
-                objectName: "snapshotPlot"
+            spacing: 10
+            RowLayout {
+                objectName: "snapshotChartTabs"
+                visible: !root.sideBySide
+                Layout.fillWidth: true
+                spacing: 4
+                WButton {
+                    objectName: "pieChartButton"
+                    text: "环形图"
+                    small: true
+                    tone: root.chartMode === "pie" ? "selected" : "default"
+                    onClicked: root.chartMode = "pie"
+                }
+                WButton {
+                    objectName: "barChartButton"
+                    text: "条形图"
+                    small: true
+                    tone: root.chartMode === "bar" ? "selected" : "default"
+                    onClicked: root.chartMode = "bar"
+                }
+                Item { Layout.fillWidth: true }
+            }
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                snapshot: root.snapshot
-                mode: root.chartMode
+                spacing: 12
+                SnapshotPlot {
+                    id: donut
+                    objectName: "snapshotDonutPlot"
+                    visible: root.sideBySide || root.chartMode === "pie"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 1
+                    snapshot: root.snapshot
+                    mode: "pie"
+                }
+                Rectangle {
+                    visible: root.sideBySide
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    color: T.border
+                }
+                SnapshotPlot {
+                    id: bars
+                    objectName: "snapshotBarPlot"
+                    visible: root.sideBySide || root.chartMode === "bar"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 1
+                    snapshot: root.snapshot
+                    mode: "bar"
+                }
             }
-            Column {
-                visible: root.width >= 800
-                Layout.preferredWidth: 200
-                spacing: 18
+            Flow {
+                Layout.fillWidth: true
+                Layout.preferredHeight: implicitHeight
+                spacing: 8
                 Repeater {
                     model: [
-                        {
-                            name: "Dma",
-                            value: root.snapshot.dmaKb
-                        },
-                        {
-                            name: "Ashmem",
-                            value: root.snapshot.ashmemTotalKb
-                        },
-                        {
-                            name: "PurgSum",
-                            value: root.snapshot.purgSumKb
-                        },
-                        {
-                            name: "PurgPin",
-                            value: root.snapshot.purgPinKb
-                        }
+                        { name: "Dma", value: root.snapshot.dmaKb },
+                        { name: "Ashmem", value: root.snapshot.ashmemTotalKb },
+                        { name: "PurgSum", value: root.snapshot.purgSumKb },
+                        { name: "PurgPin", value: root.snapshot.purgPinKb }
                     ]
-                    RowLayout {
+                    WTag {
                         required property var modelData
-                        width: parent.width
-                        WText {
-                            text: modelData.name
-                            color: T.muted
-                            Layout.fillWidth: true
-                        }
-                        WText {
-                            text: modelData.value === undefined ? "—" : F.bytes(modelData.value)
-                        }
+                        text: modelData.name + "  " + (modelData.value === undefined ? "—" : F.bytes(modelData.value))
+                        ink: T.muted
+                        tint: T.chrome
                     }
                 }
             }
         }
         ChartTip {
-            source: composition
-            data: composition.tooltip
+            source: donut
+            data: donut.visible ? donut.tooltip : ({})
             alpha: 1
         }
-    }
-    Flow {
-        Layout.fillWidth: true
-        Layout.preferredHeight: implicitHeight
-        spacing: 8
-        visible: root.width < 800
-        Repeater {
-            model: [
-                {
-                    name: "Dma",
-                    value: root.snapshot.dmaKb
-                },
-                {
-                    name: "Ashmem",
-                    value: root.snapshot.ashmemTotalKb
-                },
-                {
-                    name: "PurgSum",
-                    value: root.snapshot.purgSumKb
-                },
-                {
-                    name: "PurgPin",
-                    value: root.snapshot.purgPinKb
-                }
-            ]
-            WTag {
-                required property var modelData
-                text: modelData.name + "  " + (modelData.value === undefined ? "—" : F.bytes(modelData.value))
-            }
+        ChartTip {
+            source: bars
+            data: bars.visible ? bars.tooltip : ({})
+            alpha: 1
         }
     }
     Row {
@@ -192,12 +177,14 @@ ColumnLayout {
         width: parent.width
         visible: root.detailIndex === 0
         Layout.fillWidth: true
-        Layout.fillHeight: true
-        Layout.minimumHeight: 180
+        Layout.preferredHeight: categoryTable.implicitHeight
         title: ""
         padding: 0
         DataTable {
+            id: categoryTable
+            objectName: "snapshotCategoryTable"
             anchors.fill: parent
+            expandVertically: true
             rows: root.rows
             rowHeight: 36
             fillColumns: true
@@ -269,16 +256,18 @@ ColumnLayout {
         visible: root.detailIndex > 0 && root.detailTabs.length > 0
         width: parent.width
         Layout.fillWidth: true
-        Layout.fillHeight: true
-        Layout.minimumHeight: 180
+        Layout.preferredHeight: detailContent.implicitHeight + 20
         title: ""
         padding: 10
         ColumnLayout {
+            id: detailContent
             anchors.fill: parent
             spacing: 8
             DataTable {
+                objectName: "snapshotDetailTable"
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: implicitHeight
+                expandVertically: true
                 property string kind: root.detailTabs.length ? root.detailTabs[Math.max(0, Math.min(root.detailIndex - 1, root.detailTabs.length - 1))].key : ""
                 rows: kind === "ashmem" ? root.snapshot.ashmemDetail || [] : kind === "dmabuf" ? root.snapshot.dmabufDetail || [] : root.snapshot.gpuDetail ? root.snapshot.gpuDetail.channels || [] : []
                 emptyText: "该进程无相关内存块"

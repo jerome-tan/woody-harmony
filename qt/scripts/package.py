@@ -11,7 +11,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
+VERSION = (ROOT/'VERSION').read_text(encoding='utf-8').strip()
 
 
 def run(command, **kwargs):
@@ -135,7 +135,7 @@ SectionEnd
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--build',type=Path,required=True);parser.add_argument('--qt',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--arch',choices=['arm64','x64'],required=True);parser.add_argument('--skip-installer',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--build',type=Path,required=True);parser.add_argument('--qt',type=Path,required=True);parser.add_argument('--output',type=Path,default=ROOT/'dist/qt-package',help='Fixed local output directory (default: dist/qt-package); override only for CI or an explicit export');parser.add_argument('--arch',choices=['arm64','x64'],required=True);parser.add_argument('--skip-installer',action='store_true');args=parser.parse_args()
     args.build=args.build.resolve();args.qt=args.qt.resolve();output=args.output.resolve();output.mkdir(parents=True,exist_ok=True)
     staging=output/'staging'
     if staging.exists():shutil.rmtree(staging)

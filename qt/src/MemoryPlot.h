@@ -20,6 +20,7 @@ class MemoryPlot : public QQuickPaintedItem {
   Q_PROPERTY(bool points MEMBER mPoints NOTIFY optionsChanged)
   Q_PROPERTY(bool live MEMBER mLive NOTIFY optionsChanged)
   Q_PROPERTY(bool compact MEMBER mCompact NOTIFY optionsChanged)
+  Q_PROPERTY(bool comparison MEMBER mComparison NOTIFY optionsChanged)
   Q_PROPERTY(int selectedIndex MEMBER mSelected NOTIFY optionsChanged)
   Q_PROPERTY(bool following READ following NOTIFY rangeChanged)
   Q_PROPERTY(double rangeStart READ rangeStart NOTIFY rangeChanged)
@@ -41,6 +42,8 @@ public:
   Q_INVOKABLE void followLatest();
   Q_INVOKABLE void setRange(double start, double end);
   void paint(QPainter *painter) override;
+  // Paint the same chart directly into a full-content export, independent of a window.
+  void renderContent(QPainter *painter) { draw(*painter); }
 signals:
   void optionsChanged();
   void rangeChanged();
@@ -76,7 +79,7 @@ private:
   QString mMetric = "Total", mAlignment = "start", mHighlight;
   QStringList mHidden, mHiddenReports;
   bool mSmooth = false, mPoints = true, mLive = false, mCompact = false,
-       mFollowing = true;
+       mFollowing = true, mComparison = false;
   int mSelected = -1, mDrag = 0;
   double mStart = 0, mEnd = 2, mSpan = 2, mHoverTime = -1;
   QPointF mPressed;

@@ -2,15 +2,19 @@
 
 验证日期：2026-10-31。分支：`codex/qt-6.12.0`。原生实现为 C++20 + Qt Quick；图表由 Qt 原生绘制，不依赖 WebEngine、Qt Charts、Qt Graphs 或 Node.js。
 
+此文是迁移时的历史验证快照。2026-11-09 起仓库仅保留 Qt 实现，Electron 源码与
+对照运行脚本已移除；下方历史数据保留，复现两种运行时的对照需检出所列历史提交。
+当前测量脚本仅测量 Qt，当前界面验收见根目录 `design-qa.md`。
+
 本报告区分功能回归、部署验证和性能测量。自动化通过不等于所有硬件、系统版本和实际设备场景均已验证。
 
 ## 来源与复现
 
-- Electron 参考代码：`4e562bb913a31239bed89b137eaf6877330cce30`；本分支保留的 `src/` 与该提交一致。运行时 Electron 44.4.4。
+- Electron 参考代码：`4e562bb913a31239bed89b137eaf6877330cce30`；迁移当时的 `src/` 与该提交一致。运行时 Electron 44.4.4。
 - Electron 包体积：[原版 Actions 41014290111](https://github.com/jerome-tan/woody-harmony/actions/runs/41014290111)。读取各 Artifact ZIP 中程序文件的大小，不计 GitHub 外层 ZIP。
 - Qt 跨平台验证：[Actions 41161710090](https://github.com/jerome-tan/woody-harmony/actions/runs/41161710090)，代码提交 `393ba6b7c0fa3ca6a5ab07561f40cca3730e75c2`。
 - 本机 macOS 测量：Apple M5、32 GiB、macOS 26.6.2、arm64；本机受测安装包提交 `91fd861`。另保留 `430dff4` 的较早一批数据观察波动；两者应用业务代码一致，期间改动为测试工具和 CI。最终 `393ba6b` 另修正 Windows 顶栏选项，macOS 窗口选项不变。
-- 复现命令见 [构建与测量说明](README.md)。持久化的测量摘要位于 [validation/](validation/)；完整逐次采样、测试日志和截图在 Actions 的 `woody-qt-evidence-*` 中，保留 14 天。
+- 历史对照的复现命令见对应提交中的构建说明；[当前构建与测量说明](README.md)仅覆盖 Qt。持久化的测量摘要位于 [validation/](validation/)；完整逐次采样、测试日志和截图在 Actions 的 `woody-qt-evidence-*` 中，保留 14 天。
 
 ## 包体积
 

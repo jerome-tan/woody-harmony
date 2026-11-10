@@ -35,6 +35,7 @@ public:
   Q_INVOKABLE int peakIndex(const QString &metric = "Total") const;
   static bool isMeasurement(const QJsonObject &sample);
   static double value(const QJsonObject &sample, const QString &metric);
+  static QColor comparisonColor(int index);
   static QColor color(const QString &category, int index = 0);
 signals:
   void changed();

@@ -9,6 +9,9 @@ Item {
     property bool selectable: false
     property int rowHeight: 44
     property bool fillColumns: false
+    // Let an enclosing page own vertical scrolling while retaining horizontal columns.
+    property bool expandVertically: false
+    implicitHeight: expandVertically ? 38 + Math.max(rows.length * rowHeight, rows.length ? 0 : 100) + (tableWidth > width ? 12 : 0) : 0
     property var selected: []
     property string keyRole: "sessionDir"
     property string sortKey: ""
@@ -165,14 +168,38 @@ Item {
                     required property int index
                     width: table.columnWidth(modelData)
                     height: 38
-                    color: T.chrome
-                    WText {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        text: headerCell.modelData.title + (table.sortKey === headerCell.modelData.key ? (table.descending ? " ▾" : " ▴") : "")
-                        font.pixelSize: 13
-                        font.bold: true
-                        horizontalAlignment: headerCell.modelData.align === "right" ? Text.AlignRight : Text.AlignLeft
+                    color: modelData.headerBackground || T.chrome
+                    Row {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: headerCell.modelData.align === "right" ? headerCell.width - width - 10 : 10
+                        spacing: 8
+                        WText {
+                            width: Math.min(implicitWidth, Math.max(0, headerCell.width - 20 - (sortIndicator.visible ? 22 : 0)))
+                            text: headerCell.modelData.title
+                            color: headerCell.modelData.headerColor || T.text
+                            font.pixelSize: 13
+                            font.bold: true
+                        }
+                        Canvas {
+                            id: sortIndicator
+                            objectName: "sortIndicator-" + headerCell.modelData.key
+                            visible: table.sortKey === headerCell.modelData.key
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 14
+                            height: 10
+                            rotation: table.descending ? 0 : 180
+                            onPaint: {
+                                var ctx = getContext("2d");
+                                ctx.clearRect(0, 0, width, height);
+                                ctx.fillStyle = T.accent;
+                                ctx.beginPath();
+                                ctx.moveTo(0, 1);
+                                ctx.lineTo(width, 1);
+                                ctx.lineTo(width / 2, height - 1);
+                                ctx.closePath();
+                                ctx.fill();
+                            }
+                        }
                     }
                     Rectangle {
                         width: 1
@@ -244,6 +271,8 @@ Item {
         }
         ListView {
             id: list
+            objectName: "tableRows"
+            interactive: !table.expandVertically
             x: 0
             y: 38
             width: horizontal.contentWidth
@@ -252,6 +281,7 @@ Item {
             model: table.sortedRows
             reuseItems: true
             ScrollBar.vertical: ScrollBar {
+                policy: table.expandVertically ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
                 x: Math.min(list.width, horizontal.width + horizontal.contentX) - width
             }
             delegate: Rectangle {
@@ -295,6 +325,15 @@ Item {
                             height: table.rowHeight
                             readonly property var raw: rowItem.modelData[modelData.key]
                             readonly property string display: modelData.format ? modelData.format(raw, rowItem.modelData) : raw === null || raw === undefined ? "—" : String(raw)
+                            WIcon {
+                                objectName: "cellIcon-" + cell.modelData.key + "-" + rowItem.index
+                                visible: !!cell.modelData.icon
+                                x: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: cell.modelData.icon ? cell.modelData.icon(cell.raw, rowItem.modelData) : ""
+                                width: 18
+                                height: 18
+                            }
                             Rectangle {
                                 visible: !!cell.modelData.swatch
                                 x: 12
@@ -320,11 +359,11 @@ Item {
                                 }
                             }
                             Column {
-                                x: cell.modelData.swatch ? 28 : cell.modelData.bar ? Math.max(12, cell.width - 118) : 12
+                                x: cell.modelData.icon ? 38 : cell.modelData.swatch ? 28 : cell.modelData.bar ? Math.max(12, cell.width - 118) : 12
                                 width: cell.width - x - 12
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 3
-                                visible: cell.modelData.key !== "actions"
+                                visible: cell.modelData.key !== "actions" && !cell.modelData.secondaryInline
                                 WText {
                                     width: parent.width
                                     text: cell.display
@@ -340,13 +379,45 @@ Item {
                                     ToolTip.delay: 600
                                 }
                                 WText {
-                                    visible: !!cell.modelData.secondary
+                                    visible: !!cell.modelData.secondary && text.length > 0
                                     width: parent.width
                                     text: cell.modelData.secondary ? cell.modelData.secondary(cell.raw, rowItem.modelData) : ""
                                     color: cell.modelData.secondaryColor ? cell.modelData.secondaryColor(cell.raw, rowItem.modelData) : T.muted
                                     font.pixelSize: 12
                                     horizontalAlignment: cell.modelData.align === "right" ? Text.AlignRight : Text.AlignLeft
                                 }
+                            }
+                            Row {
+                                id: inlineValues
+                                objectName: "inlineValues-" + cell.modelData.key + "-" + rowItem.index
+                                visible: !!cell.modelData.secondaryInline
+                                property string delta: cell.modelData.secondary ? cell.modelData.secondary(cell.raw, rowItem.modelData) : ""
+                                width: Math.min(implicitWidth, cell.width - 24)
+                                x: cell.modelData.align === "right" ? cell.width - width - 12 : 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: delta.length ? 6 : 0
+                                WText {
+                                    objectName: "inlinePrimary-" + cell.modelData.key + "-" + rowItem.index
+                                    text: cell.display
+                                    width: Math.min(implicitWidth, Math.max(0, cell.width - 24 - inlineDelta.width - inlineValues.spacing))
+                                    height: 22
+                                    font.pixelSize: 14
+                                    font.weight: rowItem.modelData.fixed || cell.modelData.bold ? Font.DemiBold : Font.Normal
+                                    color: cell.modelData.color ? cell.modelData.color(cell.raw, rowItem.modelData) : T.text
+                                }
+                                WText {
+                                    id: inlineDelta
+                                    objectName: "inlineDelta-" + cell.modelData.key + "-" + rowItem.index
+                                    text: inlineValues.delta
+                                    width: Math.min(implicitWidth, Math.max(0, cell.width - 24))
+                                    height: 22
+                                    font.pixelSize: 12
+                                    color: cell.modelData.secondaryColor ? cell.modelData.secondaryColor(cell.raw, rowItem.modelData) : T.muted
+                                }
+                                HoverHandler { id: inlineHover }
+                                ToolTip.visible: inlineHover.hovered
+                                ToolTip.text: cell.display + (delta.length ? " " + delta : "")
+                                ToolTip.delay: 600
                             }
                             MouseArea {
                                 anchors.fill: parent

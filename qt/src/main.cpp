@@ -1,6 +1,7 @@
 #include "../tests/UiAutomation.h"
 #include "Backend.h"
 #include "MemoryPlot.h"
+#include "ComparisonImageExporter.h"
 #include "SnapshotPlot.h"
 #include <QCommandLineParser>
 #include <QElapsedTimer>
@@ -65,6 +66,7 @@ int main(int argc, char **argv) {
   parser.addOption(
       {"ready-file", "Write a marker after the first rendered frame.", "file"});
   parser.process(app);
+  qmlRegisterType<ComparisonImageExporter>("Woody.Native", 1, 0, "ComparisonImageExporter");
   qmlRegisterType<MemoryPlot>("Woody.Native", 1, 0, "MemoryPlot");
   qmlRegisterType<SnapshotPlot>("Woody.Native", 1, 0, "SnapshotPlot");
   qmlRegisterUncreatableType<Report>("Woody.Native", 1, 0, "Report",
@@ -109,6 +111,7 @@ int main(int argc, char **argv) {
           ++frames;
         },
         Qt::QueuedConnection);
+    backend.showWindowCentered(window);
   }
   QTimer::singleShot(0, &backend, [&] {
     if (!parser.isSet("offline"))

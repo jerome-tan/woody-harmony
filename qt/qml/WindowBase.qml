@@ -17,8 +17,10 @@ ApplicationWindow {
     property bool extraModalOpen: false
     readonly property bool modalDialogOpen: extraModalOpen || about.opened || renameDialog.opened || errorDialog.opened
     title: mainWindow ? "Woody" : caption
-    width: 1280
-    height: 840
+    property int initialWidth: 1280
+    property int initialHeight: 840
+    width: initialWidth
+    height: initialHeight
     minimumWidth: 640
     minimumHeight: 480
     color: "white"

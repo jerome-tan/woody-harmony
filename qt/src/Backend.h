@@ -50,6 +50,7 @@ public:
   Q_INVOKABLE void requestInteractiveQuit() { emit quitRequested(); }
   Q_INVOKABLE void cancelSnapshot();
   Q_INVOKABLE void prepareWindow(QObject *window);
+  Q_INVOKABLE void showWindowCentered(QObject *window, QObject *screenReference = nullptr);
   Q_INVOKABLE void copyText(const QString &text);
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
@@ -74,6 +75,9 @@ public:
   Q_INVOKABLE QVariant uiPreference(const QString &key,
                                     const QVariant &fallback = {}) const;
   Q_INVOKABLE void setUiPreference(const QString &key, const QVariant &value);
+  Q_INVOKABLE QString comparisonColor(int index) const {
+    return Report::comparisonColor(index).name();
+  }
   Q_INVOKABLE QString colorOf(const QString &name, int index = 0) const {
     return Report::color(name, index).name();
   }

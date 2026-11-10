@@ -16,3 +16,10 @@ var sectionHeader = "#F3F5F8"
 var successText = "#18734A"
 var successBackground = "#E7F5ED"
 var errorBackground = "#FDECEE"
+
+// Memory increases are regressions; decreases are improvements.
+function memoryDeltaColor(value) {
+    if (value === null || value === undefined || !isFinite(Number(value)) || Number(value) === 0)
+        return muted;
+    return Number(value) > 0 ? error : successText;
+}

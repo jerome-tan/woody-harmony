@@ -26,6 +26,9 @@ public:
                         double y2);
   Q_INVOKABLE bool key(QObject *window, int key, int modifiers = 0);
   Q_INVOKABLE bool screenshot(QObject *window, const QString &name);
+  Q_INVOKABLE QVariantMap windowPlacement(QObject *window) const;
+  Q_INVOKABLE QString clipboardText() const;
+  Q_INVOKABLE QVariantMap imageInfo(const QString &path = {}) const;
   Q_INVOKABLE bool setFakeDeviceState(const QVariantMap &state);
   Q_INVOKABLE QStringList nativeMenuEntries() const;
   Q_INVOKABLE void activateApp();

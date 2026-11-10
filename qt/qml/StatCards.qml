@@ -48,6 +48,7 @@ Rectangle {
                     WText {
                         width: parent.width
                         text: modelData.value
+                        color: modelData.memoryDelta !== undefined ? T.memoryDeltaColor(modelData.memoryDelta) : T.text
                         font.pixelSize: root.narrow ? 18 : 24
                         font.weight: Font.DemiBold
                     }

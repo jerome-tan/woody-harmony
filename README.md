@@ -1,18 +1,18 @@
 # Woody
 
-[![Native Qt build](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml/badge.svg?branch=codex%2Fqt-6.12.0)](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml)
+[![Native Qt build](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml/badge.svg)](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml)
 [![Release](https://img.shields.io/github/v/release/jerome-tan/woody-harmony)](https://github.com/jerome-tan/woody-harmony/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 鸿蒙开发调试桌面工具，支持 macOS / Windows。通过 hdc 执行 `hidumper`，提供实时内存趋势、单次快照、持续采样和多报告对比。
 
-本分支为 **Qt 6.12.0 原生版**，使用 C++20 / Qt Quick。保留原 Electron 源码用于功能与性能对照；Qt 安装包不包含 Electron、Chromium、Node.js 或 WebEngine。
+项目仅维护 **Qt 6.12.0 原生版**，使用 C++20 / Qt Quick。源码构建和打包无需 Node.js、npm 或浏览器运行时。
 
-迁移范围、实际包体积、三轮性能对照和验证边界见 [Qt 验证报告](qt/VALIDATION.md)。
+迁移时的包体积、性能对照和验证边界作为历史记录保存在 [Qt 验证报告](qt/VALIDATION.md)；当前界面和交互检查见 [设计验收记录](design-qa.md)。
 
 ## 下载
 
-Qt 分支构建在 [Native Qt Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml) 的 Artifacts 下载。已发布的 [v0.1.0 Release](https://github.com/jerome-tan/woody-harmony/releases/tag/v0.1.0) 仍是 Electron 版；本次迁移不覆盖它。
+开发构建在 [Native Qt Actions](https://github.com/jerome-tan/woody-harmony/actions/workflows/qt.yml) 的 Artifacts 下载，正式发布在 [Releases](https://github.com/jerome-tan/woody-harmony/releases)。请选择文件名包含 `-qt-` 的产物；旧版本发布保留为历史记录。
 
 `woody-qt-package-<平台>-<架构>` 包含安装包和免安装 ZIP；`woody-qt-evidence-*` 包含截图、测试结果、体积明细和性能原始数据。
 
@@ -50,13 +50,13 @@ Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立
 ## 使用流程
 
 1. 启动后确认顶部设备信息；必要时在「设置」中配置 hdc 路径。
-2. 在「工具集」选择实时内存、持续内存采样或内存快照。
+2. 在左侧独立入口选择「实时查看」「内存快照」或「持续采样」。
 3. 选择目标设备和应用，配置参数并开始采集。
-4. 持续采样结束或快照完成后，查看生成的报告；在「查看报告」中选择同类型报告进行对比。
+4. 持续采样结束或快照完成后，查看生成的报告；在「报告库」中选择同类型报告进行对比。
 
-实时查看和持续采样允许在应用尚未启动时开始：此时记录 `pid: null` 的零值占位样本，待手动启动应用后自动采集。Woody 不会自动启动应用。内存快照要求目标应用正在运行。
+实时查看和持续采样允许在应用尚未启动时开始：此时进入等待状态，待手动启动应用后自动采集；等待记录不计入有效统计或显示成零内存。Woody 不会自动启动应用。内存快照要求目标应用正在运行。同一设备的目标应用选择会在三个入口间共享并保存，未运行仍保留选择，卸载后清空。
 
-主窗口、报告窗口和对比窗口使用统一的单行顶栏。macOS 保留左上角系统按钮和屏幕顶部菜单；Windows 在顶栏左侧提供应用菜单按钮（也可按 `Alt` 或 `F10` 打开），右侧保留系统最小化、最大化、关闭按钮。编辑、窗口和关于操作作用于当前窗口，Windows 支持 `Ctrl+W` 关闭当前窗口、`Ctrl+M` 最小化、`Ctrl+Q` 退出应用。
+主窗口、报告窗口和对比窗口使用统一的单行顶栏。macOS 保留左上角系统按钮和屏幕顶部菜单；Windows 在顶栏左侧显示 logo、应用名和 Help 菜单（`Alt+H`），右侧保留系统最小化、最大化、关闭按钮。Help 提供「关于 Woody」。Windows 支持 `Ctrl+W` 关闭当前窗口、`Ctrl+M` 最小化、`Ctrl+Q` 退出应用。
 
 ## 数据保存
 
@@ -74,26 +74,28 @@ Windows 免安装版是完整程序目录的 ZIP：将 ZIP 全部解压到独立
 
 ```bash
 python qt/scripts/install-qt.py --output dist/qt-sdk
-cmake -S . -B dist/qt-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B dist/qt-build.noindex -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$PWD/dist/qt-sdk/6.12.0/macos" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=14.4
-cmake --build dist/qt-build --parallel
-ctest --test-dir dist/qt-build --output-on-failure
+cmake --build dist/qt-build.noindex --parallel
+ctest --test-dir dist/qt-build.noindex --output-on-failure
+python qt/scripts/package.py --build dist/qt-build.noindex \
+  --qt "$PWD/dist/qt-sdk/6.12.0/macos" --arch arm64
 ```
 
 Windows 构建器使用 `-G "Visual Studio 17 2022" -A x64`，Qt 路径指向 `6.12.0/msvc2022_64`，构建加 `--config Release`，测试加 `-C Release`。
 
-原生代码位于 `qt/src/`，界面位于 `qt/qml/`，测试位于 `qt/tests/`。打包、交互回归和性能测试步骤见 [Qt 构建说明](qt/README.md)。应用、安装程序与发布标签统一读取根目录 `package.json` 的版本号。
+原生代码位于 `qt/src/`，界面位于 `qt/qml/`，测试位于 `qt/tests/`，应用图标位于 `qt/resources/`。打包、交互回归和性能测试步骤见 [Qt 构建说明](qt/README.md)。应用、安装程序与发布标签统一读取根目录 `VERSION` 的版本号。
 
-原 Electron 代码仍位于 `src/`，使用 `npm ci && npm run dev` 运行，`npm run build` 生成性能对照所用的生产构建。其工作流仅支持手动运行，不参与本分支的自动发布。
+本地迭代固定复用 `dist/qt-build.noindex` 和 `dist/qt-package`，不再为每次改动创建新的程序包目录。直接运行 `dist/qt-package/staging/Woody.app`；安装包和 ZIP 位于 `dist/qt-package`，每次打包原位更新。
 
 ## GitHub Actions 与版本发布
 
 [Native Qt build and validation](.github/workflows/qt.yml) 自动构建 Windows x64、macOS arm64 和 macOS Intel：
 
-- 推送 `main`、`codex/qt-*`，或提交面向 `main` 的 PR：编译、后端测试、原生界面回归、打包、部署后回归，以及三轮 Electron / Qt 性能对照。
+- 推送 `main`、`codex/qt-*`，或提交面向 `main` 的 PR：编译、后端测试、原生界面回归、打包、部署后回归，以及三轮 Qt 启动、内存和交互 CPU 测量。
 - Windows 额外验证中文路径下 ZIP 解压启动、安装版启动和卸载保留用户文件。
-- 推送 `v*` 标签：必须与 `package.json` 版本一致；三平台全部成功后，发布六个 Qt 包和 `SHA256SUMS.txt`。
+- 推送 `v*` 标签：必须与 `VERSION` 一致；三平台全部成功后，发布六个 Qt 包和 `SHA256SUMS.txt`。
 - 普通分支推送只产生 Actions Artifacts，不发布 Release。Artifacts 保留 14 天。
 
 发布任务使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需额外配置个人访问令牌。普通构建只有仓库读取权限，发布任务单独申请 `contents: write`。
@@ -104,7 +106,10 @@ Windows 构建器使用 `-G "Visual Studio 17 2022" -A x64`，Qt 路径指向 `6
 2. 更新版本并推送：
 
    ```bash
-   npm version 0.1.1
+   printf '0.1.1\n' > VERSION
+   git add VERSION
+   git commit -m "Release v0.1.1"
+   git tag v0.1.1
    git push origin main
    git push origin v0.1.1
    ```

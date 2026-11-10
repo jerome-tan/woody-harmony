@@ -22,9 +22,19 @@ if(BUILD_TESTING)
     target_link_libraries(woody_backend_test PRIVATE woody_core Qt6::Test)
     add_dependencies(woody_backend_test woody_fake_hdc)
     add_test(NAME woody_backend COMMAND woody_backend_test)
+    qt_add_executable(woody_image_test tests/ComparisonImageTest.cpp
+        src/ComparisonImageExporter.cpp src/ComparisonImageExporter.h
+        src/MemoryPlot.cpp src/MemoryPlot.h)
+    target_link_libraries(woody_image_test PRIVATE woody_core Qt6::Test Qt6::Quick)
+    if(WIN32)
+        target_compile_options(woody_image_test PRIVATE /utf-8)
+    endif()
+    add_test(NAME woody_image COMMAND woody_image_test)
+    set_tests_properties(woody_image PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
 qt_add_executable(Woody MACOSX_BUNDLE WIN32
+    src/ComparisonImageExporter.cpp src/ComparisonImageExporter.h
     src/main.cpp src/MemoryPlot.cpp src/MemoryPlot.h src/SnapshotPlot.cpp src/SnapshotPlot.h
     tests/UiAutomation.cpp tests/UiAutomation.h
 )
@@ -37,18 +47,18 @@ foreach(qml_file IN LISTS WOODY_QML)
     set_source_files_properties("${qml_file}" PROPERTIES QT_RESOURCE_ALIAS "${qml_name}")
 endforeach()
 qt_add_qml_module(Woody URI Woody VERSION 1.0 RESOURCE_PREFIX /qt/qml QML_FILES ${WOODY_QML})
-qt_add_resources(Woody assets PREFIX /assets BASE "${PROJECT_SOURCE_DIR}/build" FILES "${PROJECT_SOURCE_DIR}/build/icon.png")
+qt_add_resources(Woody assets PREFIX /assets BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources" FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.png")
 file(GLOB WOODY_ICONS CONFIGURE_DEPENDS "assets/icons/*.svg")
 qt_add_resources(Woody icons PREFIX /icons BASE "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons" FILES ${WOODY_ICONS})
-qt_add_resources(Woody brand PREFIX /assets BASE "${PROJECT_SOURCE_DIR}/build" FILES "${PROJECT_SOURCE_DIR}/build/icon-win.png")
+qt_add_resources(Woody brand PREFIX /assets BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources" FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/icon-win.png")
 if(APPLE)
     enable_language(OBJCXX)
     set_property(TARGET woody_core PROPERTY OBJCXX_STANDARD 20)
     target_sources(woody_core PRIVATE src/PlatformWindow_mac.mm)
     target_sources(Woody PRIVATE tests/UiAutomation_mac.mm)
     target_link_libraries(woody_core PUBLIC "-framework AppKit")
-    target_sources(Woody PRIVATE "${PROJECT_SOURCE_DIR}/build/icon.icns")
-    set_source_files_properties("${PROJECT_SOURCE_DIR}/build/icon.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(Woody PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.icns")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(Woody PROPERTIES
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.woody.harmony"
         MACOSX_BUNDLE_BUNDLE_NAME Woody

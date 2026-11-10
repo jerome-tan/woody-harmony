@@ -6,30 +6,30 @@
 
 namespace {
 const QStringList defaultCategories{
-    "Total", "GL",  "Graph", "ark ts heap",    "native heap",
-    "stack", ".so", ".hap",  "AnonPage other", "FilePage other",
-    "dev",   ".db", ".ttf",  "guard"};
-// Data categories need distinct hues, independent of the lavender UI theme.
-// Trends, snapshot bars/donuts, legends and tooltips all use this mapping.
+    "Total", "GL", "Graph", "ark ts heap", "native heap",
+    "stack", ".so", ".hap", "AnonPage other", "FilePage other",
+    "dev", ".db", ".ttf", "guard", "arkts-static heap", "arkweb-pa heap"};
+// Selected vivid palette. All sixteen known categories have distinct colors;
+// trends, snapshot bars/donuts, legends and tooltips share this mapping.
 const QStringList colors{
-    "#7C3AED", // Total: violet
-    "#0072B2", // GL: blue
-    "#D55E00", // Graph: orange
-    "#E31A1C", // ArkTS heap: red
-    "#009E73", // Native heap: green
-    "#008DA8", // Stack: cyan
-    "#A88700", // .so: ochre
-    "#C2188B", // .hap: magenta
-    "#8C4B21", // AnonPage other: brown
-    "#64748B", // FilePage other: slate
-    "#658800", // dev: lime
-    "#003F5C", // .db: navy
-    "#DB6B8A", // .ttf: pink
-    "#252525"  // guard: charcoal
+    "#7839E6", // Total: violet
+    "#0067C0", // GL: blue
+    "#EF7700", // Graph: orange
+    "#D92032", // ArkTS heap: red
+    "#00885C", // Native heap: green
+    "#009EB8", // Stack: cyan
+    "#B89D00", // .so: ochre
+    "#B000A4", // .hap: magenta
+    "#8E4A26", // AnonPage other: brown
+    "#75859A", // FilePage other: slate
+    "#76A600", // dev: lime
+    "#303E88", // .db: indigo
+    "#F2767B", // .ttf: coral
+    "#292C35", // guard: charcoal
+    "#A483D0", // ArkTS static heap: lavender
+    "#56C4A0"  // ArkWeb PA heap: mint
 };
-const QStringList fallback{"#0072B2", "#D55E00", "#009E73", "#C2188B",
-                           "#008DA8", "#A88700", "#E31A1C", "#7C3AED",
-                           "#8C4B21", "#658800", "#003F5C", "#DB6B8A"};
+const QStringList fallback = colors.mid(1);
 } // namespace
 
 QColor Report::color(const QString &category, int index) {
@@ -181,4 +181,10 @@ QVariantMap Report::stats() const {
             {"pid", samples.isEmpty() ? QVariant{} : samples.last()["pid"].toVariant()}};
   mStatsValid = true;
   return mStats;
+}
+
+QColor Report::comparisonColor(int index) {
+  static const QColor colors[]{QColor("#007AFF"), QColor("#F58200"),
+                               QColor("#B326D9"), QColor("#00A8A8")};
+  return colors[std::clamp(index, 0, 3)];
 }

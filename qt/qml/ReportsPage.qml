@@ -44,17 +44,11 @@ ColumnLayout {
             font.pixelSize: 20
             font.bold: true
         }
-        WTag {
-            text: String(backend.records.length)
-            ink: T.muted
-            tint: T.chrome
-        }
         Item {
             Layout.fillWidth: true
         }
         WButton {
             text: "恢复默认布局"
-            small: true
             onClicked: table.resetLayout()
         }
         WButton {
@@ -67,68 +61,81 @@ ColumnLayout {
             onClicked: backend.refreshRecords()
         }
     }
-    RowLayout {
+    GridLayout {
         Layout.fillWidth: true
-        spacing: 8
-        Repeater {
-            model: [
-                {
-                    key: "all",
-                    label: "全部"
-                },
-                {
-                    key: "trend",
-                    label: "持续采样"
-                },
-                {
-                    key: "snapshot",
-                    label: "内存快照"
+        columns: width < 760 ? 1 : 2
+        columnSpacing: 8
+        rowSpacing: 8
+        RowLayout {
+            spacing: 8
+            Repeater {
+                model: [
+                    {
+                        key: "all",
+                        label: "全部"
+                    },
+                    {
+                        key: "trend",
+                        label: "持续采样"
+                    },
+                    {
+                        key: "snapshot",
+                        label: "内存快照"
+                    }
+                ]
+                WButton {
+                    required property var modelData
+                    objectName: "reportFilter-" + modelData.key
+                    iconName: modelData.key === "trend" ? "LineChartOutlined" : modelData.key === "snapshot" ? "CameraOutlined" : ""
+                    text: modelData.label + " (" + backend.records.filter(function (r) {
+                        return modelData.key === "all" || (r.type || "trend") === modelData.key;
+                    }).length + ")"
+                    tone: root.filter === modelData.key ? "primary" : "default"
+                    onClicked: root.filter = modelData.key
                 }
-            ]
-            WButton {
-                required property var modelData
-                text: modelData.label + " (" + backend.records.filter(function (r) {
-                    return modelData.key === "all" || (r.type || "trend") === modelData.key;
-                }).length + ")"
-                tone: root.filter === modelData.key ? "primary" : "default"
-                onClicked: root.filter = modelData.key
             }
         }
-        WField {
-            id: search
+        RowLayout {
             Layout.fillWidth: true
-            placeholderText: "搜索报告、应用或设备"
-        }
-        WButton {
-            id: columnsButton
-            objectName: "columnsButton"
-            text: "显示列"
-            small: true
-            onClicked: columnsPopup.open()
-            Popup {
-                id: columnsPopup
-                objectName: "columnsPopup"
-                y: columnsButton.height + 4
-                x: columnsButton.width - width
-                width: 200
-                padding: 12
-                focus: true
-                background: Rectangle {
-                    color: "white"
-                    radius: 6
-                    border.color: T.border
-                }
-                Column {
-                    spacing: 8
-                    Repeater {
-                        model: table.layoutColumns
-                        WCheck {
-                            required property var modelData
-                            objectName: "column-" + modelData.key
-                            text: modelData.title
-                            checked: !modelData.hidden
-                            enabled: !modelData.locked
-                            onClicked: table.toggleColumn(modelData.key)
+            spacing: 8
+            WField {
+                id: search
+                objectName: "reportSearch"
+                Layout.minimumWidth: 0
+                Layout.fillWidth: true
+                placeholderText: "搜索报告、应用或设备"
+            }
+            WButton {
+                id: columnsButton
+                objectName: "columnsButton"
+                text: "显示列"
+                small: true
+                onClicked: columnsPopup.open()
+                Popup {
+                    id: columnsPopup
+                    objectName: "columnsPopup"
+                    y: columnsButton.height + 4
+                    x: columnsButton.width - width
+                    width: 200
+                    padding: 12
+                    focus: true
+                    background: Rectangle {
+                        color: "white"
+                        radius: 6
+                        border.color: T.border
+                    }
+                    Column {
+                        spacing: 8
+                        Repeater {
+                            model: table.layoutColumns
+                            WCheck {
+                                required property var modelData
+                                objectName: "column-" + modelData.key
+                                text: modelData.title
+                                checked: !modelData.hidden
+                                enabled: !modelData.locked
+                                onClicked: table.toggleColumn(modelData.key)
+                            }
                         }
                     }
                 }
@@ -169,6 +176,9 @@ ColumnLayout {
                     title: "类型",
                     width: 110,
                     locked: true,
+                    icon: function (v) {
+                        return v === "snapshot" ? "CameraOutlined" : "LineChartOutlined";
+                    },
                     format: function (v) {
                         return v === "snapshot" ? "内存快照" : "持续采样";
                     }

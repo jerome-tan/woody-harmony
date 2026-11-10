@@ -1,25 +1,29 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs as NativeDialogs
+import Woody.Native
 import "Format.js" as F
 import "Theme.js" as T
 
 WindowBase {
     id: win
     objectName: "compareWindow"
-    width: 1440
-    height: 960
+    initialWidth: 1440
+    initialHeight: 960
     property var reports: []
-    readonly property var ordered: reports
+    readonly property var ordered: baseline ? [baseline].concat(reports.filter(function(r) { return r !== baseline; })) : reports
+    readonly property var activeReports: ordered.filter(function(r) { return hiddenReports.indexOf(r.meta.sessionDir) < 0; })
     property int baselineIndex: 0
-    readonly property var baseline: ordered.length ? ordered[Math.min(baselineIndex, ordered.length - 1)] : null
+    readonly property var baseline: reports.length ? reports[Math.min(baselineIndex, reports.length - 1)] : null
     property var picked: ({})
-    property int tab: 0
+    property int tab: 1
     property string metric: "Total"
     property string alignment: "start"
     property real tipAlpha: .8
     property var hiddenReports: []
-    property real split: Number(backend.uiPreference("compare.split.v2", 50))
+    property real split: Math.max(25, Math.min(75, Number(backend.uiPreference("compare.chartWidth.v4", 42))))
+    property bool exporting: false
     readonly property bool snapshots: ordered.length > 0 && ordered[0].meta.type === "snapshot"
     readonly property bool snapshotPair: snapshots && ordered.length === 2
     readonly property int otherSnapshotIndex: baselineIndex === 0 ? 1 : 0
@@ -32,57 +36,6 @@ WindowBase {
     }).filter(function (r) {
         return r.fixed || snapshotFilter === 0 || (snapshotFilter === 1 ? r.delta > 0 : snapshotFilter === 2 ? r.delta < 0 : r.delta !== null && r.delta !== 0);
     })
-    readonly property var snapshotColumns: {
-        var result = [
-            {
-                key: "name",
-                title: "内存分类",
-                format: F.categoryName,
-                width: 180,
-                locked: true
-            }
-        ];
-        ordered.forEach(function (r, i) {
-            result.push({
-                key: "v" + i,
-                title: win.label(r) + (i === baselineIndex ? "（基准）" : ""),
-                width: 210,
-                align: "right",
-                format: function (v) {
-                    return v === null ? "—" : F.bytes(v);
-                }
-            });
-        });
-        var maximum = differenceRows.reduce(function (m, r) {
-            return Math.max(m, Math.abs(r["d" + otherSnapshotIndex] || 0));
-        }, 1);
-        result.push({
-            key: "delta",
-            title: "差值",
-            width: 280,
-            align: "right",
-            format: function (v) {
-                return v === null ? "—" : F.delta(v);
-            },
-            color: win.deltaColor,
-            bar: function (v) {
-                return Math.abs(v || 0) / maximum;
-            }
-        });
-        result.push({
-            key: "ratio",
-            title: "变化比例",
-            width: 140,
-            align: "right",
-            format: function (v, r) {
-                return win.percent(r.delta, r.base);
-            },
-            color: function (v, r) {
-                return win.deltaColor(r.delta);
-            }
-        });
-        return result;
-    }
     readonly property var metricOptions: {
         var a = ["Total", "Private Dirty", "Swap Pss", "Heap Alloc"];
         ordered.forEach(function (r) {
@@ -99,22 +52,26 @@ WindowBase {
                 key: "name",
                 title: "分类",
                 format: F.categoryName,
-                width: 150,
+                width: 130,
                 bold: true,
                 locked: true
             }
         ];
-        ordered.forEach(function (r, i) {
+        activeReports.forEach(function (r) {
+            var i = reports.indexOf(r);
             result.push({
                 key: "v" + i,
                 title: win.label(r) + (i === baselineIndex ? "（基准）" : ""),
-                width: 210,
+                headerColor: Qt.darker(win.color(r), 1.25),
+                headerBackground: Qt.tint("white", Qt.rgba(win.color(r).r, win.color(r).g, win.color(r).b, .09)),
+                width: ordered.length >= 4 ? (i === baselineIndex ? 130 : 180) : 220,
                 align: "right",
                 format: function (v) {
                     return v === null ? "—" : F.bytes(v);
                 },
+                secondaryInline: true,
                 secondary: function (v, row) {
-                    return i === baselineIndex ? "基准" : row["d" + i] === null ? "—" : F.delta(row["d" + i]) + "  " + win.percent(row["d" + i], row.base);
+                    return i === baselineIndex ? "" : row["d" + i] === null ? "(—)" : "(" + F.delta(row["d" + i]) + ")";
                 },
                 secondaryColor: function (v, row) {
                     return win.deltaColor(row["d" + i]);
@@ -133,10 +90,10 @@ WindowBase {
         return String.fromCharCode(65 + reports.indexOf(r)) + " · " + name + (duplicate ? " · " + F.date(r.meta.startedAt) : "");
     }
     function color(r) {
-        return F.comparisonColors[reports.indexOf(r) % 4];
+        return Qt.color(backend.comparisonColor(reports.indexOf(r)));
     }
     function deltaColor(v) {
-        return v === null || v === 0 ? T.muted : v > 0 ? T.positive : T.negative;
+        return T.memoryDeltaColor(v);
     }
     function percent(delta, base) {
         return base === null || base === 0 || delta === null ? "—" : (delta >= 0 ? "+" : "−") + (Math.abs(delta / base) * 100).toFixed(1) + "%";
@@ -151,12 +108,13 @@ WindowBase {
         picked = next;
     }
     function buildDifferences() {
-        var values = ordered.map(function (r) {
+        var values = reports.map(function (r) {
             var sample = snapshots ? r.snapshot : r.sampleAt(selected(r));
             return snapshots || F.validSample(sample) ? sample : ({});
         });
         var names = ["Total"];
-        values.forEach(function (s) {
+        values.forEach(function (s, i) {
+            if (hiddenReports.indexOf(reports[i].meta.sessionDir) >= 0) return;
             Object.keys(s.categories || {}).forEach(function (k) {
                 if (names.indexOf(k) < 0)
                     names.push(k);
@@ -175,7 +133,7 @@ WindowBase {
             raw.forEach(function (v, i) {
                 row["v" + i] = v;
                 row["d" + i] = v === null || row.base === null ? null : v - row.base;
-                if (i !== win.baselineIndex)
+                if (i !== win.baselineIndex && hiddenReports.indexOf(reports[i].meta.sessionDir) < 0)
                     row.maxDiff = Math.max(row.maxDiff, Math.abs(row["d" + i] || 0));
             });
             return row;
@@ -187,129 +145,173 @@ WindowBase {
         var map = {};
         reports.forEach(function (r, i) {
             map[r.meta.sessionDir] = r.peakIndex("Total");
-            r.compareColor = F.comparisonColors[i % 4];
+            r.compareColor = backend.comparisonColor(i);
         });
         picked = map;
     }
     Component.onDestruction: reports.forEach(function (r) {
         backend.releaseReport(r);
     })
-    Flickable {
-        id: compareScroll
-        anchors.fill: parent
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        interactive: contentHeight > height
-        property int pageMargin: win.width < 900 ? 12 : 24
-        contentWidth: width
-        contentHeight: comparisonContent.height + pageMargin * 2
-        ScrollBar.vertical: ScrollBar {
-            policy: ScrollBar.AsNeeded
+    function setBaseline(r) {
+        hiddenReports = hiddenReports.filter(function(key) { return key !== r.meta.sessionDir; });
+        baselineIndex = reports.indexOf(r);
+        Qt.callLater(function() {
+            if (!win.snapshots && win.tab === 1 && comparisonLoader.item)
+                comparisonLoader.item.resetScroll();
+        });
+    }
+    function toggleReport(r) {
+        if (r === baseline) return;
+        var next = hiddenReports.slice(), index = next.indexOf(r.meta.sessionDir);
+        if (index < 0) next.push(r.meta.sessionDir); else next.splice(index, 1);
+        hiddenReports = next;
+    }
+    function exportOptions() {
+        var table = comparisonLoader.item.exportTable;
+        var columns = table.visibleColumns;
+        return {
+            title: caption,
+            mode: snapshots ? "snapshot" : tab === 0 ? "overlay" : "picked",
+            baseline: 0,
+            names: activeReports.map(function(r) { return win.label(r); }),
+            indices: activeReports.map(function(r) { return win.selected(r); }),
+            metric: metric, alignment: alignment,
+            headers: columns.map(function(c) { return {text:c.title, width:c.width || 150, align:c.align || "left", color:c.headerColor || T.text, background:c.headerBackground || T.chrome}; }),
+            rows: table.sortedRows.map(function(row) {
+                return {fixed: !!row.fixed, cells: columns.map(function(c) {
+                    var v = row[c.key];
+                    return {text: c.format ? c.format(v,row) : v === null || v === undefined ? "—" : String(v),
+                        secondary: c.secondary ? c.secondary(v,row) : "",
+                        secondaryInline: !!c.secondaryInline,
+                        color: c.color ? c.color(v,row) : T.text,
+                        secondaryColor: c.secondaryColor ? c.secondaryColor(v,row) : T.muted};
+                })};
+            })
+        };
+    }
+    function exportImage(action) {
+        if (exporting || !comparisonLoader.item) return;
+        exporting = true;
+        Qt.callLater(function() {
+            if (!imageExporter.prepare(win.activeReports, win.exportOptions())) {
+                win.notify(imageExporter.error);
+                exporting = false;
+                return;
+            }
+            if (action === "copy") {
+                if (imageExporter.copy()) win.notify("完整对比图片已复制");
+                else win.notify(imageExporter.error);
+                imageExporter.clear();
+                exporting = false;
+            } else {
+                imageFile.selectedFile = imageExporter.defaultFile();
+                imageFile.open();
+            }
+        });
+    }
+    ComparisonImageExporter { id: imageExporter; objectName: "comparisonImageExporter" }
+    NativeDialogs.FileDialog {
+        id: imageFile
+        objectName: "comparisonImageFile"
+        title: "另存为完整对比图片"
+        fileMode: NativeDialogs.FileDialog.SaveFile
+        nameFilters: ["PNG 图片 (*.png)"]
+        defaultSuffix: "png"
+        onAccepted: {
+            if (imageExporter.save(selectedFile)) win.notify("完整对比图片已保存");
+            else win.notify(imageExporter.error);
+            imageExporter.clear(); exporting = false;
         }
-        ColumnLayout {
-            id: comparisonContent
-            x: compareScroll.pageMargin
-            y: compareScroll.pageMargin
-            width: compareScroll.width - compareScroll.pageMargin * 2
-            height: Math.max(540, compareScroll.height - compareScroll.pageMargin * 2)
-            spacing: 12
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 16
-                WText {
-                    text: "基准报告"
-                    font.weight: Font.DemiBold
-                }
-                WCombo {
-                    objectName: "baselinePicker"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 460
-                    model: win.ordered.map(function (r) {
-                        return win.label(r);
-                    })
-                    currentIndex: win.baselineIndex
-                    onActivated: win.baselineIndex = currentIndex
-                }
-                WText {
-                    visible: win.width >= 850
-                    text: win.ordered.length + (win.snapshots ? " 份内存快照" : " 份持续采样报告")
-                    color: T.muted
-                    font.pixelSize: 12
-                }
-                Item {
-                    Layout.fillWidth: true
+        onRejected: { imageExporter.clear(); exporting = false; }
+    }
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: win.width < 900 ? 12 : 16
+        spacing: 8
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            WButton {
+                objectName: "pickedTab"
+                visible: !win.snapshots
+                text: "采样点对比"
+                tone: win.tab === 1 ? "selected" : "default"
+                onClicked: win.tab = 1
+            }
+            WButton {
+                objectName: "overlayTab"
+                visible: !win.snapshots
+                text: "趋势叠加"
+                tone: win.tab === 0 ? "selected" : "default"
+                onClicked: win.tab = 0
+            }
+            Item { Layout.fillWidth: true }
+            WButton {
+                id: exportButton
+                objectName: "exportComparison"
+                text: win.exporting ? "生成中…" : "一键截图"
+                iconName: "CameraOutlined"
+                enabled: !win.exporting
+                hint: "生成完整趋势图和表格，不受滚动位置影响"
+                onClicked: exportMenu.open()
+                WMenu {
+                    id: exportMenu
+                    objectName: "comparisonExportMenu"
+                    y: exportButton.height + 4
+                    x: exportButton.width - width
+                    Action { text: "复制图片"; onTriggered: win.exportImage("copy") }
+                    Action { text: "另存为…"; onTriggered: win.exportImage("save") }
                 }
             }
-            Flow {
-                Layout.fillWidth: true
-                Layout.preferredHeight: implicitHeight
-                spacing: 16
-                Repeater {
-                    model: win.ordered
-                    Row {
-                        required property var modelData
-                        required property int index
-                        spacing: 7
-                        WCheck {
-                            objectName: "reportVisible-" + index
-                            visible: !win.snapshots
-                            checked: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
-                            Accessible.name: "显示 " + win.label(modelData)
-                            onClicked: {
-                                var a = win.hiddenReports.slice(), i = a.indexOf(modelData.meta.sessionDir);
-                                if (i < 0)
-                                    a.push(modelData.meta.sessionDir);
-                                else
-                                    a.splice(i, 1);
-                                win.hiddenReports = a;
-                            }
-                        }
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 8
-                            height: 8
-                            radius: 4
-                            color: win.color(modelData)
-                        }
-                        WText {
-                            height: 26
-                            width: Math.min(250, implicitWidth)
-                            text: win.label(modelData)
-                            font.pixelSize: 12
-                        }
-                        WTag {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: index === win.baselineIndex
-                            text: "基准"
-                        }
+        }
+        Flow {
+            visible: win.snapshots || win.tab === 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? implicitHeight : 0
+            spacing: 12
+            Repeater {
+                model: win.ordered
+                Row {
+                    required property var modelData
+                    required property int index
+                    spacing: 6
+                    WCheck {
+                        objectName: "overlayReportVisible-" + win.reports.indexOf(modelData)
+                        enabled: modelData !== win.baseline
+                        checked: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
+                        Accessible.name: "显示 " + win.label(modelData)
+                        onClicked: win.toggleReport(modelData)
+                    }
+                    Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 10; height: 10; radius: 5; color: win.color(modelData) }
+                    WText { width: Math.min(240, implicitWidth); height: 28; text: win.label(modelData); font.pixelSize: 12; color: Qt.darker(win.color(modelData), 1.25) }
+                    WTag {
+                        visible: modelData === win.baseline
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "当前基准"
+                        ink: T.error
+                        tint: "white"
+                    }
+                    WButton {
+                        objectName: "reportBaseline-" + win.reports.indexOf(modelData)
+                        visible: modelData !== win.baseline
+                        text: "设为基准"
+                        small: true
+                        onClicked: win.setBaseline(modelData)
                     }
                 }
             }
-            Row {
-                visible: !win.snapshots
-                spacing: 24
-                WTab {
-                    text: "趋势叠加"
-                    selected: win.tab === 0
-                    onClicked: win.tab = 0
-                }
-                WTab {
-                    objectName: "pickedTab"
-                    text: "采样点对比"
-                    selected: win.tab === 1
-                    onClicked: win.tab = 1
-                }
-            }
-            Loader {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                sourceComponent: win.snapshots ? snapshotCompare : win.tab === 0 ? overlayCompare : pickedCompare
-            }
+        }
+        Loader {
+            id: comparisonLoader
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            sourceComponent: win.snapshots ? snapshotCompare : win.tab === 0 ? overlayCompare : pickedCompare
         }
     }
     Component {
         id: overlayCompare
         ColumnLayout {
+            property alias exportTable: summaryTable
             spacing: 12
             RowLayout {
                 Layout.fillWidth: true
@@ -382,6 +384,7 @@ WindowBase {
                 }
                 MemoryChart {
                     id: overlayChart
+                    comparison: true
                     SplitView.fillHeight: true
                     SplitView.minimumHeight: 160
                     reports: win.ordered
@@ -407,10 +410,12 @@ WindowBase {
                         horizontalAlignment: Text.AlignRight
                     }
                     DataTable {
-                        objectName: "summaryTable"
+                        id: summaryTable
+                    objectName: "summaryTable"
                         fillColumns: true
                         anchors.fill: parent
-                        rows: win.ordered.map(function (r, i) {
+                        rows: win.activeReports.map(function (r) {
+                            var i = win.reports.indexOf(r);
                             return Object.assign({
                                 name: win.label(r) + (i === win.baselineIndex ? "  基准" : ""),
                                 color: win.color(r),
@@ -489,152 +494,83 @@ WindowBase {
         id: pickedCompare
         SplitView {
             id: pickedSplit
+            objectName: "pickedSplit"
+            property alias exportTable: pickedTable
+            function resetScroll() { miniScroll.contentItem.contentY = 0; }
             orientation: Qt.Horizontal
-            handle: Rectangle {
-                implicitWidth: 8
-                color: SplitHandle.hovered ? T.selected : T.chrome
+            onResizingChanged: if (!resizing && width > 0) {
+                win.split = Math.max(25, Math.min(75, miniScroll.width / width * 100));
+                backend.setUiPreference("compare.chartWidth.v4", win.split);
+                miniScroll.SplitView.preferredWidth = Qt.binding(function() {
+                    return Math.max(280, pickedSplit.width * win.split / 100);
+                });
             }
-            WCard {
-                id: miniCard
-                SplitView.preferredWidth: pickedSplit.width * win.split / 100
-                SplitView.minimumWidth: 290
-                title: "选择采样点"
-                padding: 8
-                onWidthChanged: if (pickedSplit.resizing) {
-                    win.split = width / pickedSplit.width * 100;
-                    backend.setUiPreference("compare.split.v2", win.split);
+            handle: Rectangle {
+                objectName: "comparisonSplitHandle"
+                implicitWidth: 10
+                color: SplitHandle.hovered || SplitHandle.pressed ? T.selected : T.chrome
+                Rectangle {
+                    width: 3; height: 32; radius: 1.5
+                    anchors.centerIn: parent
+                    color: SplitHandle.hovered ? T.accent : T.border
                 }
-                ScrollView {
-                    id: miniScroll
-                    objectName: "miniScroll"
-                    anchors.fill: parent
-                    clip: true
-                    Column {
-                        width: miniScroll.availableWidth
-                        spacing: 12
-                        Repeater {
-                            model: win.ordered
-                            WCard {
-                                id: mini
-                                required property var modelData
-                                required property int index
-                                width: parent.width
-                                height: 250
-                                padding: 10
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    spacing: 8
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        Rectangle {
-                                            width: 8
-                                            height: 8
-                                            radius: 4
-                                            color: win.color(mini.modelData)
-                                        }
-                                        WText {
-                                            Layout.fillWidth: true
-                                            text: win.label(mini.modelData)
-                                            font.pixelSize: 12
-                                            font.weight: Font.DemiBold
-                                        }
-                                        WTag {
-                                            visible: mini.index === win.baselineIndex
-                                            text: "基准"
-                                        }
-                                        WButton {
-                                            text: "定位峰值"
-                                            small: true
-                                            onClicked: win.selectPoint(mini.modelData, mini.modelData.peakIndex("Total"))
-                                        }
-                                    }
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        WText {
-                                            text: "采样点"
-                                            font.pixelSize: 12
-                                            color: T.muted
-                                        }
-                                        WField {
-                                            objectName: "sampleIndex-" + mini.index
-                                            Layout.preferredWidth: 62
-                                            implicitHeight: 28
-                                            font.pixelSize: 12
-                                            enabled: mini.modelData.stats.validCount > 0
-                                            text: win.selected(mini.modelData) < 0 ? "—" : String(win.selected(mini.modelData) + 1)
-                                            validator: IntValidator {
-                                                bottom: 1
-                                                top: Math.max(1, mini.modelData.count)
-                                            }
-                                            onEditingFinished: {
-                                                win.selectPoint(mini.modelData, Number(text) - 1);
-                                                text = Qt.binding(function () {
-                                                    return String(win.selected(mini.modelData) + 1);
-                                                });
-                                            }
-                                        }
-                                        WText {
-                                            Layout.fillWidth: true
-                                            text: F.duration(Number(mini.modelData.sampleAt(win.selected(mini.modelData)).timestamp || 0) - Number(mini.modelData.meta.startedAt || 0))
-                                            font.pixelSize: 12
-                                            color: T.muted
-                                        }
-                                        WText {
-                                            text: F.validSample(mini.modelData.sampleAt(win.selected(mini.modelData))) ? F.bytes(mini.modelData.sampleAt(win.selected(mini.modelData)).total.pssTotalKb) : "—"
-                                            font.pixelSize: 14
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                    MemoryChart {
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        controls: false
-                                        legend: false
-                                        compact: true
-                                        reports: [mini.modelData]
-                                        selectedIndex: win.selected(mini.modelData)
-                                        tooltipAlpha: win.tipAlpha
-                                        points: false
-                                        onPointSelected: function (point) {
-                                            win.selectPoint(mini.modelData, point);
-                                        }
-                                    }
-                                }
-                            }
+            }
+            ScrollView {
+                id: miniScroll
+                objectName: "miniScroll"
+                SplitView.preferredWidth: Math.max(280, pickedSplit.width * win.split / 100)
+                SplitView.minimumWidth: 280
+                SplitView.maximumWidth: Math.max(280, pickedSplit.width - 330)
+                clip: true
+                contentWidth: availableWidth
+                contentHeight: chartColumn.height
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                Column {
+                    id: chartColumn
+                    width: miniScroll.availableWidth
+                    spacing: 8
+                    Repeater {
+                        model: win.ordered
+                        CompareSampleCard {
+                            required property var modelData
+                            required property int index
+                            objectName: "sampleCard-" + win.reports.indexOf(modelData)
+                            width: chartColumn.width
+                            height: shown ? Math.max(280, (miniScroll.availableHeight - (win.ordered.length - 1) * 8) / Math.max(1, win.ordered.length)) : 84
+                            report: modelData
+                            ordinal: win.reports.indexOf(modelData)
+                            isBaseline: modelData === win.baseline
+                            onBaselineRequested: win.setBaseline(modelData)
+                            reportTitle: win.label(modelData)
+                            selectedIndex: win.selected(modelData)
+                            shown: win.hiddenReports.indexOf(modelData.meta.sessionDir) < 0
+                            tooltipAlpha: win.tipAlpha
+                            onPointPicked: function(point) { win.selectPoint(modelData, point); }
+                            onVisibilityToggled: win.toggleReport(modelData)
                         }
                     }
                 }
             }
-            WCard {
+            DataTable {
+                id: pickedTable
+                objectName: "differenceTable"
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: 260
-                title: "分类差异"
-                padding: 0
-                extras: WText {
-                    width: Math.max(80, parent.parent.width - 150)
-                    text: "相对：" + (win.baseline ? win.label(win.baseline) : "")
-                    height: 26
-                    color: T.muted
-                    font.pixelSize: 12
-                    horizontalAlignment: Text.AlignRight
-                }
-                DataTable {
-                    objectName: "differenceTable"
-                    anchors.fill: parent
-                    rows: win.differenceRows
-                    columns: win.differenceColumns
-                    rowHeight: 58
-                }
+                SplitView.minimumWidth: 320
+                rows: win.differenceRows
+                columns: win.differenceColumns
+                fillColumns: true
+                rowHeight: 44
             }
         }
     }
     Component {
         id: snapshotCompare
         ColumnLayout {
+            property alias exportTable: snapshotTable
             spacing: 16
             Rectangle {
                 objectName: "snapshotSummary"
-                visible: win.snapshotPair
+                visible: win.snapshotPair && win.activeReports.length === 2
                 Layout.fillWidth: true
                 Layout.preferredHeight: 64
                 color: T.selected
@@ -704,12 +640,13 @@ WindowBase {
                     }
                 }
                 DataTable {
+                    id: snapshotTable
                     objectName: "differenceTable"
                     anchors.fill: parent
                     rows: win.snapshotPair ? win.snapshotRows : win.differenceRows
-                    columns: win.snapshotPair ? win.snapshotColumns : win.differenceColumns
+                    columns: win.differenceColumns
                     fillColumns: true
-                    rowHeight: win.snapshotPair ? 40 : 58
+                    rowHeight: 44
                 }
             }
         }

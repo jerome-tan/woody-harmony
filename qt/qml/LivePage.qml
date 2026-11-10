@@ -27,7 +27,8 @@ ColumnLayout {
                     font.weight: Font.DemiBold
                 }
                 WTag {
-                    text: root.waiting ? "等待应用" : backend.status.state === "stopping" ? "正在结束" : root.watch ? "查看中" : "采样中"
+                    visible: root.waiting || backend.status.state === "stopping"
+                    text: root.waiting ? "等待应用" : "正在结束"
                 }
             }
             WText {
@@ -38,9 +39,24 @@ ColumnLayout {
             }
         }
         WButton {
+            id: stopButton
             objectName: "stopButton"
             text: root.waiting ? "结束等待" : root.watch ? "结束查看" : "结束采样"
-            iconName: "BorderOutlined"
+            contentItem: RowLayout {
+                spacing: 8
+                Rectangle {
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+                    Layout.alignment: Qt.AlignVCenter
+                    color: T.error
+                    opacity: stopButton.enabled ? 1 : .4
+                }
+                WText {
+                    text: stopButton.text
+                    font: stopButton.font
+                    color: stopButton.enabled ? T.text : T.disabled
+                }
+            }
             enabled: backend.sampling && backend.status.state !== "stopping"
             onClicked: backend.stopSampling()
         }

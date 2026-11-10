@@ -8,10 +8,11 @@ WindowBase {
     id: appWindow
     extraModalOpen: quitDialog.opened
     objectName: "mainWindow"
-    visible: true
-    width: 1280
-    height: 820
-    minimumWidth: 1024
+    // main.cpp sizes and centers the native frame before showing it.
+    visible: false
+    initialWidth: 1000
+    initialHeight: 740
+    minimumWidth: 720
     minimumHeight: 680
     mainWindow: true
     caption: "Woody"
@@ -31,21 +32,17 @@ WindowBase {
     }
     function openReportObject(report) {
         var w = reportWindow.createObject(appWindow, {
-            report: report,
-            visible: true
+            report: report
         });
         childWindows = childWindows.concat([w]);
-        w.raise();
-        w.requestActivate();
+        backend.showWindowCentered(w, appWindow);
     }
     function openCompareObjects(reports) {
         var w = compareWindow.createObject(appWindow, {
-            reports: reports,
-            visible: true
+            reports: reports
         });
         childWindows = childWindows.concat([w]);
-        w.raise();
-        w.requestActivate();
+        backend.showWindowCentered(w, appWindow);
     }
     function forgetWindow(window) {
         childWindows = childWindows.filter(function (w) {
@@ -93,7 +90,7 @@ WindowBase {
     Rectangle {
         id: sidebar
         objectName: "sidebar"
-        width: 180
+        width: appWindow.width < 1000 ? 160 : 180
         height: parent.height
         color: T.chrome
         Rectangle {
@@ -137,7 +134,7 @@ WindowBase {
                     required property var modelData
                     required property int index
                     objectName: "nav-" + modelData.key
-                    width: 156
+                    width: sidebar.width - 24
                     height: 42
                     text: modelData.label
                     iconName: modelData.icon
@@ -167,7 +164,7 @@ WindowBase {
                 }
             }
             Item {
-                width: 156
+                width: sidebar.width - 24
                 height: 20
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
@@ -179,7 +176,7 @@ WindowBase {
             WButton {
                 id: reportsButton
                 objectName: "nav-reports"
-                width: 156
+                width: sidebar.width - 24
                 height: 42
                 text: "报告库"
                 iconName: "FolderOutlined"
@@ -206,7 +203,7 @@ WindowBase {
             x: 12
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 16
-            width: 156
+            width: sidebar.width - 24
             height: 42
             text: "设置"
             iconName: "SettingOutlined"

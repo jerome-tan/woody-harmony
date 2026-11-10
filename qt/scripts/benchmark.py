@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare whole process trees with shared production reports; run on an otherwise idle host.
+"""Measure Qt's whole process tree with production reports on an otherwise idle host.
 
 RSS is the sum of process resident sets (shared pages can be counted more than once).
 USS, where the OS exposes it, counts private resident pages. CPU 100% means one core.
@@ -86,24 +86,21 @@ def measure(label,command,output,environment):
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--qt-exe',type=Path,required=True);parser.add_argument('--electron-exe',type=Path,required=True);parser.add_argument('--fixtures',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--runs',type=int,default=3);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--qt-exe',type=Path,required=True);parser.add_argument('--fixtures',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--runs',type=int,default=3);args=parser.parse_args()
+    if args.runs < 1:parser.error('--runs must be positive')
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=True);fixtures=args.fixtures.resolve()
     rows=[]
     for mode in ['main','report']:
         for repetition in range(args.runs):
-            for label,executable in [('electron',args.electron_exe.resolve()),('qt',args.qt_exe.resolve())]:
-                folder=output/f'{mode}-{repetition+1}-{label}';folder.mkdir(parents=True,exist_ok=True)
-                env=os.environ.copy();env.pop('ELECTRON_RUN_AS_NODE',None);env.pop('ELECTRON_RENDERER_URL',None)
-                if label=='qt':command=qt_command(executable,folder,fixtures,mode)
-                else:
-                    config=folder/'config.json';config.write_text(json.dumps({'output':str(folder),'fixtures':str(fixtures),'mode':mode}));env['WOODY_PERF_CONFIG']=str(config);command=[str(executable),str(ROOT/'qt/scripts/electron-perf.cjs')]
-                result=measure(label,command,folder,env)
-                expected=['idle']+(['report-idle','interaction'] if mode=='report' else [])
-                if result['startupMs'] is None or any(p not in result['phases'] or result['phases'][p]['durationSeconds'] < (8 if p=='interaction' else 2) for p in expected):
-                    raise RuntimeError('Measurement did not cover every phase: '+str(folder))
-                result.update(mode=mode,repetition=repetition+1);rows.append(result)
-                time.sleep(1)
-    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','electron':json.loads((ROOT/'node_modules/electron/package.json').read_text(encoding='utf-8'))['version'],'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; private working set (USS) is separately sampled on Windows. macOS VM page walking is excluded from the timing run.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.','Electron uses the unchanged production out/main entry with device discovery mocked; Qt uses the provided executable.'],'runs':rows}
+            folder=output/f'{mode}-{repetition+1}-qt';folder.mkdir(parents=True,exist_ok=True)
+            command=qt_command(args.qt_exe.resolve(),folder,fixtures,mode)
+            result=measure('qt',command,folder,os.environ.copy())
+            expected=['idle']+(['report-idle','interaction'] if mode=='report' else [])
+            if result['startupMs'] is None or any(p not in result['phases'] or result['phases'][p]['durationSeconds'] < (8 if p=='interaction' else 2) for p in expected):
+                raise RuntimeError('Measurement did not cover every phase: '+str(folder))
+            result.update(mode=mode,repetition=repetition+1);rows.append(result)
+            time.sleep(1)
+    data={'host':platform.platform(),'machine':platform.machine(),'logicalCpus':psutil.cpu_count(),'physicalMemoryBytes':psutil.virtual_memory().total,'qt':'6.12.0','version':(ROOT/'VERSION').read_text(encoding='utf-8').strip(),'sampleCount':3600,'categoryCount':13,'notes':['Warm process launches: filesystem caches were not cleared.','RSS sums every process and can double-count shared pages; private working set (USS) is separately sampled on Windows. macOS VM page walking is excluded from the timing run.','CPU includes the full app process tree; 100% is one logical core.','The 10-second chart workload sends exactly 400 hover and 100 wheel events, catching up delayed timer ticks. Timer-delay diagnostics are not FPS or input-to-photon latency.','Qt uses the provided executable with device discovery disabled.'],'runs':rows}
     (output/'benchmark.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
 
 

@@ -1,4 +1,6 @@
+#include <QCryptographicHash>
 #include "UiAutomation.h"
+#include <QClipboard>
 #include <QCursor>
 #include <QDateTime>
 #include <QDebug>
@@ -149,8 +151,8 @@ bool mouse(QObject *object, QEvent::Type type, double x, double y,
   const auto global = item->window()->mapToGlobal(point.toPoint());
   // Popup geometry changes can cause Qt to query the OS cursor again. Keep it
   // consistent with UI test input instead of mixing real and synthetic
-  // positions. Performance workloads leave this disabled to match Electron's
-  // injected input.
+  // positions. Performance workloads leave this disabled so injected input
+  // does not move the user's system cursor.
   if (nativePointer)
     QCursor::setPos(global);
   QMouseEvent event(type, point, global, button, held, Qt::NoModifier);
@@ -198,6 +200,30 @@ bool UiAutomation::key(QObject *object, int code, int modifiers) {
       release(QEvent::KeyRelease, code, Qt::KeyboardModifiers(modifiers));
   QCoreApplication::sendEvent(window, &press);
   return QCoreApplication::sendEvent(window, &release);
+}
+QVariantMap UiAutomation::imageInfo(const QString &path) const {
+  const QImage image = path.isEmpty() ? QGuiApplication::clipboard()->image() : QImage(path);
+  const auto pixels = image.convertToFormat(QImage::Format_RGBA8888);
+  return {{"width", image.width()}, {"height", image.height()},
+          {"description", image.text("Description")},
+          {"hash", QString::fromLatin1(QCryptographicHash::hash(
+              QByteArrayView(reinterpret_cast<const char *>(pixels.constBits()), pixels.sizeInBytes()),
+              QCryptographicHash::Sha256).toHex())}};
+}
+QString UiAutomation::clipboardText() const {
+  return QGuiApplication::clipboard()->text();
+}
+QVariantMap UiAutomation::windowPlacement(QObject *object) const {
+  auto *window = qobject_cast<QWindow *>(object);
+  if (!window || !window->screen())
+    return {};
+  const auto frame = window->frameGeometry();
+  const auto available = window->screen()->availableGeometry();
+  return {{"x", frame.x()}, {"y", frame.y()},
+          {"width", frame.width()}, {"height", frame.height()},
+          {"centerErrorX", frame.center().x() - available.center().x()},
+          {"centerErrorY", frame.center().y() - available.center().y()},
+          {"insideAvailableArea", available.contains(frame)}};
 }
 bool UiAutomation::screenshot(QObject *object, const QString &name) {
   auto *window = qobject_cast<QQuickWindow *>(object);

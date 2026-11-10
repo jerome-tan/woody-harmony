@@ -72,39 +72,50 @@ Item {
                                 enabled: !root.locked
                             }
                         }
-                        RowLayout {
+                        GridLayout {
                             visible: root.kind !== "snap"
                             width: parent.width
-                            spacing: 10
-                            WText {
-                                text: root.kind === "watch" ? "刷新间隔" : "采样间隔"
-                                Layout.preferredWidth: 86
-                            }
-                            WField {
-                                id: interval
-                                objectName: "intervalField"
-                                Layout.preferredWidth: 100
-                                text: "1000"
-                                validator: IntValidator {
-                                    bottom: 0
-                                    top: 3600000
+                            columns: width < 620 ? 1 : 2
+                            columnSpacing: 10
+                            rowSpacing: 10
+                            RowLayout {
+                                spacing: 10
+                                WText {
+                                    text: root.kind === "watch" ? "刷新间隔" : "采样间隔"
+                                    Layout.preferredWidth: 86
                                 }
-                                enabled: !root.locked
-                                Accessible.name: "采样间隔（毫秒）"
-                            }
-                            WText {
-                                text: "ms"
-                                color: T.muted
-                            }
-                            Repeater {
-                                model: [200, 500, 1000, 2000]
-                                WButton {
-                                    required property int modelData
-                                    text: String(modelData)
-                                    Layout.fillWidth: true
-                                    tone: Number(interval.text) === modelData ? "selected" : "default"
+                                WField {
+                                    id: interval
+                                    objectName: "intervalField"
+                                    Layout.preferredWidth: 100
+                                    text: "1000"
+                                    validator: IntValidator {
+                                        bottom: 0
+                                        top: 3600000
+                                    }
                                     enabled: !root.locked
-                                    onClicked: interval.text = String(modelData)
+                                    Accessible.name: "采样间隔（毫秒）"
+                                }
+                                WText {
+                                    text: "ms"
+                                    color: T.muted
+                                }
+                            }
+                            RowLayout {
+                                objectName: "intervalPresets"
+                                Layout.fillWidth: true
+                                Layout.leftMargin: parent.columns === 1 ? 96 : 0
+                                spacing: 10
+                                Repeater {
+                                    model: [200, 500, 1000, 2000]
+                                    WButton {
+                                        required property int modelData
+                                        text: String(modelData)
+                                        Layout.fillWidth: true
+                                        tone: Number(interval.text) === modelData ? "selected" : "default"
+                                        enabled: !root.locked
+                                        onClicked: interval.text = String(modelData)
+                                    }
                                 }
                             }
                         }
@@ -211,6 +222,7 @@ Item {
             WText {
                 visible: root.kind !== "watch"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: backend.sessionsDir || backend.defaultSessionsDir
                 font.pixelSize: 12
                 color: T.muted

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic reports shared by the Electron and Qt UI/performance checks."""
+"""Deterministic reports for Qt UI and performance checks."""
 import argparse
 import json
 import math
