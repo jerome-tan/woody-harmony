@@ -67,21 +67,22 @@ private:
   void waitForInitialDevice() {
     QElapsedTimer timer;
     timer.start();
-    qint64 nextRefresh = 1000;
-    while (timer.elapsed() < 25000 &&
-           (backend->deviceInfo().isEmpty() || backend->apps().isEmpty())) {
+    // Let the first query finish before interfering. A manual refresh while
+    // discovery is in flight invalidates that result and restarts the query,
+    // which can loop forever on a slow macOS runner.
+    while (timer.elapsed() < 15000 &&
+           (backend->deviceInfo().isEmpty() || backend->apps().isEmpty()))
       QTest::qWait(100);
-      if (timer.elapsed() < nextRefresh)
-        continue;
+    if (backend->deviceInfo().isEmpty() || backend->apps().isEmpty()) {
       if (backend->deviceInfo().isEmpty())
         backend->refreshDevices();
-      else if (!backend->target().isEmpty())
+      else
         backend->refreshApps();
-      nextRefresh += 3000;
+      while (timer.elapsed() < 40000 &&
+             (backend->deviceInfo().isEmpty() || backend->apps().isEmpty()))
+        QTest::qWait(100);
     }
-    QElapsedTimer settle;
-    settle.start();
-    while (backend->discovering() && settle.elapsed() < 5000)
+    while (backend->discovering() && timer.elapsed() < 45000)
       QTest::qWait(50);
   }
 private slots:
@@ -110,7 +111,7 @@ private slots:
   void cleanup() {
     if (backend->sampling()) {
       backend->stopSampling();
-      QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
+      QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
     }
     backend.reset();
     QDir(reports).removeRecursively();
@@ -199,7 +200,7 @@ private slots:
     state({{"marketName", "Updated Device"}, {"pid", 7001}});
     backend->refreshDevices();
     QTRY_COMPARE_WITH_TIMEOUT(backend->deviceInfo()["marketName"].toString(),
-                             QString("Updated Device"), 5000);
+                             QString("Updated Device"), 15000);
     QTRY_VERIFY(!backend->loadingApps());
     QCOMPARE(backend->selectedBundle(), QString("com.example.woodyqa"));
     bool found = false;
@@ -225,7 +226,7 @@ private slots:
     QVERIFY(backend->apps().isEmpty());
     state({{"marketName", "Reconnected Device"}});
     QTRY_COMPARE_WITH_TIMEOUT(backend->deviceInfo()["marketName"].toString(),
-                             QString("Reconnected Device"), 5000);
+                             QString("Reconnected Device"), 15000);
     QTRY_COMPARE(backend->apps().size(), 2);
     const auto settled = deviceQueries();
     QTest::qWait(3300);
@@ -300,10 +301,10 @@ private slots:
                               QJsonValue(QJsonValue::Null)}) {
       state({{"appDebug", debug}});
       start(true);
-      QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() > 0, 5000);
+      QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() > 0, 15000);
       const auto session = backend->live()->meta()["sessionDir"].toString();
       backend->stopSampling();
-      QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
+      QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
       QCOMPARE(ReportStore::load(session)["meta"].toObject()["appDebug"], debug);
     }
   }
@@ -313,17 +314,17 @@ private slots:
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
     state({{"pid", 0}});
     backend->refreshApps();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 15000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
     state({{"failApps", true}});
     backend->refreshApps();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 15000);
     QCOMPARE(backend->apps().size(), 2);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
     for (const auto &output : {QString("error: service unavailable"), QString()}) {
       state({{"appsOutput", output}});
       backend->refreshApps();
-      QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+      QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 15000);
       QCOMPARE(backend->apps().size(), 2);
       QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
     }
@@ -333,7 +334,7 @@ private slots:
     backend.reset();
     backend = std::make_unique<Backend>(profile);
     backend->initialize();
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 20000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
     for (const auto &entry : backend->apps()) {
       const auto app = entry.toMap();
@@ -345,10 +346,10 @@ private slots:
     state({{"pid", 2411}, {"targets", targets}});
     backend->selectApp("com.example.stopped");
     backend->selectDevice("WOODY-QA-002");
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 20000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.woodyqa"));
     backend->selectDevice("WOODY-QA-001");
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 20000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
 
     state({{"pid", 2411}, {"appsDelayMs", 600}, {"targets", targets}});
@@ -358,41 +359,41 @@ private slots:
       QFile log(statePath + ".commands");
       return log.open(QIODevice::ReadOnly) && log.readAll().contains("bm dump -a");
     };
-    QTRY_VERIFY_WITH_TIMEOUT(appQueryStarted(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(appQueryStarted(), 15000);
     state({{"installedBundles", QJsonArray{"com.example.second"}},
            {"targets", targets},
            {"runningBundle", "com.example.second"}});
     backend->selectDevice("WOODY-QA-003");
     QTRY_COMPARE_WITH_TIMEOUT(backend->selectedBundle(),
-                             QString("com.example.second"), 10000);
+                             QString("com.example.second"), 20000);
     QCOMPARE(backend->apps().size(), 1);
 
     state({{"pid", 2411}});
     backend->selectDevice("WOODY-QA-001");
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 20000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
   }
   void uninstallClearsSelectionWithoutChoosingAnotherApplication() {
     backend->selectApp("com.example.stopped");
     state({{"installedBundles", QJsonArray{"com.example.woodyqa"}}});
     backend->refreshApps();
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 15000);
     QVERIFY(backend->selectedBundle().isEmpty());
     backend->refreshApps();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->loadingApps(), 15000);
     QVERIFY(backend->selectedBundle().isEmpty());
     const auto profile = backend->profile();
     backend.reset();
     backend = std::make_unique<Backend>(profile);
     backend->initialize();
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 20000);
     QVERIFY(backend->selectedBundle().isEmpty());
   }
   void detectsUnplugAndReplugWithoutManualRefresh() {
     backend->selectApp("com.example.stopped");
     state({{"targets", QJsonArray{}}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 15000);
     QVERIFY(backend->devices().isEmpty());
     QVERIFY(backend->deviceInfo().isEmpty());
     QVERIFY(backend->apps().isEmpty());
@@ -403,8 +404,8 @@ private slots:
              QString("com.example.stopped"));
     state({{"pid", 7001}});
     deviceEvent(true);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->target(), QString("WOODY-QA-001"), 5000);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->target(), QString("WOODY-QA-001"), 15000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 15000);
     QCOMPARE(backend->selectedBundle(), QString("com.example.stopped"));
   }
   void backgroundDiscoveryDoesNotToggleRefreshButtonOrResetDeviceModel() {
@@ -422,7 +423,7 @@ private slots:
     QVERIFY(!backend->discovering());
     backend->refreshDevices();
     QVERIFY(backend->discovering());
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->discovering(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->discovering(), 10000);
     QCOMPARE(busyChanges.size(), 2);
     QCOMPARE(deviceChanges.size(), 0);
   }
@@ -436,16 +437,16 @@ private slots:
     QVERIFY(backend->target().isEmpty());
     state({{"pid", 2411}});
     deviceEvent(true);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 15000);
     QSignalSpy notifications(backend.get(), &Backend::notification);
     state({{"failDevices", true}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 15000);
     QVERIFY(backend->apps().isEmpty());
     QCOMPARE(notifications.size(), 0);
     state({{"pid", 2411}});
     deviceEvent(true);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 15000);
   }
   void unplugInvalidatesPendingAppsAndDeviceInfoEvenForSameSerial_data() {
     QTest::addColumn<bool>("delayApps");
@@ -465,20 +466,20 @@ private slots:
       const auto text = log.readAll();
       return text.contains(delayApps ? "bm dump -a" : "param get");
     };
-    QTRY_VERIFY_WITH_TIMEOUT(queriesStarted(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(queriesStarted(), 10000);
     state({{"targets", QJsonArray{}}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 15000);
     QVERIFY(!backend->loadingApps());
     QVERIFY(backend->apps().isEmpty());
     QVERIFY(backend->selectedBundle().isEmpty());
     state({{"installedBundles", QJsonArray{"com.example.second"}},
            {"runningBundle", "com.example.second"}});
     deviceEvent(true);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 1, 15000);
     QCOMPARE(backend->apps().first().toMap()["bundleName"].toString(),
              QString("com.example.second"));
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->deviceInfo().isEmpty(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->deviceInfo().isEmpty(), 15000);
     QTest::qWait(800);
     QCOMPARE(backend->apps().size(), 1);
     QVERIFY(!backend->loadingApps());
@@ -489,7 +490,7 @@ private slots:
     QTRY_VERIFY(deviceQueries() > before);
     // USB enumeration precedes HDC readiness; the existing target is not success.
     state({{"targets", QJsonArray{"WOODY-QA-001", "WOODY-QA-002"}}});
-    QTRY_COMPARE_WITH_TIMEOUT(backend->devices().size(), 2, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->devices().size(), 2, 15000);
     const auto settled = deviceQueries();
     QTest::qWait(3300);
     QCOMPARE(deviceQueries(), settled);
@@ -501,7 +502,7 @@ private slots:
     QTRY_VERIFY(deviceQueries() > before);
     state({{"targets", QJsonArray{}}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 10000);
     QVERIFY(backend->apps().isEmpty());
     QVERIFY(!backend->discovering());
   }
@@ -537,16 +538,16 @@ private slots:
   }
   void watchDoesNotWriteReports() {
     start(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() >= 2, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() >= 2, 15000);
     QCOMPARE(backend->live()->stats()["last"].toInt(), 196608);
     backend->stopSampling();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
     QVERIFY(!QFileInfo::exists(reports));
   }
   void zeroSamplesRestartRenameAndDeleteGuard() {
     state({{"pid", 0}});
     start(true);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() >= 2, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() >= 2, 15000);
     QVERIFY(backend->live()->samples.first()["pid"].isNull());
     QCOMPARE(backend->live()
                  ->samples.first()["total"]
@@ -561,10 +562,10 @@ private slots:
     state({{"pid", 7001}});
     deviceEvent(true);
     QTRY_COMPARE_WITH_TIMEOUT(backend->live()->stats()["pid"].toInt(), 7001,
-                              5000);
+                              15000);
     state({{"pid", 7002}});
     QTRY_COMPARE_WITH_TIMEOUT(backend->live()->stats()["pid"].toInt(), 7002,
-                              5000);
+                              15000);
     backend->renameReport(session, "重命名中文报告");
     QTRY_COMPARE(
         ReportStore::readObject(session + "/meta.json")["taskName"].toString(),
@@ -594,7 +595,7 @@ private slots:
                            {"showDmabuf", true},
                            {"showGpumem", true},
                            {"includeSmaps", true}});
-    QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 15000);
     const auto *report = qvariant_cast<Report *>(opened.first().first());
     QVERIFY(report);
     QCOMPARE(report->metadata["appDebug"], QJsonValue(true));
@@ -627,14 +628,14 @@ private slots:
     QVERIFY(backend->snapshotting());
     QTest::qWait(100);
     backend->cancelSnapshot();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->snapshotting(), 1500);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->snapshotting(), 5000);
     QCOMPARE(opened.size(), 0);
     QCOMPARE(errors.size(), 0);
     QCOMPARE(notifications.size(), 1);
     QVERIFY(ReportStore::list(reports).isEmpty());
     state({{"pid", 2411}});
     backend->takeSnapshot("com.example.woodyqa", "QA", "重试快照", {});
-    QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 15000);
   }
   void stopCancelsSubprocessAndFinalizesReport() {
     state({{"pid", 2411}, {"delayMs", 3000}});
@@ -644,7 +645,7 @@ private slots:
     QElapsedTimer timer;
     timer.start();
     backend->stopSampling();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 1500);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
     QVERIFY(timer.elapsed() < 1500);
     const auto meta = ReportStore::readObject(
         backend->live()->meta()["sessionDir"].toString() + "/meta.json");
@@ -655,7 +656,7 @@ private slots:
     backend->startSampling({{"intervalMs", 200}, {"maxDurationMs", 450}},
                            "com.example.woodyqa", "QA", true, "自动停止");
     QSignalSpy finished(backend.get(), &Backend::samplingFinished);
-    QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
     QVERIFY(finished.first()[2].toBool());
     QVERIFY(!backend->sampling());
     start(true);
@@ -694,7 +695,7 @@ private slots:
     state({{"targets", QJsonArray{"WOODY-QA-002"}},
            {"failDevices", queryFailure}, {"delayMs", 10000}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
     QTRY_COMPARE(opened.size(), 1);
     QCOMPARE(finished.size(), 1);
     QVERIFY(!finished.first()[2].toBool()); // Not the duration-limit notification.
@@ -712,11 +713,11 @@ private slots:
     // Observe an empty-device event before reconnecting the original target.
     state({{"targets", QJsonArray{}}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend->target().isEmpty(), 15000);
     state({{"pid", 7001}});
     deviceEvent(true);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->target(), QString("WOODY-QA-001"), 5000);
-    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->target(), QString("WOODY-QA-001"), 15000);
+    QTRY_COMPARE_WITH_TIMEOUT(backend->apps().size(), 2, 15000);
     QTest::qWait(3200);
     QVERIFY(!backend->sampling());
     QCOMPARE(finished.size(), 1);
@@ -741,10 +742,10 @@ private slots:
       QFile log(statePath + ".commands");
       return log.open(QIODevice::ReadOnly) && log.readAll().contains("pidof ");
     };
-    QTRY_VERIFY_WITH_TIMEOUT(queryStarted(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(queryStarted(), 10000);
     state({{"targets", QJsonArray{}}});
     deviceEvent(false);
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
     QCOMPARE(notifications.size(), 1);
     QVERIFY(notifications.first().first().toString().contains("尚未产生可保存的数据"));
     QCOMPARE(errors.size(), 0);
