@@ -12,6 +12,7 @@ private:
   QTemporaryDir directory;
   std::unique_ptr<Backend> backend;
   QString statePath, reports;
+  int testInstance = 0;
   void state(const QJsonObject &value) {
     // A child can briefly have this fixture open while reading its command
     // state. Windows denies atomic replacement during that read; retry only
@@ -88,11 +89,16 @@ private:
 private slots:
   void init() {
     QVERIFY(directory.isValid());
-    statePath = directory.path() + "/state.json";
-    reports = directory.path() + "/reports";
+    // Keep each test's fixture, command log and lock in a fresh directory.
+    // Backends are destroyed at the end of a test while fake-hdc processes may
+    // still be finishing; sharing one path lets those late processes block or
+    // misreport the next test's queries.
+    const auto testPath = directory.path() + "/case-" + QString::number(++testInstance);
+    statePath = testPath + "/state.json";
+    reports = testPath + "/reports";
     state({{"pid", 2411}});
     qputenv("WOODY_FAKE_STATE", statePath.toUtf8());
-    const auto profile = directory.path() + "/profile";
+    const auto profile = testPath + "/profile";
     const auto fake = QCoreApplication::applicationDirPath() + "/woody_fake_hdc"
 #ifdef Q_OS_WIN
                                                                ".exe"
