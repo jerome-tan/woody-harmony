@@ -87,10 +87,18 @@ def main():
         if parent.poll() is None:
             parent.terminate(); parent.wait(timeout=10)
         if new_pid:
+            # The replacement app may already have exited (for example after its
+            # own --quit-after), so cleanup must not turn a successful update
+            # check into a failure.
             if os.name == 'nt':
-                subprocess.run(['taskkill', '/PID', str(new_pid), '/T', '/F'], check=True, timeout=15)
+                subprocess.run(['taskkill', '/PID', str(new_pid), '/T', '/F'],
+                               check=False, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL, timeout=15)
             else:
-                os.kill(new_pid, signal.SIGTERM)
+                try:
+                    os.kill(new_pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
 
 
 if __name__ == '__main__':

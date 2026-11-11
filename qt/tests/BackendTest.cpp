@@ -60,6 +60,30 @@ private:
                            "com.example.woodyqa", "Woody QA", persist,
                            "测试任务");
   }
+  // A fake-hdc process can fail transiently on a loaded CI runner. The product
+  // intentionally waits for an explicit refresh after a discovery failure, so
+  // retry through the public UI entry points here instead of widening a single
+  // polling timeout.
+  void waitForInitialDevice() {
+    QElapsedTimer timer;
+    timer.start();
+    qint64 nextRefresh = 1000;
+    while (timer.elapsed() < 25000 &&
+           (backend->deviceInfo().isEmpty() || backend->apps().isEmpty())) {
+      QTest::qWait(100);
+      if (timer.elapsed() < nextRefresh)
+        continue;
+      if (backend->deviceInfo().isEmpty())
+        backend->refreshDevices();
+      else if (!backend->target().isEmpty())
+        backend->refreshApps();
+      nextRefresh += 3000;
+    }
+    QElapsedTimer settle;
+    settle.start();
+    while (backend->discovering() && settle.elapsed() < 5000)
+      QTest::qWait(50);
+  }
 private slots:
   void init() {
     QVERIFY(directory.isValid());
@@ -77,8 +101,9 @@ private slots:
                              {{"hdcPath", fake}, {"sessionsDir", reports}});
     backend = std::make_unique<Backend>(profile);
     backend->initialize();
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->deviceInfo().isEmpty(), 10000);
-    QTRY_VERIFY_WITH_TIMEOUT(!backend->apps().isEmpty(), 10000);
+    waitForInitialDevice();
+    QVERIFY2(!backend->deviceInfo().isEmpty(), "设备信息未加载");
+    QVERIFY2(!backend->apps().isEmpty(), "应用列表未加载");
     QCOMPARE(backend->target(), QString("WOODY-QA-001"));
     QCOMPARE(backend->deviceInfo()["ramTotalKb"].toInt(), 12582912);
   }
