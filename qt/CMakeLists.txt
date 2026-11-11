@@ -1,4 +1,4 @@
-find_package(Qt6 6.12.0 EXACT REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Concurrent)
+find_package(Qt6 6.12.0 EXACT REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Concurrent Network)
 qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(woody_core STATIC
@@ -7,12 +7,17 @@ add_library(woody_core STATIC
     src/HdcClient.cpp src/HdcClient.h
     src/Report.cpp src/Report.h
     src/Backend.cpp src/Backend.h src/DeviceMonitor.h
+    src/ReleaseUpdate.cpp src/ReleaseUpdate.h src/UpdateManager.cpp src/UpdateManager.h
 )
-target_link_libraries(woody_core PUBLIC Qt6::Core Qt6::Gui Qt6::Concurrent)
+target_link_libraries(woody_core PUBLIC Qt6::Core Qt6::Gui Qt6::Concurrent Qt6::Network)
 target_include_directories(woody_core PUBLIC src)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.12.0 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(woody_update_test tests/UpdateTest.cpp)
+    target_link_libraries(woody_update_test PRIVATE woody_core Qt6::Test)
+    set_target_properties(woody_update_test PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME woody_update COMMAND woody_update_test)
     qt_add_executable(woody_core_test tests/CoreTest.cpp)
     target_link_libraries(woody_core_test PRIVATE woody_core Qt6::Test)
     add_test(NAME woody_core COMMAND woody_core_test)
@@ -48,12 +53,35 @@ if(BUILD_TESTING)
     endif()
 endif()
 
+add_executable(woody_updater src/UpdateHelper.cpp)
+set_target_properties(woody_updater PROPERTIES AUTOMOC OFF WIN32_EXECUTABLE FALSE)
+if(MSVC)
+    set_property(TARGET woody_updater PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_executable(woody_update_probe tests/UpdateProbe.cpp)
+    set_target_properties(woody_update_probe PROPERTIES AUTOMOC OFF WIN32_EXECUTABLE FALSE)
+    if(MSVC)
+        set_property(TARGET woody_update_probe PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+    add_dependencies(woody_update_test woody_updater)
+    add_test(NAME woody_update_apply COMMAND ${Python3_EXECUTABLE}
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/verify-update.py"
+        --helper "$<TARGET_FILE:woody_updater>" --probe "$<TARGET_FILE:woody_update_probe>")
+endif()
+
 qt_add_executable(Woody MACOSX_BUNDLE WIN32
     src/ComparisonImageExporter.cpp src/ComparisonImageExporter.h
     src/main.cpp src/MemoryPlot.cpp src/MemoryPlot.h src/SnapshotPlot.cpp src/SnapshotPlot.h
     tests/UiAutomation.cpp tests/UiAutomation.h
 )
 target_link_libraries(Woody PRIVATE woody_core Qt6::Quick Qt6::QuickControls2)
+add_dependencies(Woody woody_updater)
+if(APPLE)
+    add_custom_command(TARGET Woody POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:woody_updater>" "$<TARGET_BUNDLE_DIR:Woody>/Contents/MacOS/woody_updater")
+endif()
 execute_process(COMMAND git rev-parse --short=12 HEAD WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" OUTPUT_VARIABLE WOODY_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE)
 target_compile_definitions(Woody PRIVATE WOODY_VERSION="${PROJECT_VERSION}" WOODY_COMMIT="${WOODY_COMMIT}")
 file(GLOB WOODY_QML CONFIGURE_DEPENDS "qml/*.qml" "qml/*.js")

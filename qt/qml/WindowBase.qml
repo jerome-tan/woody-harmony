@@ -25,7 +25,7 @@ ApplicationWindow {
     property string renameDirectory: ""
     property string messageText: ""
     property bool extraModalOpen: false
-    readonly property bool modalDialogOpen: extraModalOpen || about.opened || renameDialog.opened || errorDialog.opened
+    readonly property bool modalDialogOpen: extraModalOpen || about.opened || renameDialog.opened || errorDialog.opened || updateDialog.opened
     title: mainWindow ? "Woody" : caption
     property int initialWidth: 1280
     property int initialHeight: 840
@@ -81,6 +81,10 @@ ApplicationWindow {
         visible: Qt.platform.os === "osx"
         Menu {
             title: "Help"
+            Action {
+                text: "检查更新…"
+                onTriggered: { updateDialog.open(); updater.check(); }
+            }
             Action {
                 text: "关于 Woody"
                 onTriggered: about.open()
@@ -148,6 +152,10 @@ ApplicationWindow {
                     id: helpMenu
                     objectName: "helpMenu"
                     y: helpButton.height + 3
+                    Action {
+                        text: "检查更新…"
+                        onTriggered: { updateDialog.open(); updater.check(); }
+                    }
                     Action {
                         text: "关于 Woody"
                         onTriggered: about.open()
@@ -224,6 +232,17 @@ ApplicationWindow {
         y: 40
         width: win.width
         height: win.height - 40
+    }
+    UpdateDialog {
+        id: updateDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+    }
+    Connections {
+        target: updater
+        function onShowRequested() {
+            if (win.active) updateDialog.open();
+        }
     }
     WDialog {
         id: about

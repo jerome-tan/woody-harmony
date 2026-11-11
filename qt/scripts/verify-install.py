@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import time
 
@@ -31,6 +32,24 @@ def main():
     subprocess.run([sys.executable, str(Path(__file__).with_name('ui-smoke.py')),
                     '--exe', str(executable), '--fixtures', str(args.fixtures.resolve()),
                     '--output', str(output / 'ui')], check=True, timeout=150)
+    # Exercise the exact detached updater path, not merely a second direct
+    # installer invocation. Its /D argument must preserve spaces and Unicode.
+    temporary = output / 'update-helper.noindex'
+    temporary.mkdir(exist_ok=True)
+    helper = temporary / 'woody_updater.exe'
+    shutil.copy2(target / 'woody_updater.exe', helper)
+    parent = subprocess.Popen(['cmd.exe', '/c', 'exit', '0'])
+    parent.wait(timeout=5)
+    update_result = output / 'update-result.txt'
+    subprocess.run([str(helper), str(parent.pid), str(target), str(setup), 'installer',
+                    str(update_result), str(temporary)], check=True, timeout=360)
+    update_text = update_result.read_text(encoding='utf-8')
+    if not update_text.startswith('OK:'):
+        raise RuntimeError('Installed update failed: ' + update_text)
+    updated_pid = int(update_text.split(':', 1)[1])
+    subprocess.run(['taskkill', '/PID', str(updated_pid), '/T', '/F'], check=True, timeout=15)
+    if not sentinel.exists():
+        raise RuntimeError('Update removed the user file')
     subprocess.run([str(target / 'Uninstall.exe'), '/S'], check=True, timeout=120)
     deadline = time.monotonic() + 30
     while executable.exists() and time.monotonic() < deadline:
@@ -38,7 +57,7 @@ def main():
     if executable.exists() or not sentinel.exists():
         raise RuntimeError('Uninstall failed or deleted the user file')
     (output / 'installer-result.json').write_text(json.dumps({
-        'installed': True, 'uiPassed': True, 'uninstalled': True,
+        'installed': True, 'uiPassed': True, 'updatedAndRestarted': True, 'uninstalled': True,
         'preservedUnrelatedFile': True, 'unicodePath': str(target)
     }, indent=2), encoding='utf-8')
 

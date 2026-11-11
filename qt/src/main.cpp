@@ -1,5 +1,6 @@
 #include "../tests/UiAutomation.h"
 #include "Backend.h"
+#include "UpdateManager.h"
 #include "MemoryPlot.h"
 #include "ComparisonImageExporter.h"
 #include "SnapshotPlot.h"
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
   qmlRegisterUncreatableType<Report>("Woody.Native", 1, 0, "Report",
                                      "Reports are loaded by Woody");
   Backend backend(parser.value("profile"));
+  UpdateManager updater(&backend);
   QQmlEngine::setObjectOwnership(&backend, QQmlEngine::CppOwnership);
   QuitGuard quitGuard;
   quitGuard.backend = &backend;
@@ -82,6 +84,7 @@ int main(int argc, char **argv) {
   });
   QQmlApplicationEngine engine;
   engine.rootContext()->setContextProperty("backend", &backend);
+  engine.rootContext()->setContextProperty("updater", &updater);
   engine.rootContext()->setContextProperty(
       "buildInfo", QVariantMap{{"version", WOODY_VERSION},
                                {"commit", WOODY_COMMIT},
@@ -129,6 +132,9 @@ int main(int argc, char **argv) {
   if (parser.isSet("qa"))
     new UiAutomation(&engine, engine.rootObjects().first(), &backend,
                      parser.value("qa"));
+  // Isolated validation/report-only launches never contact GitHub.
+  if (!parser.isSet("qa") && !parser.isSet("offline") && !parser.isSet("profile") && !parser.isSet("ready-file"))
+    QTimer::singleShot(4000, &updater, &UpdateManager::startup);
   const int result = app.exec();
   if (parser.isSet("metrics")) {
     QFile file(parser.value("metrics"));

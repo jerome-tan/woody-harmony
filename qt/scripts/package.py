@@ -71,6 +71,7 @@ def windows_package(args, staging, output, prefix):
     source=args.build/'qt/Release/Woody.exe'
     if not source.exists():source=args.build/'qt/Woody.exe'
     shutil.copy2(source,folder/'Woody.exe')
+    shutil.copy2(source.with_name('woody_updater.exe'),folder/'woody_updater.exe')
     run([args.qt/'bin/windeployqt.exe','--release','--no-compiler-runtime','--no-translations','--qmldir',ROOT/'qt/qml',folder/'Woody.exe'])
     # App-local CRT makes the ZIP usable on clean Windows without running a redistributable installer.
     vswhere=Path(os.environ.get('ProgramFiles(x86)',r'C:\Program Files (x86)'))/'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -84,6 +85,9 @@ def windows_package(args, staging, output, prefix):
     if not crt_dirs:raise RuntimeError('MSVC app-local runtime not found')
     for dll in crt_dirs[-1].glob('*.dll'):shutil.copy2(dll,folder/dll.name)
     copy_notices(folder)
+    # The directory updater preserves user-created files outside this manifest.
+    managed = sorted(p.relative_to(folder).as_posix() for p in folder.rglob('*') if p.is_file())
+    (folder/'.woody-files').write_text('\n'.join(managed + ['.woody-files']) + '\n', encoding='utf-8')
     portable=output/(prefix+'-portable.zip')
     with zipfile.ZipFile(portable,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
         for file in sorted(folder.rglob('*')):

@@ -176,8 +176,10 @@ def main():
     add('minimum main screenshot',delay=300,screenshot='main-minimum.png')
     add('restore main size',eval='root.width=1280;root.height=820')
     add('open Windows Help',eval='if(root.windowsChrome) qa.click(qa.find(root,"helpButton"),-1,-1)',wait='!root.windowsChrome || qa.find(root,"helpMenu").opened')
-    add('about dialog',eval='if(root.windowsChrome) {qa.key(root,16777237);qa.key(root,16777220);} else {qa.print(JSON.stringify(qa.nativeMenuEntries())); if(!qa.triggerNativeMenu("Help/关于 Woody")) throw new Error("Native Help/About menu is missing");}',wait='qa.find(root,"aboutDialog").opened',screenshot='about.png')
+    add('about dialog',eval='if(root.windowsChrome) {qa.key(root,16777237);qa.key(root,16777237);qa.key(root,16777220);} else {qa.print(JSON.stringify(qa.nativeMenuEntries())); if(!qa.triggerNativeMenu("Help/关于 Woody")) throw new Error("Native Help/About menu is missing");}',wait='qa.find(root,"aboutDialog").opened',screenshot='about.png')
     add('close about',eval='qa.click(qa.find(qa.find(root,"aboutDialog"),"dialogDismiss"),-1,-1)',wait='!qa.find(root,"aboutDialog").opened')
+    add('update dialog',eval='qa.find(root,"updateDialog").open()',wait='qa.find(root,"updateDialog").opened',screenshot='update-dialog.png')
+    add('close update dialog',eval='qa.click(qa.find(qa.find(root,"updateDialog"),"dialogDismiss"),-1,-1)',wait='!qa.find(root,"updateDialog").opened')
     if args.hdc:
         add('live configuration',eval='root.raise();root.requestActivate();root.go("watch");',wait='backend.target.length>0 && qa.find(root,"startButton") && qa.find(root,"startButton").enabled')
         add('start live via button',eval='qa.click(qa.find(root,"startButton"),-1,-1)',wait='root.page==="live" && backend.live.count>=2',timeout=10000)
