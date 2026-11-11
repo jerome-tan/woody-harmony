@@ -27,6 +27,7 @@ def copy_notices(destination):
 def mac_package(args, staging, output, prefix):
     app = staging/'Woody.app'
     shutil.copytree(args.build/'qt/Woody.app', app, symlinks=True)
+    shutil.copy2(args.build/'qt/woody_updater', app/'Contents/MacOS/woody_updater')
     run([args.qt/'bin/macdeployqt', app, '-qmldir='+str(ROOT/'qt/qml'), '-always-overwrite', '-no-codesign'])
     copy_notices(app/'Contents/Resources')
     # Official macOS SDKs are Universal. Each artifact contains its advertised architecture only.

@@ -66,18 +66,20 @@ void UpdateManager::startup() {
   }
   if (automatic()) check(false);
 }
-void UpdateManager::fetch(const QUrl &url, const std::function<void(QByteArray)> &done) {
+void UpdateManager::fetch(const QUrl &url, const std::function<void(QByteArray)> &done,
+                          const std::function<void(int)> &failed) {
   auto *reply = mNetwork->get(request(url)); mReply = reply;
   auto data = std::make_shared<QByteArray>();
   connect(reply, &QIODevice::readyRead, this, [this, reply, data] {
     data->append(reply->readAll());
     if (data->size() > 2*1024*1024) { fail("更新服务返回内容过大"); reply->abort(); }
   });
-  connect(reply, &QNetworkReply::finished, this, [this, reply, data, done] {
+  connect(reply, &QNetworkReply::finished, this, [this, reply, data, done, failed] {
     reply->deleteLater();
     if (mReply != reply) return;
     mReply = nullptr;
     if (reply->error() != QNetworkReply::NoError) {
+      if (failed) { failed(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()); return; }
       fail(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 403
         ? "GitHub 暂时限制了请求，请稍后重试。" : "无法连接更新服务：" + reply->errorString());
       return;
@@ -92,7 +94,7 @@ void UpdateManager::check(bool interactive) {
   if (mReply || mExtract || mState == "installing" || mState == "ready") return;
   mRelease = {}; mProgress = 0;
   setState("checking", "正在检查 GitHub Release…");
-  fetch(QUrl("https://api.github.com/repos/jerome-tan/woody-harmony/releases/latest"), [this, interactive](const QByteArray &body) {
+  auto acceptRelease = [this, interactive](const QByteArray &body) {
     QJsonParseError error;
     const auto doc = QJsonDocument::fromJson(body, &error);
     if (error.error != QJsonParseError::NoError || !doc.isObject()) { fail("更新服务返回的版本信息无效"); return; }
@@ -102,13 +104,42 @@ void UpdateManager::check(bool interactive) {
       setState("available", "发现新版本 " + mRelease.version);
       if (!interactive) emit showRequested();
     }
+  };
+  // Release attachments do not consume the unauthenticated REST API quota.
+  fetch(QUrl("https://github.com/jerome-tan/woody-harmony/releases/latest/download/update.json"), acceptRelease,
+      [this, acceptRelease](int) {
+    fetch(QUrl("https://api.github.com/repos/jerome-tan/woody-harmony/releases/latest"), acceptRelease,
+        [this](int status) {
+      if (status == 403 || status == 429) checkLegacyRelease();
+      else fail("无法连接更新服务，请稍后重试或打开 Release 页面。");
+    });
+  });
+}
+void UpdateManager::checkLegacyRelease() {
+  // Old releases have no manifest. The public latest redirect can still tell
+  // an already-current client that no update is needed when the API is limited.
+  auto *reply = mNetwork->head(request(QUrl("https://github.com/jerome-tan/woody-harmony/releases/latest")));
+  mReply = reply;
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    reply->deleteLater();
+    if (mReply != reply) return;
+    mReply = nullptr;
+    const QString prefix = "https://github.com/jerome-tan/woody-harmony/releases/tag/";
+    const QString address = reply->url().toString();
+    try {
+      if (reply->error() != QNetworkReply::NoError || !address.startsWith(prefix))
+        throw std::runtime_error("暂时无法检查更新，请稍后重试或打开 Release 页面。");
+      if (!ReleaseUpdate::newer(address.mid(prefix.size()), QCoreApplication::applicationVersion()))
+        setState("current", "当前已是最新正式版本");
+      else fail("发现新版，但暂时无法读取更新清单，请从 Release 页面下载。");
+    } catch (const std::exception &e) { fail(QString::fromUtf8(e.what())); }
   });
 }
 void UpdateManager::download() {
   if (mState != "available") return;
   // A .app opened from a DMG, translocated app, or a read-only portable folder
   // must be moved/installed before it can be safely replaced in place.
-  if (!QFileInfo::exists(helper()) || target().contains("/AppTranslocation/") || target().startsWith("/Volumes/")) {
+  if (!QFileInfo::exists(helper()) || target().contains("/AppTranslocation/")) {
     fail("请先将 Woody 安装或解压到可写目录，再使用自动更新。"); return;
   }
   QTemporaryDir writable(QFileInfo(target()).absolutePath() + "/.woody-write-check-XXXXXX");

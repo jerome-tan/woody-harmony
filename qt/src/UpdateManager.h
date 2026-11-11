@@ -41,7 +41,9 @@ signals:
 private:
   void setState(const QString &state, const QString &message);
   void fail(const QString &message);
-  void fetch(const QUrl &url, const std::function<void(QByteArray)> &done);
+  void fetch(const QUrl &url, const std::function<void(QByteArray)> &done,
+             const std::function<void(int)> &failed = {});
+  void checkLegacyRelease();
   void downloadAsset();
   void prepare();
   bool installed() const;

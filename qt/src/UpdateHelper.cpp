@@ -133,7 +133,7 @@ void preservePortableFiles(const fs::path &old, const fs::path &staged) {
 int apply(unsigned long parent, const fs::path &target, const fs::path &source,
           bool installer, const fs::path &result, const fs::path &temporary) {
   fs::path staged, backup;
-  bool movedOld = false, movedNew = false, parentExited = false, ownsStaged = false;
+  bool movedOld = false, movedNew = false, parentExited = false, ownsStaged = false, restartOnFailure = true;
   try {
     waitParent(parent); parentExited = true;
     if (!target.is_absolute() || target == target.root_path() || !fs::is_regular_file(executable(target))
@@ -155,6 +155,10 @@ int apply(unsigned long parent, const fs::path &target, const fs::path &source,
       Process p = start(source, {"/S", fs::path(L"/D=" + target.wstring())});
       const auto waited = WaitForSingleObject(p, 300000);
       DWORD code = 1; GetExitCodeProcess(p, &code); CloseHandle(p);
+      if (waited != WAIT_OBJECT_0) {
+        restartOnFailure = false;
+        throw std::runtime_error("安装仍未完成，请等待安装程序结束后再打开 Woody");
+      }
       if (waited != WAIT_OBJECT_0 || code != 0) throw std::runtime_error("安装程序未成功完成，请从 Release 重新安装");
 #else
       throw std::runtime_error("此平台不支持该安装方式");
@@ -185,7 +189,7 @@ int apply(unsigned long parent, const fs::path &target, const fs::path &source,
       }
     } catch (const std::exception &) { message += "；原版本保留在同目录 .woody-old-*，请手动恢复。"; }
     writeResult(result, "ERROR:" + message);
-    if (parentExited && fs::exists(executable(target))) {
+    if (parentExited && restartOnFailure && fs::exists(executable(target))) {
       try { closeProcess(start(executable(target), {})); } catch (...) {}
     }
     std::error_code ignored;

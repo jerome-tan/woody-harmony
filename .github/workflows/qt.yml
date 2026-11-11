@@ -189,6 +189,8 @@ jobs:
           done
           sha256sum "${assets[@]}" > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
+          cd ..
+          python qt/scripts/release-manifest.py --directory dist --version "$version" --notes ".github/release-notes/${GITHUB_REF_NAME}.md"
 
       - name: Publish complete release
         shell: bash
@@ -211,5 +213,5 @@ jobs:
               gh release create "$tag" --verify-tag --draft --title "Woody $tag" --generate-notes
             fi
           fi
-          gh release upload "$tag" dist/*.dmg dist/*.zip dist/*.exe dist/SHA256SUMS.txt --clobber
+          gh release upload "$tag" dist/*.dmg dist/*.zip dist/*.exe dist/SHA256SUMS.txt dist/update.json --clobber
           gh release edit "$tag" --draft=false --latest

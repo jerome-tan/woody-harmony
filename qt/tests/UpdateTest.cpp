@@ -10,12 +10,14 @@
 class TestReply : public QNetworkReply {
 public:
   QByteArray body;
-  TestReply(const QNetworkRequest &r, QByteArray data, bool failure, QObject *parent)
+  TestReply(const QNetworkRequest &r, QByteArray data, bool failure, QObject *parent, int status = 200)
       : QNetworkReply(parent), body(std::move(data)) {
     setRequest(r); setUrl(r.url()); open(QIODevice::ReadOnly);
-    QTimer::singleShot(20, this, [this, failure] {
+    setAttribute(QNetworkRequest::HttpStatusCodeAttribute, status);
+    QTimer::singleShot(20, this, [this, failure, status] {
       if (isFinished()) return;
       if (failure) setError(ConnectionRefusedError, "Test network unavailable");
+      else if (status >= 400) setError(ContentAccessDenied, "Test HTTP error");
       emit readyRead(); setFinished(true); emit finished();
     });
   }
@@ -33,11 +35,19 @@ public:
   QJsonObject release;
   QByteArray sums, payload = QByteArray(100,'x');
   bool failure = false;
+  bool legacy = false, limited = false;
 protected:
-  QNetworkReply *createRequest(Operation, const QNetworkRequest &request, QIODevice *) override {
-    QByteArray body = request.url().path().endsWith("/latest") ? QJsonDocument(release).toJson()
+  QNetworkReply *createRequest(Operation operation, const QNetworkRequest &request, QIODevice *) override {
+    if (operation == HeadOperation) {
+      QNetworkRequest redirected(request);
+      redirected.setUrl(QUrl("https://github.com/jerome-tan/woody-harmony/releases/tag/"+release["tag_name"].toString()));
+      return new TestReply(redirected,{},failure,this);
+    }
+    QByteArray body = (request.url().path().endsWith("/latest") || request.url().path().endsWith("/update.json")) ? QJsonDocument(release).toJson()
         : request.url().path().endsWith("SHA256SUMS.txt") ? sums : payload;
-    return new TestReply(request, body, failure, this);
+    const int status = legacy && request.url().path().endsWith("/update.json") ? 404
+        : limited && request.url().host() == "api.github.com" ? 403 : 200;
+    return new TestReply(request, body, failure, this, status);
   }
 };
 
@@ -53,6 +63,18 @@ class UpdateTest : public QObject {
     return {{"tag_name",tag},{"draft",false},{"prerelease",false},{"body","Changes"},{"assets",assets}};
   }
 private slots:
+  void legacyAndRateLimitFallback() {
+    QCoreApplication::setApplicationVersion("1.0.0");
+    QTemporaryDir profile; Backend backend(profile.path());
+    TestNetwork network; network.release=release(); network.legacy=true;
+    UpdateManager updater(&backend,nullptr,&network);
+    updater.check(); QTRY_COMPARE(updater.state(),QString("available"));
+    network.limited=true; network.release=release("v1.0.0");
+    updater.check(); QTRY_COMPARE(updater.state(),QString("current"));
+    network.release=release();
+    updater.check(); QTRY_COMPARE(updater.state(),QString("error"));
+    QVERIFY(updater.message().contains("发现新版"));
+  }
   void checkDownloadFailureAndCancel() {
     QCoreApplication::setApplicationVersion("1.0.0");
     QTemporaryDir profile;
