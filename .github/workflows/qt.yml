@@ -112,6 +112,12 @@ jobs:
       - name: Validate extracted Windows portable app
         if: matrix.platform == 'win'
         run: python qt/scripts/ui-smoke.py --exe "dist/Qt 免安装测试/Woody/Woody.exe" --output dist/qt-evidence/portable --fixtures dist/qt-fixtures
+      - name: Verify macOS application self-update
+        if: matrix.platform == 'mac'
+        run: python qt/scripts/verify-deployed-update.py --package dist/qt-package/staging/Woody.app --output dist/qt-evidence/update.noindex
+      - name: Verify Windows portable self-update
+        if: matrix.platform == 'win'
+        run: python qt/scripts/verify-deployed-update.py --package dist/qt-package/staging/Woody --output dist/qt-evidence/update.noindex
       - name: Verify Windows installer and uninstaller
         if: matrix.platform == 'win'
         run: python qt/scripts/verify-install.py --package dist/qt-package --fixtures dist/qt-fixtures --output dist/qt-evidence/installed

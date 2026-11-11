@@ -133,8 +133,9 @@ int main(int argc, char **argv) {
     new UiAutomation(&engine, engine.rootObjects().first(), &backend,
                      parser.value("qa"));
   // Isolated validation/report-only launches never contact GitHub.
-  if (!parser.isSet("qa") && !parser.isSet("offline") && !parser.isSet("profile") && !parser.isSet("ready-file"))
-    QTimer::singleShot(4000, &updater, &UpdateManager::startup);
+  const bool automaticUpdates = !parser.isSet("qa") && !parser.isSet("offline")
+      && !parser.isSet("profile") && !parser.isSet("ready-file");
+  QTimer::singleShot(4000, &updater, [&updater, automaticUpdates] { updater.startup(automaticUpdates); });
   const int result = app.exec();
   if (parser.isSet("metrics")) {
     QFile file(parser.value("metrics"));

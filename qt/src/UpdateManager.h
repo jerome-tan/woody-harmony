@@ -34,7 +34,7 @@ public:
   Q_INVOKABLE void cancel();
   Q_INVOKABLE void install();
   Q_INVOKABLE void openRelease();
-  void startup();
+  void startup(bool allowAutomatic = true);
 signals:
   void changed();
   void showRequested();

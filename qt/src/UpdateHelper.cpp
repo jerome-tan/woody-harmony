@@ -90,9 +90,11 @@ fs::path executable(const fs::path &target) {
 void writeResult(const fs::path &path, const std::string &text) {
   std::ofstream file(path, std::ios::trunc); file << text; file.flush();
 }
-unsigned long launchReady(const fs::path &target, const fs::path &ready) {
+unsigned long launchReady(const fs::path &target, const fs::path &ready, const fs::path &profile) {
   fs::remove(ready);
-  Process p = start(executable(target), {"--ready-file", ready});
+  std::vector<fs::path> args{"--ready-file", ready};
+  if (!profile.empty()) { args.push_back("--profile"); args.push_back(profile); }
+  Process p = start(executable(target), args);
   for (int i = 0; i < 450; ++i) {
     if (fs::exists(ready)) {
 #ifdef _WIN32
@@ -131,7 +133,7 @@ void preservePortableFiles(const fs::path &old, const fs::path &staged) {
 #endif
 }
 int apply(unsigned long parent, const fs::path &target, const fs::path &source,
-          bool installer, const fs::path &result, const fs::path &temporary) {
+          bool installer, const fs::path &result, const fs::path &temporary, const fs::path &profile = {}) {
   fs::path staged, backup;
   bool movedOld = false, movedNew = false, parentExited = false, ownsStaged = false, restartOnFailure = true;
   try {
@@ -167,7 +169,7 @@ int apply(unsigned long parent, const fs::path &target, const fs::path &source,
       fs::rename(target, backup); movedOld = true;
       fs::rename(staged, target); movedNew = true;
     }
-    const auto newPid = launchReady(target, temporary / "ready");
+    const auto newPid = launchReady(target, temporary / "ready", profile);
     if (!newPid) throw std::runtime_error(installer ? "新版安装后未能启动，请从 Release 重新安装" : "新版未能启动，已尝试恢复原版本");
     writeResult(result, "OK:" + std::to_string(newPid));
     // Keep a successful backup until launch acknowledgement, then remove only
@@ -190,7 +192,11 @@ int apply(unsigned long parent, const fs::path &target, const fs::path &source,
     } catch (const std::exception &) { message += "；原版本保留在同目录 .woody-old-*，请手动恢复。"; }
     writeResult(result, "ERROR:" + message);
     if (parentExited && restartOnFailure && fs::exists(executable(target))) {
-      try { closeProcess(start(executable(target), {})); } catch (...) {}
+      try {
+        std::vector<fs::path> args;
+        if (!profile.empty()) { args.push_back("--profile"); args.push_back(profile); }
+        closeProcess(start(executable(target), args));
+      } catch (...) {}
     }
     std::error_code ignored;
     if (ownsStaged) fs::remove_all(staged, ignored);
@@ -199,14 +205,14 @@ int apply(unsigned long parent, const fs::path &target, const fs::path &source,
 }
 #ifdef _WIN32
 int wmain(int argc, wchar_t **argv) {
-  if (argc != 7) return 2;
-  try { return apply(std::stoul(argv[1]), argv[2], argv[3], std::wstring(argv[4]) == L"installer", argv[5], argv[6]); }
+  if (argc != 7 && argc != 8) return 2;
+  try { return apply(std::stoul(argv[1]), argv[2], argv[3], std::wstring(argv[4]) == L"installer", argv[5], argv[6], argc == 8 ? fs::path(argv[7]) : fs::path()); }
   catch (...) { return 2; }
 }
 #else
 int main(int argc, char **argv) {
-  if (argc != 7) return 2;
-  try { return apply(std::stoul(argv[1]), argv[2], argv[3], std::string(argv[4]) == "installer", argv[5], argv[6]); }
+  if (argc != 7 && argc != 8) return 2;
+  try { return apply(std::stoul(argv[1]), argv[2], argv[3], std::string(argv[4]) == "installer", argv[5], argv[6], argc == 8 ? fs::path(argv[7]) : fs::path()); }
   catch (...) { return 2; }
 }
 #endif

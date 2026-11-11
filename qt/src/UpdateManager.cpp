@@ -57,14 +57,14 @@ bool UpdateManager::installed() const {
 }
 void UpdateManager::setState(const QString &state, const QString &message) { mState = state; mMessage = message; emit changed(); }
 void UpdateManager::fail(const QString &message) { setState("error", message); }
-void UpdateManager::startup() {
+void UpdateManager::startup(bool allowAutomatic) {
   QFile result(mBackend->profile() + "/update-result.txt");
   if (result.open(QIODevice::ReadOnly)) {
     const auto text = QString::fromUtf8(result.readAll());
     result.close(); result.remove();
     if (text.startsWith("ERROR:")) { fail(text.mid(6)); emit showRequested(); return; }
   }
-  if (automatic()) check(false);
+  if (allowAutomatic && automatic()) check(false);
 }
 void UpdateManager::fetch(const QUrl &url, const std::function<void(QByteArray)> &done,
                           const std::function<void(int)> &failed) {
@@ -243,7 +243,7 @@ void UpdateManager::install() {
   QProcess helperProcess;
   helperProcess.setProgram(copy);
   helperProcess.setArguments({QString::number(QCoreApplication::applicationPid()), target(), mPayload,
-    installed() ? "installer" : "directory", result, mTemporary->path()});
+    installed() ? "installer" : "directory", result, mTemporary->path(), mBackend->profile()});
   helperProcess.setWorkingDirectory(mTemporary->path());
   if (!helperProcess.startDetached()) { fail("无法启动更新助手"); return; }
   mTemporary->setAutoRemove(false); // Helper owns the payload until replacement finishes.

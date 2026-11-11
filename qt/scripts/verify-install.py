@@ -42,7 +42,7 @@ def main():
     parent.wait(timeout=5)
     update_result = output / 'update-result.txt'
     subprocess.run([str(helper), str(parent.pid), str(target), str(setup), 'installer',
-                    str(update_result), str(temporary)], check=True, timeout=360)
+                    str(update_result), str(temporary), str(output / 'update-profile')], check=True, timeout=360)
     update_text = update_result.read_text(encoding='utf-8')
     if not update_text.startswith('OK:'):
         raise RuntimeError('Installed update failed: ' + update_text)
