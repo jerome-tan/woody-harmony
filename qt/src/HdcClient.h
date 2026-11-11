@@ -20,6 +20,7 @@ public:
   QJsonValue appDebugMode(const QString &bundle) const;
   QJsonObject deviceInfo() const;
   qint64 pid(const QString &bundle) const;
+  qint64 queryPid(const QString &bundle, int timeoutMs = 3000) const;
   static void validateBundle(const QString &bundle);
 
 private:

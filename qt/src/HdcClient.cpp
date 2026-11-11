@@ -318,23 +318,36 @@ void HdcClient::validateBundle(const QString &bundle) {
 qint64 HdcClient::pid(const QString &bundle) const {
   validateBundle(bundle);
   try {
+    return queryPid(bundle, 20000);
+  } catch (const std::exception &) {
+    return 0;
+  }
+}
+
+qint64 HdcClient::queryPid(const QString &bundle, int timeoutMs) const {
+  validateBundle(bundle);
+  try {
     const auto match = QRegularExpression("^(\\d+)(?:\\s+\\d+)*$")
-                           .match(shell("pidof " + bundle).trimmed());
+                           .match(shell("pidof " + bundle, timeoutMs).trimmed());
     if (match.hasMatch())
       return match.captured(1).toLongLong();
   } catch (const std::exception &) {
+    if (cancelled && cancelled->load())
+      throw;
   }
-  try {
-    for (const auto &line : shell("ps -ef").split('\n')) {
-      const auto tokens = line.trimmed().split(QRegularExpression("\\s+"));
-      if (tokens.size() >= 8 && tokens[7].section(':', 0, 0) == bundle) {
-        bool ok;
-        const auto value = tokens[1].toLongLong(&ok);
-        if (ok)
-          return value;
-      }
+  const auto processes = shell("ps -ef", timeoutMs);
+  // A failed/unsupported ps must not turn a transport failure into "stopped".
+  if (!QRegularExpression("(?:^|\\n)\\s*\\S+\\s+PID\\s+PPID\\b")
+           .match(processes).hasMatch())
+    fail(QStringLiteral("未获取到有效的进程状态"));
+  for (const auto &line : processes.split('\n')) {
+    const auto tokens = line.trimmed().split(QRegularExpression("\\s+"));
+    if (tokens.size() >= 8 && tokens[7].section(':', 0, 0) == bundle) {
+      bool ok;
+      const auto value = tokens[1].toLongLong(&ok);
+      if (ok)
+        return value;
     }
-  } catch (const std::exception &) {
   }
   return 0;
 }

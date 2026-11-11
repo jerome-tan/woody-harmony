@@ -59,6 +59,7 @@ public:
   Q_INVOKABLE void refreshDevices();
   Q_INVOKABLE void selectDevice(const QString &target);
   Q_INVOKABLE void refreshApps();
+  Q_INVOKABLE void refreshSelectedAppStatus();
   Q_INVOKABLE void requestAppDebugMode(const QString &bundle);
   Q_INVOKABLE void selectApp(const QString &bundle);
   Q_INVOKABLE void refreshRecords();
@@ -120,6 +121,7 @@ private:
   void finish(bool automatic = false);
   void saveSettings();
   void rememberAppSelection(const QString &bundle);
+  void cancelAppStatusQuery();
   void discoverDevices(bool manual);
   void beginDeviceRefresh(int goal);
   void continueDeviceRefresh(const QJsonArray &devices, bool success);
@@ -141,6 +143,9 @@ private:
   QHash<QString, QJsonObject> mAppDebugCache;
   QSet<QString> mAppDebugPending;
   std::shared_ptr<std::atomic_bool> mDeviceCancel;
+  std::shared_ptr<std::atomic_bool> mAppStatusCancel;
+  quint64 mAppStatusRevision = 0;
+  bool mAppStatusPending = false;
   std::shared_ptr<std::atomic_bool> mQuit;
   std::shared_ptr<std::atomic_bool> mCancel;
   std::shared_ptr<std::atomic_bool> mSnapshotCancel;

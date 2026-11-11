@@ -8,7 +8,20 @@ Column {
     objectName: "targetPicker"
     readonly property string selectedBundle: backend.selectedBundle
     property string pendingBundle: ""
+    property bool revealSelectionPending: false
     property bool locked: false
+    readonly property bool statusRefreshEnabled: visible && !locked
+        && Window.window && Window.window.visible && Window.window.visibility !== Window.Minimized
+        && Qt.application.state === Qt.ApplicationActive
+        && backend.target.length > 0 && selectedBundle.length > 0 && !appDialog.visible
+    onSelectedBundleChanged: if (statusRefreshEnabled) backend.refreshSelectedAppStatus()
+    Timer {
+        interval: 3000
+        repeat: true
+        triggeredOnStart: true
+        running: root.statusRefreshEnabled
+        onTriggered: backend.refreshSelectedAppStatus()
+    }
     readonly property var selectedApp: backend.apps.find(function (a) {
         return a.bundleName === selectedBundle;
     }) || null
@@ -50,6 +63,24 @@ Column {
         });
         if (reset)
             appList.positionViewAtBeginning();
+        if (revealSelectionPending)
+            Qt.callLater(revealSelection);
+    }
+    function revealSelection() {
+        if (!appDialog.opened || !revealSelectionPending)
+            return;
+        appList.forceLayout();
+        for (var i = 0; i < appRows.count; ++i) {
+            if (appRows.get(i).bundleName === root.pendingBundle) {
+                appList.currentIndex = i;
+                appList.positionViewAtIndex(i, ListView.Center);
+                revealSelectionPending = false;
+                return;
+            }
+        }
+        // If data is still loading, wait for the model to contain the selection.
+        if (!backend.loadingApps)
+            revealSelectionPending = false;
     }
     property string notRunningHint: "开始后将等待应用启动。"
     spacing: 16
@@ -164,6 +195,7 @@ Column {
             onClicked: {
                 root.pendingBundle = root.selectedBundle;
                 appSearch.text = "";
+                root.revealSelectionPending = true;
                 appDialog.open();
                 backend.refreshApps();
                 appSearch.forceActiveFocus();
@@ -171,7 +203,7 @@ Column {
         }
     }
     WText {
-        visible: !!root.selectedApp && !root.selectedApp.pid
+        visible: !!root.selectedApp && root.selectedApp.statusKnown !== false && !root.selectedApp.pid
         x: 96
         width: parent.width - 96
         text: root.notRunningHint
@@ -194,6 +226,7 @@ Column {
             return a.bundleName === root.pendingBundle;
         })
         onOpened: root.syncAppRows(true)
+        onClosed: root.revealSelectionPending = false
         onAccepted: backend.selectApp(root.pendingBundle)
         ColumnLayout {
             anchors.fill: parent
@@ -205,7 +238,10 @@ Column {
                     objectName: "appSearch"
                     Layout.fillWidth: true
                     placeholderText: "搜索完整包名"
-                    onTextChanged: root.syncAppRows(true)
+                    onTextChanged: {
+                        root.revealSelectionPending = false;
+                        root.syncAppRows(true);
+                    }
                 }
                 WButton {
                     iconName: "ReloadOutlined"
@@ -221,6 +257,7 @@ Column {
                 Layout.fillHeight: true
                 clip: true
                 reuseItems: true
+                onMovementStarted: root.revealSelectionPending = false
                 model: appRows
                 ScrollBar.vertical: ScrollBar {}
                 delegate: ItemDelegate {

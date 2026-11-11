@@ -95,8 +95,27 @@ ApplicationWindow {
         color: T.chrome
         MouseArea {
             anchors.fill: parent
+            // On Windows Qt's expanded-titlebar hit test forwards the press to
+            // QML first. Accepting it here prevents the native HTCAPTION path
+            // (including dragging, double-click maximize and window snapping).
+            enabled: !win.windowsChrome
             onPressed: win.startSystemMove()
             onDoubleClicked: win.toggleMaximize()
+        }
+        Item {
+            // Our 40px header can be taller than the native caption. Only its
+            // extra client-area strip needs QML drag/double-click handlers.
+            visible: win.windowsChrome
+            y: win.contentItem.SafeArea.margins.top
+            width: parent.width
+            height: Math.max(0, parent.height - y)
+            DragHandler {
+                target: null
+                onActiveChanged: if (active) win.startSystemMove()
+            }
+            TapHandler {
+                onDoubleTapped: win.toggleMaximize()
+            }
         }
         Row {
             id: brand

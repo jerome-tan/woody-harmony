@@ -19,6 +19,14 @@ def main():
     def add(name,**kwargs):steps.append(dict(name=name,**kwargs))
     add('main window',delay=700,eval='qa.activateApp();qa.nativePointer=true;root.raise();root.requestActivate();qa.hover(root.bodyItem,2,2)',wait='root.active',screenshot='main.png')
     add('main is centered',eval='var placement=qa.windowPlacement(root);qa.print(JSON.stringify(placement))',assert_='(placement.insideAvailableArea && Math.abs(placement.centerErrorX)<=1 && Math.abs(placement.centerErrorY)<=1) || (()=>{throw new Error(JSON.stringify(placement));})()')
+    # Synthetic QMouseEvents bypass WM_NCHITTEST and cannot prove Windows
+    # titlebar behavior. These gestures use SendInput on the native desktop.
+    if sys.platform == 'win32':
+        add('native titlebar drag',eval='var beforeTitlebar=[root.x,root.y];if(!qa.nativeTitlebarGesture(root,"drag")) throw new Error("Native input unavailable")',wait='!qa.nativeInputBusy',assert_='qa.nativeInputSucceeded && Math.abs(root.x-beforeTitlebar[0]-80)<=3 && Math.abs(root.y-beforeTitlebar[1]-50)<=3')
+        add('native titlebar double click maximizes',eval='qa.nativeTitlebarGesture(root,"doubleClick")',wait='!qa.nativeInputBusy && root.visibility===4',assert_='qa.nativeInputSucceeded')
+        add('native titlebar double click restores',eval='qa.nativeTitlebarGesture(root,"doubleClick")',wait='!qa.nativeInputBusy && root.visibility===2',assert_='qa.nativeInputSucceeded')
+        add('extended titlebar strip drag',eval='var beforeStrip=[root.x,root.y];qa.nativeTitlebarGesture(root,"drag",38)',wait='!qa.nativeInputBusy',assert_='qa.nativeInputSucceeded && root.x>beforeStrip[0]+40 && root.y>beforeStrip[1]+20')
+        add('restore main after native input',eval='root.x=beforeTitlebar[0];root.y=beforeTitlebar[1]')
     for page in ['watch','peak','snap','reports','settings']:
         add('navigate '+page,eval=f'root.go({json.dumps(page)})')
         add('render '+page,delay=160,screenshot=page+'.png')
@@ -38,6 +46,12 @@ def main():
     add('reset library after resizing',eval='qa.find(root,"reportsTable").resetLayout();root.go("watch")')
     add('open trend',eval='backend.openReport('+report('Trend-1')+')',wait='root.childWindows.length===1')
     add('trend is centered',delay=150,eval='var placement=qa.windowPlacement(root.childWindows[0]);qa.print(JSON.stringify(placement))',assert_='(placement.insideAvailableArea && Math.abs(placement.centerErrorX)<=1 && Math.abs(placement.centerErrorY)<=1) || (()=>{throw new Error(JSON.stringify(placement));})()')
+    if sys.platform == 'win32':
+        add('activate report for native titlebar',eval='root.childWindows[0].raise();root.childWindows[0].requestActivate()',wait='root.childWindows[0].active')
+        add('report native titlebar drag',eval='var reportPosition=[root.childWindows[0].x,root.childWindows[0].y];qa.nativeTitlebarGesture(root.childWindows[0],"drag")',wait='!qa.nativeInputBusy',assert_='qa.nativeInputSucceeded && Math.abs(root.childWindows[0].x-reportPosition[0]-80)<=3')
+        add('report native double click maximizes',eval='qa.nativeTitlebarGesture(root.childWindows[0],"doubleClick")',wait='!qa.nativeInputBusy && root.childWindows[0].visibility===4')
+        add('report native double click restores',eval='qa.nativeTitlebarGesture(root.childWindows[0],"doubleClick")',wait='!qa.nativeInputBusy && root.childWindows[0].visibility===2')
+        add('restore report position',eval='root.childWindows[0].x=reportPosition[0];root.childWindows[0].y=reportPosition[1]')
     add('prepare trend capture',eval='var report=root.childWindows[0];report.raise();report.requestActivate();var plot=qa.find(report,"memoryPlot");qa.hover(report.bodyItem,2,2);')
     add('trend layout',delay=300,wait='report.active',assert_='plot.width>300 && plot.height>200 && qa.find(report,"statCards").height===86',window='report',screenshot='trend.png')
     add('zoom native chart',eval='qa.wheel(plot,plot.width/2,plot.height/2,400)',assert_='plot.rangeEnd-plot.rangeStart<plot.totalSpan')
@@ -172,6 +186,13 @@ def main():
         add('continue active task',eval='qa.click(qa.find(qa.find(root,"quitDialog"),"dialogCancel"),-1,-1)',assert_='backend.sampling && root.page==="live"')
         add('stop live via button',eval='qa.click(qa.find(root,"stopButton"),-1,-1)',wait='!backend.sampling && root.page==="watch"')
     if args.hdc:
+        add('prepare long application list',eval='var manyApps=Array.from({length:60},(_,i)=>"com.example.app"+String(i).padStart(3,"0"));manyApps.push("com.example.woodyqa","com.example.stopped");qa.setFakeDeviceState({pid:2411,installedBundles:manyApps});backend.refreshApps()',wait='backend.apps.length===62')
+        add('select application near list bottom',eval='backend.selectApp("com.example.app055");qa.click(qa.find(root,"appPicker"),-1,-1)',wait='qa.find(root,"appDialog").opened')
+        add('picker reveals selected application',wait='qa.find(root,"app-com.example.app055")!==null && qa.find(root,"appList").contentY>0',assert_='(()=>{var l=qa.find(root,"appList");var row=qa.find(root,"app-com.example.app055");var p=row.mapToItem(l,0,0);return p.y>=0 && p.y+row.height<=l.height;})()',screenshot='app-picker-selected-visible.png')
+        add('manual scrolling survives app refresh',eval='var selectedList=qa.find(root,"appList");selectedList.positionViewAtBeginning();backend.refreshApps()',wait='!backend.loadingApps',assert_='selectedList.contentY<=0')
+        add('close long application list',eval='qa.click(qa.find(qa.find(root,"appDialog"),"dialogCancel"),-1,-1)',wait='!qa.find(root,"appDialog").opened')
+        add('restore application fixture',eval='qa.setFakeDeviceState({pid:2411});backend.refreshApps()',wait='backend.apps.length===2')
+        add('restore application before picker tests',eval='backend.selectApp("com.example.woodyqa")')
         add('application picker',eval='qa.click(qa.find(root,"appPicker"),-1,-1)',wait='qa.find(root,"appDialog").opened')
         add('search application by package',eval='qa.find(root,"appSearch").text="stopped"',assert_='qa.find(root,"appList").count===1',screenshot='app-picker.png')
         add('cancel pending app selection',eval='qa.click(qa.find(root,"app-com.example.stopped"),-1,-1);qa.click(qa.find(qa.find(root,"appDialog"),"dialogCancel"),-1,-1)',assert_='qa.find(root,"targetPicker").selectedBundle==="com.example.woodyqa"')
@@ -180,7 +201,8 @@ def main():
         for page in ['snap','peak','watch']:
             add('remember application on '+page,eval='root.go('+json.dumps(page)+')',wait='qa.find(root,"targetPicker") && qa.find(root,"targetPicker").selectedBundle==="com.example.stopped"',assert_='qa.find(root,"appPicker").text==="com.example.stopped" && qa.find(root,"selectedAppStatus").text==="未运行"'+(' && !qa.find(root,"startButton").enabled' if page=='snap' else ''),screenshot='remember-app-'+page+'.png')
         add('restore running application',eval='backend.selectApp("com.example.woodyqa")',wait='qa.find(root,"selectedAppStatus").running')
-        add('device process exits',eval='qa.setFakeDeviceState({pid:0});backend.refreshApps()',wait='!qa.find(root,"targetPicker").selectedApp.pid')
+        add('selected process status updates without opening list',eval='qa.setFakeDeviceState({pid:7007})',wait='qa.find(root,"targetPicker").selectedApp.pid===7007',timeout=7000)
+        add('device process exits',eval='qa.setFakeDeviceState({pid:0})',wait='!qa.find(root,"targetPicker").selectedApp.pid && qa.find(root,"selectedAppStatus").known',timeout=7000)
         add('start waiting for app',eval='qa.click(qa.find(root,"startButton"),-1,-1)',wait='root.page==="live" && backend.live.count>=2',timeout=10000)
         add('waiting is not zero measurement',assert_='backend.live.stats.validCount===0 && qa.find(root,"statCards").values[0].value==="—"',screenshot='waiting-app.png')
         add('process restarts',eval='qa.setFakeDeviceState({pid:2412})',wait='backend.live.stats.validCount>=1',timeout=10000)

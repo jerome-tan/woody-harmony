@@ -153,6 +153,7 @@ bool Backend::toolPathExists(const QString &path) const {
 
 void Backend::requestQuit() {
   mQuitting = true;
+  cancelAppStatusQuery();
   mDeviceRetryActive = false;
   mDeviceRetryTimer.stop();
   mDeviceMonitor.stop();
@@ -207,6 +208,7 @@ void Backend::copyText(const QString &text) {
 }
 
 Backend::~Backend() {
+  cancelAppStatusQuery();
   mDeviceMonitor.stop();
   mQuit->store(true);
   if (mDeviceCancel)
@@ -405,6 +407,7 @@ void Backend::discoverDevices(bool manual) {
 }
 
 void Backend::clearDevice() {
+  cancelAppStatusQuery();
   // Invalidate pending queries even if the same device reconnects shortly.
   ++mDeviceGeneration;
   mAppDebugCache.clear();
@@ -430,6 +433,7 @@ void Backend::selectDevice(const QString &target) {
   }
   // Explicitly selecting/refreshing the same device must also reload metadata.
   // Otherwise a transient handshake failure leaves the old device name cached.
+  cancelAppStatusQuery();
   mTarget = target;
   mDevice = {};
   mApps = {};
@@ -465,6 +469,8 @@ void Backend::selectDevice(const QString &target) {
 void Backend::rememberAppSelection(const QString &bundle) {
   auto selections = mSettings["selectedApps"].toObject();
   const bool changed = mSelectedBundle != bundle;
+  if (changed)
+    cancelAppStatusQuery();
   mSelectedBundle = bundle;
   if (!selections.contains(mTarget) || selections[mTarget].toString() != bundle) {
     // An explicit empty choice prevents silently switching to another app
@@ -490,9 +496,52 @@ void Backend::selectApp(const QString &bundle) {
   rememberAppSelection(bundle);
 }
 
+void Backend::cancelAppStatusQuery() {
+  if (mAppStatusCancel)
+    mAppStatusCancel->store(true);
+  ++mAppStatusRevision;
+  mAppStatusPending = false;
+}
+
+void Backend::refreshSelectedAppStatus() {
+  if (mQuitting || mActive || mSnapshotting || mLoadingApps ||
+      mAppStatusPending || mTarget.isEmpty() || mSelectedBundle.isEmpty())
+    return;
+  const auto bundle = mSelectedBundle;
+  const auto generation = mDeviceGeneration;
+  const auto revision = ++mAppStatusRevision;
+  mAppStatusPending = true;
+  mAppStatusCancel = std::make_shared<std::atomic_bool>(false);
+  auto hdc = client();
+  hdc.cancelled = mAppStatusCancel;
+  run([hdc, bundle] { return QJsonValue(hdc.queryPid(bundle)); },
+      [this, bundle, generation, revision](const QJsonValue &value, const QString &problem) {
+        if (revision != mAppStatusRevision)
+          return;
+        mAppStatusPending = false;
+        if (generation != mDeviceGeneration || bundle != mSelectedBundle)
+          return;
+        for (qsizetype i = 0; i < mApps.size(); ++i) {
+          auto app = mApps[i].toObject();
+          if (app["bundleName"].toString() != bundle)
+            continue;
+          const auto previous = app;
+          app["pid"] = problem.isEmpty() ? value : QJsonValue(QJsonValue::Null);
+          app["statusKnown"] = problem.isEmpty();
+          if (app != previous) {
+            mApps[i] = app;
+            emit appsChanged();
+          }
+          break;
+        }
+      }, &mAppInfoPool);
+}
+
 void Backend::refreshApps() {
   if (mLoadingApps || mTarget.isEmpty())
     return;
+  // The full refresh supersedes any older selected-app response.
+  cancelAppStatusQuery();
   mLoadingApps = true;
   emit loadingAppsChanged();
   auto hdc = client();

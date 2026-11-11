@@ -21,6 +21,12 @@
 #include <QScreen>
 #include <algorithm>
 #include <cmath>
+#ifdef Q_OS_WIN
+#include <QFutureWatcher>
+#include <QThread>
+#include <QtConcurrent>
+#include <qt_windows.h>
+#endif
 
 #ifndef Q_OS_MACOS
 void UiAutomation::activateApp() {}
@@ -200,6 +206,65 @@ bool UiAutomation::key(QObject *object, int code, int modifiers) {
       release(QEvent::KeyRelease, code, Qt::KeyboardModifiers(modifiers));
   QCoreApplication::sendEvent(window, &press);
   return QCoreApplication::sendEvent(window, &release);
+}
+
+bool UiAutomation::nativeTitlebarGesture(QObject *object, const QString &action, qreal y) {
+#ifdef Q_OS_WIN
+  auto *window = qobject_cast<QWindow *>(object);
+  if (!window || mNativeInputBusy || (action != "drag" && action != "doubleClick"))
+    return false;
+  const auto handle = reinterpret_cast<HWND>(window->winId());
+  RECT rect;
+  if (!GetClientRect(handle, &rect) || window->width() <= 0)
+    return false;
+  const qreal scale = qreal(rect.right - rect.left) / window->width();
+  POINT point{(rect.right - rect.left) / 2, LONG(qRound(y * scale))};
+  if (!ClientToScreen(handle, &point))
+    return false;
+  mNativeInputBusy = true;
+  mNativeInputSucceeded = false;
+  auto *watcher = new QFutureWatcher<bool>(this);
+  connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher] {
+    mNativeInputSucceeded = watcher->result();
+    mNativeInputBusy = false;
+    watcher->deleteLater();
+  });
+  // Send real OS input from another thread: native move loops must be able to
+  // receive later mouse motion/release even while the GUI is in DefWindowProc.
+  watcher->setFuture(QtConcurrent::run([point, scale, action] {
+    const auto button = [](DWORD flags) {
+      INPUT input{};
+      input.type = INPUT_MOUSE;
+      input.mi.dwFlags = flags;
+      return SendInput(1, &input, sizeof(input)) == 1;
+    };
+    bool ok = SetCursorPos(point.x, point.y);
+    QThread::msleep(80);
+    ok = button(MOUSEEVENTF_LEFTDOWN) && ok;
+    QThread::msleep(80);
+    if (action == "drag") {
+      for (int i = 1; i <= 12; ++i) {
+        ok = SetCursorPos(point.x + qRound(80 * scale * i / 12),
+                          point.y + qRound(50 * scale * i / 12)) && ok;
+        QThread::msleep(20);
+      }
+    }
+    ok = button(MOUSEEVENTF_LEFTUP) && ok;
+    if (action == "doubleClick") {
+      QThread::msleep(80);
+      ok = button(MOUSEEVENTF_LEFTDOWN) && ok;
+      QThread::msleep(80);
+      ok = button(MOUSEEVENTF_LEFTUP) && ok;
+    }
+    return ok;
+  }));
+  return true;
+#else
+  Q_UNUSED(object);
+  Q_UNUSED(action);
+  Q_UNUSED(y);
+  return false;
+#endif
 }
 QVariantMap UiAutomation::imageInfo(const QString &path) const {
   const QImage image = path.isEmpty() ? QGuiApplication::clipboard()->image() : QImage(path);

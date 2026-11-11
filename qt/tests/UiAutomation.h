@@ -15,6 +15,8 @@ class UiAutomation : public QObject {
   Q_OBJECT
   Q_PROPERTY(bool workloadDone READ workloadDone NOTIFY workloadFinished)
   Q_PROPERTY(bool nativePointer MEMBER mNativePointer)
+  Q_PROPERTY(bool nativeInputBusy MEMBER mNativeInputBusy)
+  Q_PROPERTY(bool nativeInputSucceeded MEMBER mNativeInputSucceeded)
 public:
   UiAutomation(QQmlApplicationEngine *engine, QObject *root, QObject *backend,
                const QString &file);
@@ -25,6 +27,7 @@ public:
   Q_INVOKABLE bool drag(QObject *item, double x1, double y1, double x2,
                         double y2);
   Q_INVOKABLE bool key(QObject *window, int key, int modifiers = 0);
+  Q_INVOKABLE bool nativeTitlebarGesture(QObject *window, const QString &action, qreal y = 14);
   Q_INVOKABLE bool screenshot(QObject *window, const QString &name);
   Q_INVOKABLE QVariantMap windowPlacement(QObject *window) const;
   Q_INVOKABLE QString clipboardText() const;
@@ -58,4 +61,6 @@ private:
   int mIndex = 0;
   bool mExecuted = false;
   bool mNativePointer = false;
+  bool mNativeInputBusy = false;
+  bool mNativeInputSucceeded = false;
 };

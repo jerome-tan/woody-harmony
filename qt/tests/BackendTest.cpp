@@ -36,9 +36,20 @@ private:
     emit monitor->topologyChanged(arrival);
   }
   int deviceQueries() const {
+    return commandCount("list targets");
+  }
+  int commandCount(const QByteArray &command) const {
     QFile log(statePath + ".commands");
     if (!log.open(QIODevice::ReadOnly)) return 0;
-    return log.readAll().count("list targets");
+    return log.readAll().count(command);
+  }
+  QVariantMap selectedApp() const {
+    for (const auto &entry : backend->apps()) {
+      const auto app = entry.toMap();
+      if (app["bundleName"].toString() == backend->selectedBundle())
+        return app;
+    }
+    return {};
   }
   void start(bool persist) {
     backend->startSampling({{"intervalMs", 200},
@@ -96,6 +107,53 @@ private slots:
     }
     state({{"failAppInfo", true}});
     QVERIFY(hdc.appDebugMode("com.example.woodyqa").isNull());
+  }
+  void selectedStatusRefreshDoesNotReloadInstalledApplications() {
+    backend->selectApp("com.example.woodyqa");
+    const auto appQueries = commandCount("bm dump -a");
+    for (const int pid : {7001, 0, 7002}) {
+      state({{"pid", pid}});
+      backend->refreshSelectedAppStatus();
+      QTRY_COMPARE(selectedApp()["pid"].toLongLong(), qint64(pid));
+      QVERIFY(selectedApp()["statusKnown"].toBool());
+    }
+    QCOMPARE(commandCount("bm dump -a"), appQueries);
+    QCOMPARE(backend->apps().size(), 2);
+    QCOMPARE(backend->selectedBundle(), QString("com.example.woodyqa"));
+    state({{"hdcFailure", "[Fail][E000004]:transport is not ready"}});
+    backend->refreshSelectedAppStatus();
+    QTRY_VERIFY(!selectedApp()["statusKnown"].toBool());
+    QVERIFY(selectedApp()["pid"].isNull());
+    state({{"pid", 7003}});
+    backend->refreshSelectedAppStatus();
+    QTRY_COMPARE(selectedApp()["pid"].toLongLong(), qint64(7003));
+    QVERIFY(selectedApp()["statusKnown"].toBool());
+    QCOMPARE(commandCount("bm dump -a"), appQueries);
+  }
+  void selectedStatusIgnoresRepliesAfterSelectionChangeAndDisconnect() {
+    backend->selectApp("com.example.woodyqa");
+    state({{"pid", 7001}, {"pidDelayMs", 900}});
+    const auto before = commandCount("pidof ");
+    backend->refreshSelectedAppStatus();
+    backend->refreshSelectedAppStatus(); // Never overlap requests for one selection.
+    QTRY_COMPARE(commandCount("pidof "), before + 1);
+    state({{"pid", 7002}, {"runningBundle", "com.example.stopped"}});
+    backend->selectApp("com.example.stopped");
+    backend->refreshSelectedAppStatus();
+    QTRY_COMPARE(selectedApp()["pid"].toLongLong(), qint64(7002));
+    QTest::qWait(1000);
+    QCOMPARE(selectedApp()["pid"].toLongLong(), qint64(7002));
+
+    state({{"pid", 7003}, {"pidDelayMs", 900}});
+    const auto next = commandCount("pidof ");
+    backend->refreshSelectedAppStatus();
+    QTRY_COMPARE(commandCount("pidof "), next + 1);
+    state({{"targets", QJsonArray{}}});
+    deviceEvent(false);
+    QTRY_VERIFY(backend->target().isEmpty());
+    QTest::qWait(1000);
+    QVERIFY(backend->apps().isEmpty());
+    QVERIFY(backend->selectedBundle().isEmpty());
   }
   void hdcFailureWithZeroExitIsNotDeviceMetadata() {
     HdcClient hdc;
