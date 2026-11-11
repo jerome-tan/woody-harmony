@@ -34,8 +34,9 @@ Process start(const fs::path &exe, const std::vector<fs::path> &args) {
   std::wstring command = quote(exe.wstring());
   for (const auto &arg : args) {
     const auto value = arg.wstring();
-    // NSIS consumes the raw remainder after /D=, including spaces.
-    command += L" " + (value.starts_with(L"/D=") ? value : quote(value));
+    // NSIS requires an unquoted /S (its END_OF_ARG excludes quotes), and
+    // consumes the raw remainder after /D=, including spaces.
+    command += L" " + (value == L"/S" || value.starts_with(L"/D=") ? value : quote(value));
   }
   STARTUPINFOW info{}; info.cb = sizeof(info); PROCESS_INFORMATION process{};
   if (!CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE,
@@ -123,7 +124,7 @@ void preservePortableFiles(const fs::path &old, const fs::path &staged) {
     const auto relative = entry.path().lexically_relative(old);
     if (managed.contains(relative)) continue;
     const auto destination = staged / relative;
-    if (entry.is_directory()) { fs::create_directories(destination); continue; }
+    if (!entry.is_symlink() && entry.is_directory()) { fs::create_directories(destination); continue; }
     if (fs::exists(destination)) throw std::runtime_error("用户文件与新版程序重名，请手动更新");
     fs::create_directories(destination.parent_path());
     fs::copy(entry.path(), destination, fs::copy_options::copy_symlinks);
