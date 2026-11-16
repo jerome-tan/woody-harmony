@@ -110,6 +110,8 @@ Backend::Backend(QString profile, QObject *parent)
   } catch (const std::exception &) {
   }
   mHdc = mSettings["hdcPath"].toString();
+  mTotalIncludesSwap = mPreferences.value("memory.totalPss.includesSwap").toBool(false);
+  mLive->setTotalIncludesSwap(mTotalIncludesSwap);
   if (sessionsDir().isEmpty() && !QFileInfo::exists(defaultSessionsDir())) {
     const QDir parent(QFileInfo(mProfile).absolutePath());
     for (const auto &legacy :
@@ -1036,6 +1038,7 @@ void Backend::openReport(const QString &directory) {
           return;
         }
         auto *report = new Report(this);
+        report->setTotalIncludesSwap(mTotalIncludesSwap);
         report->load(data);
         emit reportOpened(report);
       });
@@ -1070,6 +1073,7 @@ void Backend::openCompare(const QStringList &directories) {
         QVariantList reports;
         for (const auto &data : value.toArray()) {
           auto *report = new Report(this);
+          report->setTotalIncludesSwap(mTotalIncludesSwap);
           report->load(data.toObject());
           report->compareOrdinal = reports.size();
           report->compareColor = Report::comparisonColor(reports.size()).name();
@@ -1150,4 +1154,14 @@ void Backend::setUiPreference(const QString &key, const QVariant &value) {
   } catch (const std::exception &problem) {
     emit error(failure(problem));
   }
+}
+void Backend::setTotalIncludesSwap(bool value) {
+  if (mTotalIncludesSwap == value)
+    return;
+  mTotalIncludesSwap = value;
+  for (auto *report :
+       findChildren<Report *>(QString(), Qt::FindDirectChildrenOnly))
+    report->setTotalIncludesSwap(value);
+  setUiPreference(QStringLiteral("memory.totalPss.includesSwap"), value);
+  emit totalIncludesSwapChanged();
 }

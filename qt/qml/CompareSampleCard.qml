@@ -18,6 +18,15 @@ WCard {
     property alias chartItem: chart
     signal pointPicked(int index)
     signal visibilityToggled()
+    function totalAt(index) {
+        var sample = card.report.sampleAt(index);
+        if (!sample.total)
+            return null;
+        var value = Number(sample.total.pssTotalKb) || 0;
+        if (!card.report.totalIncludesSwap)
+            value = Math.max(0, value - (Number(sample.total.swapPssTotalKb) || 0));
+        return value;
+    }
     padding: 8
     Rectangle {
         width: parent.width; height: 34; radius: 4
@@ -123,7 +132,7 @@ WCard {
                 font.pixelSize: 12; color: T.muted
             }
             WText {
-                text: F.validSample(card.report.sampleAt(card.selectedIndex)) ? F.memoryMb(card.report.sampleAt(card.selectedIndex).total.pssTotalKb) : "—"
+                text: F.validSample(card.report.sampleAt(card.selectedIndex)) ? F.memoryMb(card.totalAt(card.selectedIndex)) : "—"
                 font.pixelSize: 14; font.weight: Font.DemiBold
             }
         }

@@ -157,7 +157,7 @@ void MemoryPlot::rebuild() {
         series.points.append(
             {(sample["timestamp"].toDouble() - first) / 1000 + offset,
              (missing || !Report::isMeasurement(sample)) ? std::numeric_limits<double>::quiet_NaN()
-                     : Report::value(sample, metric)});
+                     : report->valueFor(sample, metric)});
       }
       mSeries.append(std::move(series));
     }
@@ -228,9 +228,16 @@ void MemoryPlot::draw(QPainter &p) {
         area.bottom() - (v.y() - lower) / (upper - lower) * area.height());
   };
   p.setPen(QColor("#665E73"));
+  const bool totalIncludesSwap =
+      mReports.isEmpty() || !mReports.first() ||
+      mReports.first()->totalIncludesSwap();
   p.drawText(QRectF(0, 0, area.left() + 30, 24), Qt::AlignCenter,
-             mReports.size() > 1 ? (mMetric == "Total" ? "Total Pss" : mMetric)
-                                 : QStringLiteral("内存"));
+             mReports.size() > 1
+                 ? (mMetric == "Total"
+                        ? (totalIncludesSwap ? QStringLiteral("Total Pss")
+                                             : QStringLiteral("Resident Pss"))
+                        : mMetric)
+                 : QStringLiteral("内存"));
   const int ticks = area.height() < 150 ? 3 : 5;
   for (int i = 0; i <= ticks; ++i) {
     const double y = area.bottom() - area.height() * i / ticks;
@@ -460,7 +467,7 @@ void MemoryPlot::hoverAt(const QPointF &position) {
                           sample["categories"].toObject().contains(mMetric);
       items.append(
           QVariantMap{{"name", series.label},
-                      {"kb", (exists && Report::isMeasurement(sample)) ? QVariant(Report::value(sample, mMetric))
+                      {"kb", (exists && Report::isMeasurement(sample)) ? QVariant(r->valueFor(sample, mMetric))
                                     : QVariant()},
                       {"color", series.color.name()},
                       {"percent", -1}});

@@ -16,7 +16,7 @@ RowLayout {
     WText {
         Layout.fillWidth: true
         Layout.minimumWidth: 60
-        text: F.categoryName(row.detail.name)
+        text: row.detail.label || F.categoryName(row.detail.name)
         font.pixelSize: 12
         font.bold: row.detail.name === "Total"
     }

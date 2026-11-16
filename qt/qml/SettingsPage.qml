@@ -133,6 +133,30 @@ ScrollView {
         WCard {
             Layout.fillWidth: true
             Layout.maximumWidth: 840
+            implicitHeight: 104
+            title: "内存显示"
+            headerColor: T.sectionHeader
+            Column {
+                width: parent.width
+                spacing: 8
+                WCheck {
+                    objectName: "totalIncludesSwap"
+                    text: "Total 包含 SwapPss"
+                    checked: backend.totalIncludesSwap
+                    onClicked: backend.setTotalIncludesSwap(checked)
+                }
+                WText {
+                    width: parent.width
+                    text: "开启：Total = PSS + SwapPss；关闭：Total 只统计驻留 PSS。"
+                    color: T.muted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+        WCard {
+            Layout.fillWidth: true
+            Layout.maximumWidth: 840
             implicitHeight: 112
             title: "软件更新"
             headerColor: T.sectionHeader

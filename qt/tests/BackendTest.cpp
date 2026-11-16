@@ -545,7 +545,7 @@ private slots:
   void watchDoesNotWriteReports() {
     start(false);
     QTRY_VERIFY_WITH_TIMEOUT(backend->live()->count() >= 2, 15000);
-    QCOMPARE(backend->live()->stats()["last"].toInt(), 196608);
+    QCOMPARE(backend->live()->stats()["last"].toInt(), 196480);
     backend->stopSampling();
     QTRY_VERIFY_WITH_TIMEOUT(!backend->sampling(), 15000);
     QVERIFY(!QFileInfo::exists(reports));

@@ -10,6 +10,8 @@ class Report : public QObject {
   Q_PROPERTY(QVariantMap meta READ meta NOTIFY changed)
   Q_PROPERTY(QVariantMap snapshot READ snapshot NOTIFY changed)
   Q_PROPERTY(QVariantMap stats READ stats NOTIFY changed)
+  Q_PROPERTY(bool totalIncludesSwap READ totalIncludesSwap WRITE
+                 setTotalIncludesSwap NOTIFY changed)
   Q_PROPERTY(QStringList categories READ categories NOTIFY changed)
   Q_PROPERTY(int count READ count NOTIFY changed)
   Q_PROPERTY(double duration READ duration NOTIFY changed)
@@ -24,6 +26,8 @@ public:
   QVariantMap meta() const { return metadata.toVariantMap(); }
   QVariantMap snapshot() const { return snapshotData.toVariantMap(); }
   QVariantMap stats() const;
+  bool totalIncludesSwap() const { return mTotalIncludesSwap; }
+  void setTotalIncludesSwap(bool value);
   QStringList categories() const;
   int count() const { return samples.size(); }
   double duration() const;
@@ -32,10 +36,13 @@ public:
   void reset();
   Q_INVOKABLE QVariantMap sampleAt(int index) const;
   Q_INVOKABLE QVariantMap sampleDetails(int index) const;
+  Q_INVOKABLE double totalAt(int index) const;
   Q_INVOKABLE int nearest(double seconds) const;
   Q_INVOKABLE int peakIndex(const QString &metric = "Total") const;
   static bool isMeasurement(const QJsonObject &sample);
-  static double value(const QJsonObject &sample, const QString &metric);
+  static double value(const QJsonObject &sample, const QString &metric,
+                      bool totalIncludesSwap = false);
+  double valueFor(const QJsonObject &sample, const QString &metric) const;
   static QColor comparisonColor(int index);
   static QColor color(const QString &category, int index = 0);
 signals:
@@ -45,4 +52,5 @@ private:
   mutable QStringList mCategories;
   mutable QVariantMap mStats;
   mutable bool mCategoriesValid = false, mStatsValid = false;
+  bool mTotalIncludesSwap = false;
 };

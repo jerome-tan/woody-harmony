@@ -10,7 +10,17 @@ ColumnLayout {
     objectName: "snapshotBody"
     property var snapshot: ({})
     readonly property var total: snapshot.total || {}
-    readonly property var rows: F.categoryRows(snapshot)
+    readonly property bool includeSwap: backend.totalIncludesSwap
+    readonly property real residentTotalKb: Math.max(0, (Number(total.pssTotalKb) || 0) - (Number(total.swapPssTotalKb) || 0))
+    readonly property var rows: {
+        var result = F.categoryRows(snapshot);
+        if (!includeSwap && result.length > 0) {
+            var aggregate = Object.assign({}, result[0]);
+            aggregate.pssTotalKb = Math.max(0, (Number(aggregate.pssTotalKb) || 0) - (Number(aggregate.swapPssTotalKb) || 0));
+            result[0] = aggregate;
+        }
+        return result;
+    }
     readonly property var detailTabs: {
         var tabs = [];
         if (snapshot.ashmemDetail)
@@ -44,8 +54,8 @@ ColumnLayout {
         Layout.preferredHeight: implicitHeight
         values: [
             {
-                label: "Total Pss",
-                value: F.bytes(root.total.pssTotalKb),
+                label: root.includeSwap ? "Total Pss（含 Swap）" : "驻留 Pss",
+                value: F.bytes(root.includeSwap ? root.total.pssTotalKb : root.residentTotalKb),
                 color: T.accent
             },
             {

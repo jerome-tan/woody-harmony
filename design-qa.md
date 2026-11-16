@@ -710,3 +710,11 @@ CMake 构建成功，core（8 项）与 image（6 项）测试通过；新增测
 - 插入后先确认 shell 通道就绪再选择设备；沿用事件触发的有限重试，不恢复周期轮询。
 - 手动刷新同一设备会更新设备信息和应用列表。
 - 4 组 CTest 全部通过；固定 macOS 部署包真实窗口验证启动和刷新均恢复正确型号、WPS Debug 与 PID。Windows 未做本次实机验证。
+
+## 2026-11-16 Total PSS 是否包含 SwapPss
+
+`hidumper` 的 Total 行第一列是 `totalAllPss`（PSS + SwapPss），分类行是纯驻留 PSS。原界面统一使用 TotalPss，分类百分比以它作分母，导致分类之和只占 Total 的一部分；实测一份 WPS 录制的 Total 为 22,418,785 kB，SwapPss 为 19,457,786 kB，分类合计 2,960,999 kB，正好等于 Total − SwapPss。
+
+新增全局 Total 显示口径，默认显示驻留 PSS（Total − SwapPss），使趋势图、峰值/均值/结束值、明细 Total 行、快照 Total 卡片、对比表格和图片导出与分类明细一致。需要 HarmonyOS TotalPss 口径时，可在图表标题栏或“设置 → 内存显示”打开“Total 包含 SwapPss”；此时明细 Total 行显示“Total（含 Swap）”。SwapPss 不单独绘制曲线，当前采样点的数值显示在分类明细中。宽度足够时，采样点、平滑曲线和 Total 含 SwapPss 直接显示在图表标题栏；窄窗口仍使用“显示选项”弹层，宽窗口的弹层只保留悬浮框透明度。选择写入 `qt-ui.json`，历史报告无需迁移。
+
+本地编译通过；CTest 6/6 通过。UI smoke 201 项原生界面检查通过，新增检查覆盖默认 Total 等于 TotalPss − SwapPss（驻留 PSS）、Total 行标签为“Total（驻留）”、打开开关后回到 TotalPss，以及宽屏标题栏内联显示选项。已更新本地 staging 和 portable ZIP；未重新制作 DMG/安装包，Windows 未复测，未推送 GitHub。

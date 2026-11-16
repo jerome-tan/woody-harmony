@@ -86,6 +86,50 @@ private slots:
     ReportStore::remove(dir, "");
     QVERIFY(!QDir(dir).exists());
   }
+  void totalCanExcludeSwapPss() {
+    Report report;
+    const auto sample = [](int time, int pss, int swapPss) {
+      return QJsonObject{
+          {"timestamp", time},
+          {"pid", 42},
+          {"total", QJsonObject{{"pssTotalKb", pss},
+                                {"swapPssTotalKb", swapPss},
+                                {"privateDirtyKb", 10}}},
+          {"categories",
+           QJsonObject{{"native heap",
+                        QJsonObject{{"pssTotalKb", pss - swapPss}}}}}};
+    };
+    report.append(sample(1000, 1000, 300));
+    report.append(sample(2000, 2000, 600));
+    QVERIFY(!report.totalIncludesSwap());
+    QCOMPARE(report.stats()["peak"].toInt(), 1400);
+    QCOMPARE(report.stats()["growth"].toInt(), 700);
+    QCOMPARE(report.totalAt(1), 1400.0);
+    QCOMPARE(report.peakIndex(), 1);
+    QCOMPARE(Report::value(report.samples[1], "Total", false), 1400.0);
+    QCOMPARE(Report::value(report.samples[1], "Total", true), 2000.0);
+    auto details = report.sampleDetails(1);
+    auto rows = details["items"].toList();
+    QCOMPARE(details["swapPssKb"].toInt(), 600);
+    QCOMPARE(rows[0].toMap()["name"].toString(), QString("Total"));
+    QCOMPARE(rows[0].toMap()["kb"].toDouble(), 1400.0);
+    QCOMPARE(rows[0].toMap()["label"].toString(), QString("Total（驻留）"));
+    QCOMPARE(rows[0].toMap()["percent"].toDouble(), 100.0);
+    QCOMPARE(rows[1].toMap()["percent"].toDouble(), 100.0);
+
+    report.setTotalIncludesSwap(true);
+    QVERIFY(report.totalIncludesSwap());
+    QCOMPARE(report.stats()["peak"].toInt(), 2000);
+    QCOMPARE(report.totalAt(1), 2000.0);
+    details = report.sampleDetails(1);
+    rows = details["items"].toList();
+    QCOMPARE(rows[0].toMap()["label"].toString(), QString("Total（含 Swap）"));
+    QCOMPARE(rows[0].toMap()["percent"].toDouble(), 100.0);
+    QCOMPARE(rows[1].toMap()["percent"].toDouble(), 70.0);
+
+    report.setTotalIncludesSwap(false);
+    QCOMPARE(report.stats()["peak"].toInt(), 1400);
+  }
   void waitingSamplesAreNotMeasurements() {
     Report report;
     const auto sample = [](int time, QJsonValue pid, int value) {

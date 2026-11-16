@@ -96,7 +96,7 @@ ColumnLayout {
         Layout.fillWidth: true
         values: [
             {
-                label: "当前 PSS",
+                label: backend.totalIncludesSwap ? "当前 PSS（含 Swap）" : "当前驻留 PSS",
                 value: root.waiting ? "—" : F.bytes(root.stats.last)
             },
             {

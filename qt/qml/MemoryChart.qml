@@ -27,6 +27,7 @@ WCard {
     property bool points: false
     readonly property bool blockedByDialog: Window.window ? !!Window.window.modalDialogOpen : false
     readonly property bool narrow: width < 1000
+    readonly property bool inlineOptions: controls && !narrow
     readonly property bool hasCategories: legend && reports.length === 1
     readonly property var detailReport: hasCategories ? reports[0] : null
     readonly property int detailIndex: detailReport && detailReport.count > 0 ? (selectedIndex >= 0 ? Math.min(selectedIndex, detailReport.count - 1) : detailReport.count - 1) : -1
@@ -34,6 +35,8 @@ WCard {
         // Reading count keeps the default latest point reactive during recording.
         if (!detailReport || detailReport.count === 0)
             return ({});
+        // Reading the mode keeps the Total row reactive when it changes.
+        var includeSwap = detailReport.totalIncludesSwap;
         return detailReport.sampleDetails(detailIndex);
     }
     function selectPoint(index) {
@@ -57,6 +60,28 @@ WCard {
     extras: Row {
         visible: chart.controls
         spacing: 8
+        Row {
+            visible: chart.inlineOptions
+            spacing: 10
+            WCheck {
+                objectName: "inlinePoints"
+                text: "采样点"
+                checked: chart.points
+                onClicked: chart.points = checked
+            }
+            WCheck {
+                objectName: "inlineSmooth"
+                text: "平滑曲线"
+                checked: chart.smooth
+                onClicked: chart.smooth = checked
+            }
+            WCheck {
+                objectName: "inlineTotalSwap"
+                text: "Total 含 SwapPss"
+                checked: backend.totalIncludesSwap
+                onClicked: backend.setTotalIncludesSwap(checked)
+            }
+        }
         WButton {
             id: categoriesButton
             objectName: "categoriesButton"
@@ -68,7 +93,7 @@ WCard {
         WButton {
             id: displayButton
             objectName: "displayOptionsButton"
-            text: "显示选项"
+            text: chart.inlineOptions ? "更多" : "显示选项"
             small: true
             onClicked: displayOptions.open()
         }
@@ -106,17 +131,41 @@ WCard {
             spacing: 14
             WSwitch {
                 objectName: "pointsSwitch"
+                visible: !chart.inlineOptions
                 text: "采样点"
                 checked: chart.points
                 onClicked: chart.points = checked
             }
             WSwitch {
                 objectName: "smoothSwitch"
+                visible: !chart.inlineOptions
                 text: "平滑曲线"
                 checked: chart.smooth
                 onClicked: chart.smooth = checked
             }
             Rectangle {
+                visible: !chart.inlineOptions
+                width: parent.width
+                height: 1
+                color: T.border
+            }
+            WCheck {
+                objectName: "totalSwapSwitch"
+                visible: !chart.inlineOptions
+                text: "Total 包含 SwapPss"
+                checked: backend.totalIncludesSwap
+                onClicked: backend.setTotalIncludesSwap(checked)
+            }
+            WText {
+                visible: !chart.inlineOptions
+                width: parent.width
+                text: backend.totalIncludesSwap ? "Total = PSS + SwapPss，包含已换出内存。" : "Total = 驻留 PSS，不包含 SwapPss。"
+                color: T.muted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+            Rectangle {
+                visible: !chart.inlineOptions
                 width: parent.width
                 height: 1
                 color: T.border
@@ -190,6 +239,14 @@ WCard {
                     text: "此采样点无有效内存数据"
                     color: T.muted
                     font.pixelSize: 12
+                }
+                WText {
+                    objectName: "swapPssDetail"
+                    width: parent.width
+                    visible: chart.detailIndex >= 0 && Number(chart.detailData.swapPssKb) > 0
+                    text: "Swap Pss  " + F.bytes(chart.detailData.swapPssKb) + "（已换出）"
+                    color: T.muted
+                    font.pixelSize: 11
                 }
                 Rectangle {
                     width: parent.width

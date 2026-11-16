@@ -28,6 +28,7 @@ class Backend : public QObject {
   Q_PROPERTY(Report *live READ live CONSTANT)
   Q_PROPERTY(QVariantList records READ records NOTIFY recordsChanged)
   Q_PROPERTY(QString profile READ profile CONSTANT)
+  Q_PROPERTY(bool totalIncludesSwap READ totalIncludesSwap NOTIFY totalIncludesSwapChanged)
 public:
   explicit Backend(QString profile = {}, QObject *parent = nullptr);
   ~Backend() override;
@@ -40,6 +41,7 @@ public:
   QString sessionsDir() const { return mSettings["sessionsDir"].toString(); }
   QString defaultSessionsDir() const;
   QString profile() const { return mProfile; }
+  bool totalIncludesSwap() const { return mTotalIncludesSwap; }
   QVariantMap status() const { return mStatus.toVariantMap(); }
   bool sampling() const { return mActive; }
   bool snapshotting() const { return mSnapshotting; }
@@ -65,6 +67,7 @@ public:
   Q_INVOKABLE void refreshRecords();
   Q_INVOKABLE void saveHdcPath(const QString &value);
   Q_INVOKABLE void saveSessionsDir(const QString &value);
+  Q_INVOKABLE void setTotalIncludesSwap(bool value);
   Q_INVOKABLE void startSampling(const QVariantMap &config,
                                  const QString &bundle, const QString &label,
                                  bool persist, const QString &taskName);
@@ -101,6 +104,7 @@ signals:
   void recordsChanged();
   void statusChanged();
   void snapshottingChanged();
+  void totalIncludesSwapChanged();
   void error(const QString &message);
   void notification(const QString &message);
   void reportOpened(Report *report);
@@ -132,6 +136,7 @@ private:
   QJsonObject mSettings, mPreferences, mDevice, mStatus;
   QJsonArray mDevices, mApps, mRecords;
   Report *mLive;
+  bool mTotalIncludesSwap = false;
   QTimer mTimer, mDeviceRetryTimer;
   DeviceMonitor mDeviceMonitor;
   QElapsedTimer mDeviceRetryClock;

@@ -47,9 +47,15 @@ bool Report::isMeasurement(const QJsonObject &sample) {
          (!sample.contains("pid") || sample["pid"].toInteger() > 0);
 }
 
-double Report::value(const QJsonObject &sample, const QString &metric) {
-  if (metric == "Total")
-    return sample["total"].toObject()["pssTotalKb"].toDouble();
+double Report::value(const QJsonObject &sample, const QString &metric,
+                     bool totalIncludesSwap) {
+  if (metric == "Total") {
+    const auto total = sample["total"].toObject();
+    const double pss = total["pssTotalKb"].toDouble();
+    return totalIncludesSwap
+               ? pss
+               : std::max(0.0, pss - total["swapPssTotalKb"].toDouble());
+  }
   if (metric == "Private Dirty")
     return sample["total"].toObject()["privateDirtyKb"].toDouble();
   if (metric == "Swap Pss")
@@ -60,6 +66,25 @@ double Report::value(const QJsonObject &sample, const QString &metric) {
       .toObject()[metric]
       .toObject()["pssTotalKb"]
       .toDouble();
+}
+
+double Report::valueFor(const QJsonObject &sample,
+                        const QString &metric) const {
+  return value(sample, metric, mTotalIncludesSwap);
+}
+
+void Report::setTotalIncludesSwap(bool value) {
+  if (mTotalIncludesSwap == value)
+    return;
+  mTotalIncludesSwap = value;
+  mStatsValid = false;
+  emit changed();
+}
+
+double Report::totalAt(int index) const {
+  return index < 0 || index >= samples.size()
+             ? 0
+             : valueFor(samples[index], "Total");
 }
 
 void Report::load(const QJsonObject &data) {
@@ -128,15 +153,22 @@ QVariantMap Report::sampleDetails(int index) const {
   const auto heading = QString::number(seconds, 'f', 1) + " s · " +
       QDateTime::fromMSecsSinceEpoch(timestamp).toString("HH:mm:ss.zzz");
   const bool valid = isMeasurement(sample);
-  const double total = value(sample, "Total");
+  const double total = valueFor(sample, "Total");
+  const double swapPss =
+      sample["total"].toObject()["swapPssTotalKb"].toDouble();
   QList<QVariantMap> rows;
   const auto names = categories();
   for (int i = 0; i < names.size(); ++i) {
     const auto &name = names[i];
-    const double kb = value(sample, name);
-    rows.append({{"name", name}, {"kb", valid ? QVariant(kb) : QVariant()},
-                 {"color", color(name, i).name()},
-                 {"percent", valid ? (total > 0 ? kb / total * 100 : 0) : -1}});
+    const double kb = valueFor(sample, name);
+    QVariantMap row{{"name", name},
+                    {"kb", valid ? QVariant(kb) : QVariant()},
+                    {"color", color(name, i).name()},
+                    {"percent", valid ? (total > 0 ? kb / total * 100 : 0) : -1}};
+    if (name == "Total")
+      row["label"] = mTotalIncludesSwap ? QStringLiteral("Total（含 Swap）")
+                                        : QStringLiteral("Total（驻留）");
+    rows.append(row);
   }
   std::stable_sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) {
     if ((a["name"] == "Total") != (b["name"] == "Total"))
@@ -146,7 +178,10 @@ QVariantMap Report::sampleDetails(int index) const {
   QVariantList items;
   for (const auto &row : rows)
     items.append(row);
-  return {{"heading", heading}, {"items", items}, {"valid", valid}};
+  return {{"heading", heading},
+          {"items", items},
+          {"valid", valid},
+          {"swapPssKb", valid ? swapPss : 0}};
 }
 
 int Report::nearest(double seconds) const {
@@ -174,7 +209,7 @@ int Report::peakIndex(const QString &metric) const {
   for (int i = 0; i < samples.size(); ++i) {
     if (!isMeasurement(samples[i]))
       continue;
-    const auto v = value(samples[i], metric);
+    const auto v = valueFor(samples[i], metric);
     if (v > peak) {
       peak = v;
       index = i;
@@ -191,7 +226,7 @@ QVariantMap Report::stats() const {
   QJsonObject previous, latest;
   for (const auto &sample : samples) {
     if (isMeasurement(sample)) {
-      const auto v = value(sample, "Total");
+      const auto v = valueFor(sample, "Total");
       if (!validCount) first = v;
       last = v;
       sum += v;

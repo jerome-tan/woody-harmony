@@ -11,6 +11,7 @@ WindowBase {
     property var report: null
     readonly property var meta: report ? report.meta : {}
     readonly property var stats: report ? report.stats : {}
+    readonly property bool includeSwap: backend.totalIncludesSwap
     readonly property bool snapshot: meta.type === "snapshot"
     transientParent: null
     caption: F.title(meta)
@@ -92,16 +93,16 @@ WindowBase {
                 Layout.preferredHeight: implicitHeight
                 values: [
                     {
-                        label: "峰值 PSS",
+                        label: win.includeSwap ? "峰值 PSS（含 Swap）" : "峰值驻留 PSS",
                         value: win.stats.validCount ? F.bytes(win.stats.peak) : "—",
                         color: T.accent
                     },
                     {
-                        label: "均值 PSS",
+                        label: win.includeSwap ? "均值 PSS（含 Swap）" : "均值驻留 PSS",
                         value: win.stats.validCount ? F.bytes(win.stats.avg) : "—"
                     },
                     {
-                        label: "结束 PSS",
+                        label: win.includeSwap ? "结束 PSS（含 Swap）" : "结束驻留 PSS",
                         value: win.stats.validCount ? F.bytes(win.stats.last) : "—"
                     },
                     {

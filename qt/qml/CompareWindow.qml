@@ -23,6 +23,7 @@ WindowBase {
     property string alignment: "peak"
     property real tipAlpha: .8
     property var hiddenReports: []
+    readonly property bool includeSwap: backend.totalIncludesSwap
     property real split: Math.max(25, Math.min(75, Number(backend.uiPreference("compare.chartWidth.v4", 42))))
     property bool exporting: false
     property var differenceColumnWidths: ({})
@@ -101,6 +102,14 @@ WindowBase {
     function percent(delta, base) {
         return base === null || base === 0 || delta === null ? "—" : (delta >= 0 ? "+" : "−") + (Math.abs(delta / base) * 100).toFixed(1) + "%";
     }
+    function totalValue(r, s) {
+        if (!s || !s.total)
+            return null;
+        var value = Number(s.total.pssTotalKb) || 0;
+        if (!r.totalIncludesSwap)
+            value = Math.max(0, value - (Number(s.total.swapPssTotalKb) || 0));
+        return value;
+    }
     function selected(r) {
         var key = r.meta.sessionDir;
         return picked[key] === undefined ? r.peakIndex("Total") : picked[key];
@@ -129,8 +138,8 @@ WindowBase {
                 fixed: name === "Total",
                 maxDiff: 0
             };
-            var raw = values.map(function (s) {
-                return name === "Total" ? (s.total ? s.total.pssTotalKb : null) : (s.categories && s.categories[name] ? s.categories[name].pssTotalKb : null);
+            var raw = values.map(function (s, i) {
+                return name === "Total" ? win.totalValue(reports[i], s) : (s.categories && s.categories[name] ? s.categories[name].pssTotalKb : null);
             });
             row.base = raw[win.baselineIndex] === undefined ? null : raw[win.baselineIndex];
             raw.forEach(function (v, i) {
@@ -441,8 +450,8 @@ WindowBase {
                             },
                             {
                                 key: "peak",
-                                title: "峰值 PSS",
-                                width: 120,
+                                title: win.includeSwap ? "峰值 PSS（含 Swap）" : "峰值驻留 PSS",
+                                width: 140,
                                 align: "right",
                                 format: function (v, r) {
                                     return r.validCount ? F.memoryMb(v) : "—";
